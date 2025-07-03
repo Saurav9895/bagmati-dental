@@ -263,7 +263,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                         New Appointment
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="sm:max-w-5xl">
                                     <DialogHeader>
                                         <DialogTitle>New Appointment for {patient.name}</DialogTitle>
                                         <DialogDescription>
