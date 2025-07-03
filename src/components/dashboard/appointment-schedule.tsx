@@ -1,6 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { ChevronLeft, ChevronRight, PlusCircle, Check, ChevronsUpDown, Loader2, Trash2 } from 'lucide-react';
 import { z } from 'zod';
@@ -292,7 +294,11 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                 .map((appt) => (
                   <Card key={appt.id} className="bg-primary/10 border-primary/50 text-sm relative group">
                     <CardContent className="p-2">
-                      <p className="font-semibold">{appt.patientName}</p>
+                      <p className="font-semibold">
+                        <Link href={`/dashboard/patients/${appt.patientId}`} className="hover:underline">
+                          {appt.patientName}
+                        </Link>
+                      </p>
                       <p className="text-xs">{appt.procedure}</p>
                       <p className="text-xs text-muted-foreground">{formatTime12h(appt.time)} - {appt.doctor}</p>
                     </CardContent>
