@@ -1,11 +1,12 @@
-import { StockList } from "@/components/dashboard/stock-list";
-import { getStockItems } from "@/app/actions/stock";
+'use client';
 
-export default async function StockPage() {
-  const stockItems = await getStockItems();
-  return (
-    <div>
-      <StockList initialStockItems={stockItems} />
-    </div>
-  );
+import { redirect } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function StockPage() {
+  useEffect(() => {
+    redirect('/dashboard');
+  }, []);
+  
+  return null;
 }

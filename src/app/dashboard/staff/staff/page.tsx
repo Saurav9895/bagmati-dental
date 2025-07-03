@@ -1,11 +1,12 @@
-import { StaffList } from "@/components/dashboard/staff-list";
-import { getStaff } from "@/app/actions/staff";
+'use client';
 
-export default async function StaffPage() {
-  const staff = await getStaff();
-  return (
-    <div>
-      <StaffList initialStaff={staff} />
-    </div>
-  );
+import { redirect } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function StaffPage() {
+  useEffect(() => {
+    redirect('/dashboard');
+  }, []);
+  
+  return null;
 }
