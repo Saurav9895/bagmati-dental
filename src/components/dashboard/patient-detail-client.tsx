@@ -4,7 +4,7 @@
 import * as React from 'react';
 import type { Patient, Treatment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2 } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { addTreatmentToPatient, removeTreatmentFromPatient } from '@/app/actions/patients';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Separator } from '@/components/ui/separator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type AssignedTreatment = Treatment & { dateAdded: string };
 
@@ -26,6 +28,22 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
     const [isDeleting, setIsDeleting] = React.useState(false);
 
     const { toast } = useToast();
+
+    const totalAmount = React.useMemo(() => {
+        if (!patient || !patient.assignedTreatments) {
+        return 0;
+        }
+        return patient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
+    }, [patient]);
+
+    const amountPaid = React.useMemo(() => {
+        if (!patient || !patient.payments) {
+            return 0;
+        }
+        return patient.payments.reduce((total, payment) => total + payment.amount, 0);
+    }, [patient]);
+
+    const balanceDue = totalAmount - amountPaid;
 
     const handleAddTreatment = async () => {
         if (!selectedTreatmentId) {
@@ -221,6 +239,63 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
                             </div>
                         </CardContent>
                     </Card>
+                    
+                    <Card className="md:col-span-2 lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CreditCard className="h-5 w-5" />
+                                Billing Summary & Payment History
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2 text-right font-medium">
+                                <div className="flex justify-end items-center text-md">
+                                    <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                                    <span>${totalAmount.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-end items-center text-md">
+                                    <span className="text-muted-foreground mr-4">Total Paid:</span>
+                                    <span className="text-green-600">${amountPaid.toFixed(2)}</span>
+                                </div>
+                                <Separator className="my-2" />
+                                <div className="flex justify-end items-center text-lg font-bold">
+                                    <span className="text-muted-foreground mr-4">Balance Due:</span>
+                                    <span>${balanceDue.toFixed(2)}</span>
+                                </div>
+                            </div>
+                            
+                            <Separator />
+                            
+                            <div>
+                                <h4 className="font-semibold mb-2 text-base">Payment History</h4>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Method</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {patient.payments && patient.payments.length > 0 ? (
+                                            patient.payments.map(payment => (
+                                                <TableRow key={payment.dateAdded}>
+                                                    <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                                                    <TableCell>{payment.method}</TableCell>
+                                                    <TableCell className="text-right">${payment.amount.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center h-24">No payments recorded yet.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                 </div>
             </div>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
