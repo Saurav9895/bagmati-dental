@@ -1,3 +1,4 @@
+
 import { AppointmentSchedule } from "@/components/dashboard/appointment-schedule";
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -5,7 +6,7 @@ import type { Appointment, Patient } from '@/lib/types';
 
 async function getAppointments(): Promise<Appointment[]> {
     const appointmentsCollection = collection(db, 'appointments');
-    const q = query(appointmentsCollection, orderBy('date', 'desc'), orderBy('time', 'asc'));
+    const q = query(appointmentsCollection, orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
