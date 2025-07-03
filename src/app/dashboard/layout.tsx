@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Sidebar>
         <SidebarInset>
           <DashboardHeader title={pageTitle} />
-          <main className="flex-1 py-4 md:py-6 px-[50px]">
+          <main className="flex-1 py-4 md:py-6 pl-[50px] pr-4 md:pr-6">
             {children}
           </main>
         </SidebarInset>
