@@ -346,9 +346,9 @@ export function PatientList() {
                 />
               </TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Phone</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Last Visit</TableHead>
+              <TableHead>Registration #</TableHead>
               <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
@@ -358,7 +358,7 @@ export function PatientList() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-5" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
@@ -379,14 +379,9 @@ export function PatientList() {
                       {patient.name}
                     </Link>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={patient.status === 'Active' ? 'default' : 'secondary'}
-                     className={patient.status === 'Active' ? 'bg-accent text-accent-foreground' : ''}>
-                      {patient.status}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{patient.phone}</TableCell>
                   <TableCell>{patient.email}</TableCell>
-                  <TableCell>{patient.lastVisit}</TableCell>
+                  <TableCell>{patient.registrationNumber || 'N/A'}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
