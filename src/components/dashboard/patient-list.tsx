@@ -26,7 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 const patientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
-  email: z.string().email("Invalid email address."),
+  email: z.string().email("Invalid email address.").or(z.literal('')).optional(),
   phone: z.string().min(10, "Phone number seems too short."),
   dob: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date of birth."),
   address: z.string().min(5, "Address must be at least 5 characters."),
@@ -178,22 +178,26 @@ export function PatientList() {
 
 
   const onSubmit = async (data: PatientFormValues) => {
+    const patientPayload = {
+      ...data,
+      email: data.email || '',
+    };
     try {
       if (editingPatient) {
         const patientRef = doc(db, "patients", editingPatient.id);
-        const updateData: Partial<Patient> = { ...data };
+        const updateData: Partial<Patient> = patientPayload;
         await updateDoc(patientRef, updateData);
         
         setPatients(patients.map(p => p.id === editingPatient.id ? { ...p, ...updateData } as Patient : p));
         
         toast({
           title: "Patient Updated",
-          description: `${data.name}'s record has been successfully updated.`,
+          description: `${patientPayload.name}'s record has been successfully updated.`,
         });
       } else {
         const newPatientData = {
-          ...data,
-          medicalHistory: data.medicalHistory || "",
+          ...patientPayload,
+          medicalHistory: patientPayload.medicalHistory || "",
           status: 'Active' as const,
           lastVisit: new Date().toISOString().split('T')[0],
           createdAt: serverTimestamp(),
@@ -201,14 +205,14 @@ export function PatientList() {
         const docRef = await addDoc(collection(db, "patients"), newPatientData);
         const newPatientForState: Patient = {
           id: docRef.id,
-          ...data,
+          ...patientPayload,
           status: 'Active',
           lastVisit: newPatientData.lastVisit,
         };
         setPatients([newPatientForState, ...patients]);
         toast({
           title: "Patient Added",
-          description: `${data.name} has been successfully added to the patient list.`,
+          description: `${patientPayload.name} has been successfully added to the patient list.`,
         });
       }
       form.reset();
