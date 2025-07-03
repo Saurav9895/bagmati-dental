@@ -14,7 +14,7 @@ export interface AuthContextType {
 
 export const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-const publicRoutes = ['/login', '/signup'];
+const publicRoutes = ['/login'];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
