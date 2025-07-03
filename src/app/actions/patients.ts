@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment } from '@/lib/types';
+import type { Patient, Treatment, Payment } from '@/lib/types';
 import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
 
 export async function addTreatmentToPatient(patientId: string, treatment: Treatment) {
@@ -90,6 +90,45 @@ export async function removeTreatmentFromPatient(patientId: string, treatmentToR
                 id: patientId,
                 ...serializablePatientData,
                 assignedTreatments: updatedTreatments
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+
+export async function addPaymentToPatient(patientId: string, payment: Omit<Payment, 'dateAdded'>) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+            
+            const newPayment: Payment = {
+                ...payment,
+                dateAdded: new Date().toISOString(),
+            };
+
+            const currentPayments = patientData.payments || [];
+            const updatedPayments = [...currentPayments, newPayment];
+
+            transaction.update(patientRef, {
+                payments: updatedPayments
+            });
+            
+            const { createdAt, ...serializablePatientData } = patientData;
+
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                payments: updatedPayments
             };
         });
         return { success: true, data: updatedPatientData };

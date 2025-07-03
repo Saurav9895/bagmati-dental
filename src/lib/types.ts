@@ -16,6 +16,7 @@ export type Patient = {
     amount: number;
     dateAdded: string;
   }[];
+  payments?: Payment[];
 };
 
 export type Appointment = {
@@ -32,4 +33,11 @@ export type Treatment = {
   name: string;
   description: string;
   amount: number;
+};
+
+export type Payment = {
+  amount: number;
+  date: string;
+  method: 'Cash' | 'Card' | 'Bank Transfer' | 'Other';
+  dateAdded: string;
 };
