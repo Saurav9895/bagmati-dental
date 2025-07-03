@@ -142,7 +142,6 @@ export default async function DashboardPage() {
                 <TableHead>Procedure</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Doctor</TableHead>
-                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -157,14 +156,11 @@ export default async function DashboardPage() {
                     <TableCell>{appt.procedure}</TableCell>
                     <TableCell>{formatTime12h(appt.time)}</TableCell>
                     <TableCell>{appt.doctor}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-green-600 border-green-600">Confirmed</Badge>
-                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">No appointments for today.</TableCell>
+                  <TableCell colSpan={4} className="text-center">No appointments for today.</TableCell>
                 </TableRow>
               )}
             </TableBody>

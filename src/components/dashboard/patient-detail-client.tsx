@@ -254,19 +254,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Status</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 text-sm">
-                            <div className="flex items-center gap-2">
-                                <span className={`h-2 w-2 rounded-full ${patient.status === 'Active' ? 'bg-green-500' : 'bg-gray-500'}`}></span>
-                                <span>{patient.status}</span>
-                            </div>
-                            <p className="text-muted-foreground">Last Visit: {new Date(patient.lastVisit).toLocaleDateString()}</p>
-                        </CardContent>
-                    </Card>
-
                     <Card className="md:col-span-2 lg:col-span-3">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
