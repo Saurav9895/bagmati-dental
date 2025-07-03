@@ -1,7 +1,8 @@
 'use server';
 
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { auth as mainAuth } from '@/lib/firebase';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -38,5 +39,33 @@ export async function createNewUser(email: string, password: string): Promise<{ 
   } finally {
     // Clean up the secondary app instance to avoid memory leaks
     await deleteApp(secondaryApp);
+  }
+}
+
+export async function changeUserPassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  const user = mainAuth.currentUser;
+
+  if (!user || !user.email) {
+    return { success: false, error: "No user is signed in or user has no email." };
+  }
+  
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+
+  try {
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, newPassword);
+    return { success: true };
+  } catch (error: any)
+   {
+    let errorMessage = 'An unexpected error occurred.';
+    if (error.code === 'auth/wrong-password') {
+      errorMessage = 'The current password you entered is incorrect.';
+    } else if (error.code === 'auth/weak-password') {
+      errorMessage = 'The new password is too weak.';
+    } else {
+      errorMessage = 'Failed to re-authenticate. Please check your current password.';
+    }
+    console.error("Failed to change password: ", error);
+    return { success: false, error: errorMessage };
   }
 }

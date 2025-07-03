@@ -46,6 +46,7 @@ const getTitleFromPathname = (pathname: string) => {
   }
   
   if(pathname === '/dashboard/settings') return 'Site Settings';
+  if(pathname === '/dashboard/profile') return 'Profile';
 
   const mainNavItem = navItems.find((item) => item.href === pathname);
   if (mainNavItem) return mainNavItem.label;
