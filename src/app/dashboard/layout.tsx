@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -17,7 +18,7 @@ import {
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/dashboard/logo';
-import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard, Landmark, ChevronDown, Bot, FileText } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard, Landmark, ChevronDown } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -29,9 +30,6 @@ const navItems = [
   { href: '/dashboard/patients', label: 'Patients', icon: Users },
   { href: '/dashboard/treatments', label: 'Treatments', icon: HeartPulse },
   { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
-  { href: '/dashboard/ai-diagnosis', label: 'AI Diagnosis', icon: Bot },
-  { href: '/dashboard/reminders', label: 'Reminders', icon: FileText },
-  { href: '/dashboard/forms', label: 'Forms', icon: FileText },
 ];
 
 const accountingNavItems = [
