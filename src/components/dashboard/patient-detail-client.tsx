@@ -30,20 +30,21 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
     const { toast } = useToast();
 
     const totalAmount = React.useMemo(() => {
-        if (!patient || !patient.assignedTreatments) {
-        return 0;
-        }
+        if (!patient || !patient.assignedTreatments) return 0;
         return patient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
     }, [patient]);
 
     const amountPaid = React.useMemo(() => {
-        if (!patient || !patient.payments) {
-            return 0;
-        }
+        if (!patient || !patient.payments) return 0;
         return patient.payments.reduce((total, payment) => total + payment.amount, 0);
     }, [patient]);
 
-    const balanceDue = totalAmount - amountPaid;
+    const totalDiscount = React.useMemo(() => {
+        if (!patient || !patient.discounts) return 0;
+        return patient.discounts.reduce((total, discount) => total + discount.amount, 0);
+    }, [patient]);
+
+    const balanceDue = totalAmount - amountPaid - totalDiscount;
 
     const handleAddTreatment = async () => {
         if (!selectedTreatmentId) {
@@ -61,8 +62,6 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
             const result = await addTreatmentToPatient(patient.id, selectedTreatment);
             
             if (result.success && result.data) {
-                // The result.data from the server action might not be a full Patient object
-                // It's better to cast it to a partial and merge with existing state
                 const updatedPatient = { ...patient, ...(result.data as Partial<Patient>) };
                 setPatient(updatedPatient);
                 toast({ title: "Treatment added successfully!" });
@@ -281,6 +280,10 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
                                     <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
                                     <span>${totalAmount.toFixed(2)}</span>
                                 </div>
+                                 <div className="flex justify-end items-center text-md">
+                                    <span className="text-muted-foreground mr-4">Total Discount:</span>
+                                    <span className="text-destructive">-${totalDiscount.toFixed(2)}</span>
+                                </div>
                                 <div className="flex justify-end items-center text-md">
                                     <span className="text-muted-foreground mr-4">Total Paid:</span>
                                     <span className="text-green-600">${amountPaid.toFixed(2)}</span>
@@ -296,6 +299,35 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
                                 </div>
                             </div>
                             
+                            <Separator />
+                             <div>
+                                <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Reason</TableHead>
+                                            <TableHead>Date Added</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {patient.discounts && patient.discounts.length > 0 ? (
+                                            patient.discounts.map(discount => (
+                                                <TableRow key={discount.dateAdded}>
+                                                    <TableCell className="font-medium">{discount.reason}</TableCell>
+                                                    <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
+                                                    <TableCell className="text-right">-${discount.amount.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center h-24">No discounts applied.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
                             <Separator />
                             
                             <div>

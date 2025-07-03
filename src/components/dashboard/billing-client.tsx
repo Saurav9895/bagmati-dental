@@ -3,23 +3,25 @@
 
 import * as React from 'react';
 import { db } from '@/lib/firebase';
-import type { Patient, Payment } from '@/lib/types';
+import type { Patient, Payment, Discount } from '@/lib/types';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Printer, Loader2, PlusCircle } from 'lucide-react';
+import { Search, Printer, Loader2, PlusCircle, Gift, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { addPaymentToPatient } from '@/app/actions/patients';
+import { addPaymentToPatient, addDiscountToPatient, removeDiscountFromPatient } from '@/app/actions/patients';
+import { Textarea } from '../ui/textarea';
 
 const paymentSchema = z.object({
     amount: z.coerce.number().positive("Amount must be a positive number."),
@@ -29,6 +31,14 @@ const paymentSchema = z.object({
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
 
+const discountSchema = z.object({
+    reason: z.string().min(2, "Reason must be at least 2 characters."),
+    amount: z.coerce.number().positive("Amount must be a positive number."),
+});
+
+type DiscountFormValues = z.infer<typeof discountSchema>;
+
+
 export function BillingClient() {
   const [allPatients, setAllPatients] = React.useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = React.useState<Patient[]>([]);
@@ -36,15 +46,24 @@ export function BillingClient() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(true);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
+  const [isDiscountDialogOpen, setIsDiscountDialogOpen] = React.useState(false);
+  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [discountToDelete, setDiscountToDelete] = React.useState<Discount | null>(null);
+
   const { toast } = useToast();
 
-  const form = useForm<PaymentFormValues>({
+  const paymentForm = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
         amount: 0,
         method: 'Card',
         date: new Date().toISOString().split('T')[0],
     },
+  });
+
+  const discountForm = useForm<DiscountFormValues>({
+    resolver: zodResolver(discountSchema),
+    defaultValues: { reason: "", amount: 0 },
   });
 
   React.useEffect(() => {
@@ -59,10 +78,9 @@ export function BillingClient() {
             ...doc.data(),
         })) as Patient[];
         setAllPatients(patientsList);
-        setFilteredPatients(patientsList); // Initially show all
+        setFilteredPatients(patientsList);
       } catch (error) {
         console.error("Error fetching patients: ", error);
-        // Maybe add a toast here in a real app
       } finally {
         setIsLoading(false);
       }
@@ -84,11 +102,12 @@ export function BillingClient() {
 
   const handleSelectPatient = (patient: Patient) => {
     setSelectedPatient(patient);
-    form.reset({
+    paymentForm.reset({
         amount: 0,
         method: 'Card',
         date: new Date().toISOString().split('T')[0],
     });
+    discountForm.reset({ reason: "", amount: 0 });
   };
 
   const onSubmitPayment = async (data: PaymentFormValues) => {
@@ -105,7 +124,7 @@ export function BillingClient() {
             setSelectedPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
             toast({ title: "Payment added successfully!" });
             setIsPaymentDialogOpen(false);
-            form.reset();
+            paymentForm.reset();
         } else {
             toast({ variant: 'destructive', title: 'Failed to add payment', description: result.error });
         }
@@ -114,23 +133,67 @@ export function BillingClient() {
     }
   };
 
-  const totalAmount = React.useMemo(() => {
-    if (!selectedPatient || !selectedPatient.assignedTreatments) {
-      return 0;
+  const onSubmitDiscount = async (data: DiscountFormValues) => {
+    if (!selectedPatient) return;
+
+    try {
+        const result = await addDiscountToPatient(selectedPatient.id, data);
+        if (result.success && result.data) {
+            setSelectedPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
+            toast({ title: "Discount added successfully!" });
+            setIsDiscountDialogOpen(false);
+            discountForm.reset();
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to add discount', description: result.error });
+        }
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
     }
+  };
+  
+  const handleRemoveDiscountClick = (discount: Discount) => {
+    setDiscountToDelete(discount);
+    setIsAlertOpen(true);
+  };
+
+  const confirmRemoveDiscount = async () => {
+    if (!discountToDelete || !selectedPatient) return;
+
+    try {
+        const result = await removeDiscountFromPatient(selectedPatient.id, discountToDelete);
+        if (result.success && result.data) {
+            setSelectedPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
+            toast({ title: "Discount removed" });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to remove discount', description: result.error });
+        }
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
+    } finally {
+        setIsAlertOpen(false);
+        setDiscountToDelete(null);
+    }
+  };
+
+  const totalAmount = React.useMemo(() => {
+    if (!selectedPatient || !selectedPatient.assignedTreatments) return 0;
     return selectedPatient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
   }, [selectedPatient]);
 
   const amountPaid = React.useMemo(() => {
-    if (!selectedPatient || !selectedPatient.payments) {
-        return 0;
-    }
+    if (!selectedPatient || !selectedPatient.payments) return 0;
     return selectedPatient.payments.reduce((total, payment) => total + payment.amount, 0);
   }, [selectedPatient]);
 
-  const balanceDue = totalAmount - amountPaid;
+  const totalDiscount = React.useMemo(() => {
+    if (!selectedPatient || !selectedPatient.discounts) return 0;
+    return selectedPatient.discounts.reduce((total, discount) => total + discount.amount, 0);
+  }, [selectedPatient]);
+
+  const balanceDue = totalAmount - amountPaid - totalDiscount;
 
   return (
+    <>
     <div className="grid md:grid-cols-3 gap-6">
       <div className="md:col-span-1">
         <div className="space-y-4">
@@ -181,10 +244,46 @@ export function BillingClient() {
                           Registration #: {selectedPatient.registrationNumber || 'N/A'}
                       </CardDescription>
                   </div>
-                  <Button variant="outline" onClick={() => window.print()}>
-                      <Printer className="mr-2 h-4 w-4" />
-                      Print Invoice
-                  </Button>
+                  <div className='flex gap-2'>
+                    <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline"><Gift className="mr-2 h-4 w-4" /> Add Discount</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Add Discount for {selectedPatient.name}</DialogTitle>
+                            </DialogHeader>
+                            <Form {...discountForm}>
+                                <form onSubmit={discountForm.handleSubmit(onSubmitDiscount)} className="space-y-4 py-4">
+                                    <FormField control={discountForm.control} name="reason" render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Reason</FormLabel>
+                                        <FormControl><Textarea placeholder="e.g., Seasonal Promotion" {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                     <FormField control={discountForm.control} name="amount" render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Amount</FormLabel>
+                                        <FormControl><Input type="number" placeholder="50.00" {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <DialogFooter>
+                                        <Button type="submit" disabled={discountForm.formState.isSubmitting}>
+                                            {discountForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                            Save Discount
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
+                    <Button variant="outline" onClick={() => window.print()}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print Invoice
+                    </Button>
+                  </div>
               </CardHeader>
               <CardContent>
                   <Table>
@@ -218,6 +317,10 @@ export function BillingClient() {
                             <span>${totalAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-end items-center text-md">
+                            <span className="text-muted-foreground mr-4">Total Discount:</span>
+                            <span className="text-destructive">-${totalDiscount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-end items-center text-md">
                             <span className="text-muted-foreground mr-4">Amount Paid:</span>
                             <span className="text-green-600">${amountPaid.toFixed(2)}</span>
                         </div>
@@ -230,6 +333,40 @@ export function BillingClient() {
                                 <span>${balanceDue.toFixed(2)}</span>
                             )}
                         </div>
+                    </div>
+                    <Separator className="my-4" />
+                    <div>
+                        <h4 className="text-base font-semibold mb-2">Applied Discounts</h4>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Reason</TableHead>
+                                    <TableHead>Date Added</TableHead>
+                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="w-[50px]"><span className='sr-only'>Actions</span></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {selectedPatient.discounts && selectedPatient.discounts.length > 0 ? (
+                                    selectedPatient.discounts.map(discount => (
+                                        <TableRow key={discount.dateAdded}>
+                                            <TableCell>{discount.reason}</TableCell>
+                                            <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
+                                            <TableCell className="text-right">-${discount.amount.toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveDiscountClick(discount)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center h-24">No discounts applied yet.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
                     </div>
               </CardContent>
             </Card>
@@ -248,23 +385,23 @@ export function BillingClient() {
                                 <DialogTitle>Add New Payment for {selectedPatient.name}</DialogTitle>
                                 <DialogDescription>Enter the details for the new payment.</DialogDescription>
                             </DialogHeader>
-                            <Form {...form}>
-                                <form onSubmit={form.handleSubmit(onSubmitPayment)} className="space-y-4 py-4">
-                                    <FormField control={form.control} name="amount" render={({ field }) => (
+                            <Form {...paymentForm}>
+                                <form onSubmit={paymentForm.handleSubmit(onSubmitPayment)} className="space-y-4 py-4">
+                                    <FormField control={paymentForm.control} name="amount" render={({ field }) => (
                                         <FormItem>
                                         <FormLabel>Amount</FormLabel>
                                         <FormControl><Input type="number" placeholder="100.00" {...field} /></FormControl>
                                         <FormMessage />
                                         </FormItem>
                                     )} />
-                                    <FormField control={form.control} name="date" render={({ field }) => (
+                                    <FormField control={paymentForm.control} name="date" render={({ field }) => (
                                         <FormItem>
                                         <FormLabel>Payment Date</FormLabel>
                                         <FormControl><Input type="date" {...field} /></FormControl>
                                         <FormMessage />
                                         </FormItem>
                                     )} />
-                                    <FormField control={form.control} name="method" render={({ field }) => (
+                                    <FormField control={paymentForm.control} name="method" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Payment Method</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -284,8 +421,8 @@ export function BillingClient() {
                                         </FormItem>
                                     )} />
                                     <DialogFooter>
-                                        <Button type="submit" disabled={form.formState.isSubmitting}>
-                                            {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        <Button type="submit" disabled={paymentForm.formState.isSubmitting}>
+                                            {paymentForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                             Save Payment
                                         </Button>
                                     </DialogFooter>
@@ -329,5 +466,22 @@ export function BillingClient() {
         )}
       </div>
     </div>
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently remove the discount of ${discountToDelete?.amount.toFixed(2)} for "{discountToDelete?.reason}".
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDiscountToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmRemoveDiscount} >
+                    Continue
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

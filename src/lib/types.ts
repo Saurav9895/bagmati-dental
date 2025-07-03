@@ -17,6 +17,7 @@ export type Patient = {
     dateAdded: string;
   }[];
   payments?: Payment[];
+  discounts?: Discount[];
 };
 
 export type Appointment = {
@@ -29,7 +30,7 @@ export type Appointment = {
 };
 
 export type Treatment = {
-  id: string;
+  id:string;
   name: string;
   description: string;
   amount: number;
@@ -39,5 +40,11 @@ export type Payment = {
   amount: number;
   date: string;
   method: 'Cash' | 'Card' | 'Bank Transfer' | 'Other';
+  dateAdded: string;
+};
+
+export type Discount = {
+  reason: string;
+  amount: number;
   dateAdded: string;
 };

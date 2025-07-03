@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment, Payment } from '@/lib/types';
+import type { Patient, Treatment, Payment, Discount } from '@/lib/types';
 import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
 
 export async function addTreatmentToPatient(patientId: string, treatment: Treatment) {
@@ -129,6 +129,77 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
                 id: patientId,
                 ...serializablePatientData,
                 payments: updatedPayments
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'dateAdded'>) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+            
+            const newDiscount: Discount = {
+                ...discount,
+                dateAdded: new Date().toISOString(),
+            };
+
+            const currentDiscounts = patientData.discounts || [];
+            const updatedDiscounts = [...currentDiscounts, newDiscount];
+
+            transaction.update(patientRef, {
+                discounts: updatedDiscounts
+            });
+            
+            const { createdAt, ...serializablePatientData } = patientData;
+
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                discounts: updatedDiscounts
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+export async function removeDiscountFromPatient(patientId: string, discountToRemove: Discount) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+            const currentDiscounts = patientData.discounts || [];
+
+            const updatedDiscounts = currentDiscounts.filter(
+                d => d.dateAdded !== discountToRemove.dateAdded
+            );
+
+            transaction.update(patientRef, { discounts: updatedDiscounts });
+            
+            const { createdAt, ...serializablePatientData } = patientData;
+
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                discounts: updatedDiscounts
             };
         });
         return { success: true, data: updatedPatientData };
