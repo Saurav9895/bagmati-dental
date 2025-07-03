@@ -37,6 +37,16 @@ const appointmentSchema = z.object({
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
 
+const formatTime12h = (time24h: string): string => {
+    if (!time24h) return '';
+    const [hours, minutes] = time24h.split(':');
+    const h = parseInt(hours, 10);
+    const m = parseInt(minutes, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 export function AppointmentSchedule({ appointments: initialAppointments, patients }: AppointmentScheduleProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [appointments, setAppointments] = React.useState(initialAppointments);
@@ -284,7 +294,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                     <CardContent className="p-2">
                       <p className="font-semibold">{appt.patientName}</p>
                       <p className="text-xs">{appt.procedure}</p>
-                      <p className="text-xs text-muted-foreground">{appt.time} - {appt.doctor}</p>
+                      <p className="text-xs text-muted-foreground">{formatTime12h(appt.time)} - {appt.doctor}</p>
                     </CardContent>
                      <Button
                         variant="ghost"
@@ -307,7 +317,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the appointment for {appointmentToDelete?.patientName} on {appointmentToDelete && format(new Date(appointmentToDelete.date), 'PPP')} at {appointmentToDelete?.time}.
+                    This will permanently delete the appointment for {appointmentToDelete?.patientName} on {appointmentToDelete && format(new Date(appointmentToDelete.date), 'PPP')} at {appointmentToDelete && formatTime12h(appointmentToDelete.time)}.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
