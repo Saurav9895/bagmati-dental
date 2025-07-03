@@ -244,10 +244,38 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <CreditCard className="h-5 w-5" />
-                                Billing Summary & Payment History
+                                Billing Summary
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
+                             <div>
+                                <h4 className="font-semibold mb-2 text-base">Itemized Bill</h4>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Treatment</TableHead>
+                                            <TableHead>Date Added</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
+                                            patient.assignedTreatments.map(treatment => (
+                                                <TableRow key={treatment.dateAdded}>
+                                                    <TableCell className="font-medium">{treatment.name}</TableCell>
+                                                    <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
+                                                    <TableCell className="text-right">${treatment.amount.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center h-24">No treatments assigned.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <Separator />
                             <div className="space-y-2 text-right font-medium">
                                 <div className="flex justify-end items-center text-md">
                                     <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
