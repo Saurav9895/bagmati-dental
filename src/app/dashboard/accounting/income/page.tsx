@@ -13,12 +13,40 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 import { startOfWeek, endOfWeek, subWeeks, startOfToday, parseISO, isWithinInterval, format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { Separator } from '@/components/ui/separator';
 
 type Transaction = Payment & {
     patientName: string;
     patientId: string;
     patientRegistrationNumber?: string;
 };
+
+const processIncomeDataForChart = (transactions: Transaction[]) => {
+    if (!transactions.length) return [];
+    
+    const dailyTotals = transactions.reduce((acc, tx) => {
+        const date = format(parseISO(tx.date), 'yyyy-MM-dd');
+        if (!acc[date]) {
+            acc[date] = 0;
+        }
+        acc[date] += tx.amount;
+        return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(dailyTotals)
+        .map(([date, total]) => ({ date, total }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+};
+
+const chartConfig = {
+    total: {
+      label: "Income",
+      color: "hsl(var(--primary))",
+    },
+} satisfies ChartConfig;
+
 
 export default function IncomePage() {
     const [allTransactions, setAllTransactions] = React.useState<Transaction[]>([]);
@@ -93,7 +121,7 @@ export default function IncomePage() {
     }, [allTransactions]);
 
     React.useEffect(() => {
-        if (filterType !== 'custom') {
+        if (filterType !== 'custom' || (customStartDate && customEndDate)) {
             applyFilter(filterType, customStartDate, customEndDate);
         }
     }, [filterType, allTransactions, applyFilter, customStartDate, customEndDate]);
@@ -109,86 +137,134 @@ export default function IncomePage() {
     const totalIncome = React.useMemo(() => {
         return filteredTransactions.reduce((acc, curr) => acc + curr.amount, 0);
     }, [filteredTransactions]);
+    
+    const chartData = React.useMemo(() => processIncomeDataForChart(filteredTransactions), [filteredTransactions]);
+
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Income</CardTitle>
-                <CardDescription>A complete history of all payments received from patients.</CardDescription>
-                <div className="text-2xl font-bold pt-2">Total Income: <span className="text-primary">Rs. {totalIncome.toFixed(2)}</span></div>
-            </CardHeader>
-            <CardContent>
-                <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
-                    <Select onValueChange={handleFilterChange} defaultValue="all">
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Filter by date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Time</SelectItem>
-                            <SelectItem value="thisWeek">This Week</SelectItem>
-                            <SelectItem value="lastWeek">Last Week</SelectItem>
-                            <SelectItem value="custom">Custom Range</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {filterType === 'custom' && (
-                        <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                            <Input 
-                                type="date"
-                                value={customStartDate}
-                                onChange={(e) => setCustomStartDate(e.target.value)}
-                                className="w-full sm:w-auto"
-                            />
-                            <span className="text-muted-foreground">to</span>
-                            <Input 
-                                type="date"
-                                value={customEndDate}
-                                onChange={(e) => setCustomEndDate(e.target.value)}
-                                className="w-full sm:w-auto"
-                            />
-                            <Button onClick={handleApplyCustomDateFilter} disabled={!customStartDate || !customEndDate}>Apply</Button>
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Income Overview</CardTitle>
+                    <CardDescription>A summary of payments received from patients.</CardDescription>
+                    <div className="text-2xl font-bold pt-2">Total Income: <span className="text-primary">Rs. {totalIncome.toFixed(2)}</span></div>
+                </CardHeader>
+                <CardContent className='space-y-6'>
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <Select onValueChange={handleFilterChange} defaultValue="all">
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Filter by date" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Time</SelectItem>
+                                <SelectItem value="thisWeek">This Week</SelectItem>
+                                <SelectItem value="lastWeek">Last Week</SelectItem>
+                                <SelectItem value="custom">Custom Range</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {filterType === 'custom' && (
+                            <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
+                                <Input 
+                                    type="date"
+                                    value={customStartDate}
+                                    onChange={(e) => setCustomStartDate(e.target.value)}
+                                    className="w-full sm:w-auto"
+                                />
+                                <span className="text-muted-foreground">to</span>
+                                <Input 
+                                    type="date"
+                                    value={customEndDate}
+                                    onChange={(e) => setCustomEndDate(e.target.value)}
+                                    className="w-full sm:w-auto"
+                                />
+                                <Button onClick={handleApplyCustomDateFilter} disabled={!customStartDate || !customEndDate}>Apply</Button>
+                            </div>
+                        )}
+                    </div>
+                     <Separator />
+                     {chartData.length > 0 ? (
+                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                            <BarChart accessibilityLayer data={chartData}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis
+                                    dataKey="date"
+                                    tickLine={false}
+                                    tickMargin={10}
+                                    axisLine={false}
+                                    tickFormatter={(value) => format(parseISO(value), 'MMM d')}
+                                />
+                                <YAxis
+                                    tickFormatter={(value) => `Rs. ${Number(value) > 999 ? `${Number(value) / 1000}k` : value}`}
+                                />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent
+                                        formatter={(value) => `Rs. ${value.toLocaleString()}`}
+                                        labelFormatter={(label, payload) => {
+                                            if (payload && payload.length) {
+                                                return format(parseISO(payload[0].payload.date), "PPP");
+                                            }
+                                            return label;
+                                        }}
+                                    />}
+                                />
+                                <Bar dataKey="total" fill="var(--color-total)" radius={4} />
+                            </BarChart>
+                        </ChartContainer>
+                    ) : (
+                         <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-8 text-center">
+                            <p className="text-muted-foreground">No income data to display chart for the selected period.</p>
                         </div>
                     )}
-                </div>
+                </CardContent>
+            </Card>
 
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Patient Name</TableHead>
-                            <TableHead>Reg. #</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Method</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
-                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                                </TableCell>
-                            </TableRow>
-                        ) : filteredTransactions.length > 0 ? (
-                            filteredTransactions.map((tx, index) => (
-                                <TableRow key={`${tx.patientId}-${tx.dateAdded}-${index}`}>
-                                    <TableCell className="font-medium">
-                                        <Link href={`/dashboard/patients/${tx.patientId}`} className="hover:underline">
-                                            {tx.patientName}
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell>{tx.patientRegistrationNumber || 'N/A'}</TableCell>
-                                    <TableCell>{format(parseISO(tx.date), 'PPP')}</TableCell>
-                                    <TableCell>{tx.method}</TableCell>
-                                    <TableCell className="text-right">Rs. {tx.amount.toFixed(2)}</TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Transaction History</CardTitle>
+                    <CardDescription>Detailed list of transactions for the selected period.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24">No income records found for the selected period.</TableCell>
+                                <TableHead>Patient Name</TableHead>
+                                <TableHead>Reg. #</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Method</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">
+                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                                    </TableCell>
+                                </TableRow>
+                            ) : filteredTransactions.length > 0 ? (
+                                filteredTransactions.map((tx, index) => (
+                                    <TableRow key={`${tx.patientId}-${tx.dateAdded}-${index}`}>
+                                        <TableCell className="font-medium">
+                                            <Link href={`/dashboard/patients/${tx.patientId}`} className="hover:underline">
+                                                {tx.patientName}
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell>{tx.patientRegistrationNumber || 'N/A'}</TableCell>
+                                        <TableCell>{format(parseISO(tx.date), 'PPP')}</TableCell>
+                                        <TableCell>{tx.method}</TableCell>
+                                        <TableCell className="text-right">Rs. {tx.amount.toFixed(2)}</TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center h-24">No income records found for the selected period.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
     );
 }
