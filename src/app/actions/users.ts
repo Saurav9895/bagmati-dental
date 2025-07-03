@@ -1,7 +1,7 @@
 'use server';
 
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { auth as mainAuth } from '@/lib/firebase';
 
 const firebaseConfig = {
@@ -83,5 +83,21 @@ export async function updateUserProfile(displayName: string): Promise<{ success:
   } catch (error: any) {
     console.error("Failed to update profile: ", error);
     return { success: false, error: "An unexpected error occurred while updating the profile." };
+  }
+}
+
+export async function sendPasswordResetLink(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await sendPasswordResetEmail(mainAuth, email);
+    return { success: true };
+  } catch (error: any) {
+    let errorMessage = 'An unexpected error occurred.';
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = 'No user found with this email address.';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'The email address is not valid.';
+    }
+    console.error("Failed to send password reset email: ", error);
+    return { success: false, error: errorMessage };
   }
 }
