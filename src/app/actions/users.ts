@@ -1,7 +1,7 @@
 'use server';
 
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, updatePassword, reauthenticateWithCredential, EmailAuthProvider, updateProfile } from 'firebase/auth';
 import { auth as mainAuth } from '@/lib/firebase';
 
 const firebaseConfig = {
@@ -67,5 +67,21 @@ export async function changeUserPassword(currentPassword: string, newPassword: s
     }
     console.error("Failed to change password: ", error);
     return { success: false, error: errorMessage };
+  }
+}
+
+export async function updateUserProfile(displayName: string): Promise<{ success: boolean; error?: string }> {
+  const user = mainAuth.currentUser;
+
+  if (!user) {
+    return { success: false, error: "No user is signed in." };
+  }
+
+  try {
+    await updateProfile(user, { displayName });
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to update profile: ", error);
+    return { success: false, error: "An unexpected error occurred while updating the profile." };
   }
 }
