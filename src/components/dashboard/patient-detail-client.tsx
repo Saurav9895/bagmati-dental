@@ -14,8 +14,27 @@ import { addTreatmentToPatient, removeTreatmentFromPatient } from '@/app/actions
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { addAppointment } from '@/app/actions/appointments';
+import { format } from 'date-fns';
 
 type AssignedTreatment = Treatment & { dateAdded: string };
+
+const appointmentSchema = z.object({
+    procedure: z.string().min(2, "Procedure must be at least 2 characters."),
+    date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
+    time: z.string().min(1, "Time is required."),
+    doctor: z.string().min(2, "Doctor's name must be at least 2 characters."),
+    description: z.string().optional(),
+});
+type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+
 
 const formatTime12h = (time24h: string): string => {
     if (!time24h) return '';
@@ -27,8 +46,9 @@ const formatTime12h = (time24h: string): string => {
     return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
 };
 
-export function PatientDetailClient({ initialPatient, treatments, appointments }: { initialPatient: Patient, treatments: Treatment[], appointments: Appointment[] }) {
+export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments }: { initialPatient: Patient, treatments: Treatment[], appointments: Appointment[] }) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
+    const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
     const [showTreatmentForm, setShowTreatmentForm] = React.useState(false);
     const [selectedTreatmentId, setSelectedTreatmentId] = React.useState<string | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -37,7 +57,56 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
     const [treatmentToDelete, setTreatmentToDelete] = React.useState<AssignedTreatment | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
+    const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
+    const [isSubmittingAppointment, setIsSubmittingAppointment] = React.useState(false);
+
     const { toast } = useToast();
+
+    const appointmentForm = useForm<AppointmentFormValues>({
+        resolver: zodResolver(appointmentSchema),
+        defaultValues: {
+            procedure: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            time: '',
+            doctor: '',
+            description: '',
+        },
+    });
+
+    const handleAddAppointment = async (data: AppointmentFormValues) => {
+        setIsSubmittingAppointment(true);
+        const result = await addAppointment({
+            ...data,
+            patientId: patient.id,
+            patientName: patient.name,
+        });
+
+        if (result.success && result.data) {
+            const newAppointments = [result.data, ...appointments];
+            newAppointments.sort((a, b) => {
+                const dateA = new Date(a.date).getTime();
+                const dateB = new Date(b.date).getTime();
+                if (dateB !== dateA) {
+                    return dateB - dateA;
+                }
+                return a.time.localeCompare(b.time);
+            });
+            setAppointments(newAppointments);
+
+            toast({ title: "Appointment added successfully!" });
+            setIsAppointmentDialogOpen(false);
+            appointmentForm.reset({
+                procedure: '',
+                date: format(new Date(), 'yyyy-MM-dd'),
+                time: '',
+                doctor: '',
+                description: '',
+            });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to add appointment', description: result.error });
+        }
+        setIsSubmittingAppointment(false);
+    };
 
     const totalAmount = React.useMemo(() => {
         if (!patient || !patient.assignedTreatments) return 0;
@@ -182,11 +251,79 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                     </Card>
                     
                     <Card className="md:col-span-2 lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="flex items-center gap-2">
                                 <CalendarIcon className="h-5 w-5" />
-                                Appointment History
-                            </CardTitle>
+                                <CardTitle>Appointment History</CardTitle>
+                            </div>
+                             <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        New Appointment
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>New Appointment for {patient.name}</DialogTitle>
+                                        <DialogDescription>
+                                            Fill out the form below to schedule a new appointment.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <Form {...appointmentForm}>
+                                        <form onSubmit={appointmentForm.handleSubmit(handleAddAppointment)} className="space-y-4 py-4">
+                                            <FormField control={appointmentForm.control} name="procedure" render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Procedure</FormLabel>
+                                                <FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={appointmentForm.control} name="doctor" render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Doctor</FormLabel>
+                                                <FormControl><Input placeholder="Doctor's name" {...field} /></FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <FormField control={appointmentForm.control} name="date" render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Date</FormLabel>
+                                                    <FormControl><Input type="date" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={appointmentForm.control} name="time" render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Time</FormLabel>
+                                                    <FormControl><Input type="time" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                            </div>
+                                            <FormField
+                                                control={appointmentForm.control}
+                                                name="description"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                    <FormLabel>Description (Notes, etc.)</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea placeholder="Optional notes for the appointment..." {...field} value={field.value || ''} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                    </FormItem>
+                                            )} />
+                                            <DialogFooter>
+                                                <Button type="submit" disabled={isSubmittingAppointment}>
+                                                    {isSubmittingAppointment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                    Save Appointment
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </Form>
+                                </DialogContent>
+                            </Dialog>
                         </CardHeader>
                         <CardContent>
                             {appointments && appointments.length > 0 ? (
