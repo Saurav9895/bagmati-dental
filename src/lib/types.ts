@@ -31,6 +31,7 @@ export type Appointment = {
   date: string;
   doctor: string;
   description?: string;
+  status?: 'Scheduled' | 'Completed';
   createdAt?: any;
 };
 

@@ -1,13 +1,15 @@
+
 'use server';
 
 import { db } from '@/lib/firebase';
 import type { Appointment } from '@/lib/types';
 import { collection, addDoc, serverTimestamp, getDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
-export async function addAppointment(appointmentData: Omit<Appointment, 'id' | 'createdAt'>): Promise<{ success: boolean; data?: Appointment; error?: string }> {
+export async function addAppointment(appointmentData: Omit<Appointment, 'id' | 'createdAt' | 'status'>): Promise<{ success: boolean; data?: Appointment; error?: string }> {
     try {
         const docRef = await addDoc(collection(db, "appointments"), {
             ...appointmentData,
+            status: 'Scheduled',
             createdAt: serverTimestamp(),
         });
         

@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
 import { format } from 'date-fns';
+import { Badge } from '../ui/badge';
 
 type AssignedTreatment = Treatment & { dateAdded: string };
 
@@ -286,7 +287,14 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                         <div key={appt.id} className="p-3 border rounded-md bg-card shadow-sm">
                                             <div className="flex justify-between items-start gap-4">
                                                 <div>
-                                                    <p className="font-semibold">{appt.procedure}</p>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className="font-semibold">{appt.procedure}</p>
+                                                        {appt.status === 'Completed' ? (
+                                                            <Badge variant="secondary">Completed</Badge>
+                                                        ) : (
+                                                            <Badge variant="outline">Scheduled</Badge>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-muted-foreground">
                                                         {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
                                                     </p>
