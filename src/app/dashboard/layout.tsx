@@ -1,7 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -14,9 +15,11 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/dashboard/logo';
-import { Button } from '@/components/ui/button';
 import { LayoutDashboard, Calendar, Users, ClipboardList, BrainCircuit, Bell, Settings, LogOut } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,7 +37,49 @@ const getTitleFromPathname = (pathname: string) => {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { toast } = useToast();
   const pageTitle = getTitleFromPathname(pathname);
+  const [user, setUser] = React.useState<User | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        router.push('/login');
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: 'Logged Out',
+        description: 'You have been successfully logged out.',
+      });
+      router.push('/login');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Logout Failed',
+        description: error.message,
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Loading session...</p>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -71,18 +116,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Logout">
-                  <a href="#">
-                    <LogOut/>
-                    <span>Logout</span>
-                  </a>
+                <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
+                  <LogOut/>
+                  <span>Logout</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <DashboardHeader title={pageTitle} />
+        <DashboardHeader title={pageTitle} user={user} onLogout={handleLogout} />
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
