@@ -247,7 +247,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                         </SelectTrigger>
                                         <SelectContent>
                                             {treatments.map(t => (
-                                                <SelectItem key={t.id} value={t.id}>{t.name} - ${t.amount.toFixed(2)}</SelectItem>
+                                                <SelectItem key={t.id} value={t.id}>{t.name} - Rs. {t.amount.toFixed(2)}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -269,7 +269,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                                     <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    <span className="font-semibold text-primary">${t.amount.toFixed(2)}</span>
+                                                    <span className="font-semibold text-primary">Rs. {t.amount.toFixed(2)}</span>
                                                     <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                         <span className="sr-only">Remove treatment</span>
@@ -309,7 +309,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                                 <TableRow key={treatment.dateAdded}>
                                                     <TableCell className="font-medium">{treatment.name}</TableCell>
                                                     <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                                    <TableCell className="text-right">${treatment.amount.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
@@ -324,15 +324,15 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                             <div className="space-y-2 text-right font-medium">
                                 <div className="flex justify-end items-center text-md">
                                     <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
-                                    <span>${totalAmount.toFixed(2)}</span>
+                                    <span>Rs. {totalAmount.toFixed(2)}</span>
                                 </div>
                                  <div className="flex justify-end items-center text-md">
                                     <span className="text-muted-foreground mr-4">Total Discount:</span>
-                                    <span className="text-destructive">-${totalDiscount.toFixed(2)}</span>
+                                    <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-end items-center text-md">
                                     <span className="text-muted-foreground mr-4">Total Paid:</span>
-                                    <span className="text-green-600">${amountPaid.toFixed(2)}</span>
+                                    <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
                                 </div>
                                 <Separator className="my-2" />
                                 <div className="flex justify-end items-center text-lg font-bold">
@@ -340,7 +340,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                      {balanceDue <= 0 && totalAmount > 0 ? (
                                         <span className="text-green-600">Fully Paid</span>
                                     ) : (
-                                        <span>${balanceDue.toFixed(2)}</span>
+                                        <span>Rs. {balanceDue.toFixed(2)}</span>
                                     )}
                                 </div>
                             </div>
@@ -362,7 +362,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                                 <TableRow key={discount.dateAdded}>
                                                     <TableCell className="font-medium">{discount.reason}</TableCell>
                                                     <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
-                                                    <TableCell className="text-right">-${discount.amount.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
@@ -392,7 +392,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                                 <TableRow key={payment.dateAdded}>
                                                     <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                                                     <TableCell>{payment.method}</TableCell>
-                                                    <TableCell className="text-right">${payment.amount.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (

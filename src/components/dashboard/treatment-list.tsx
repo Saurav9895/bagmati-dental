@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -189,7 +190,7 @@ export function TreatmentList() {
                 )} />
                 <FormField control={form.control} name="amount" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount ($)</FormLabel>
+                    <FormLabel>Amount (Rs.)</FormLabel>
                     <FormControl><Input type="number" placeholder="e.g., 250" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -227,7 +228,7 @@ export function TreatmentList() {
                 <TableRow key={treatment.id}>
                   <TableCell className="font-medium">{treatment.name}</TableCell>
                   <TableCell>{treatment.description}</TableCell>
-                  <TableCell className="text-right">${treatment.amount.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

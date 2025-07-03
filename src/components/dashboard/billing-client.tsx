@@ -302,7 +302,7 @@ export function BillingClient() {
                                   <TableRow key={treatment.dateAdded}>
                                       <TableCell className="font-medium">{treatment.name}</TableCell>
                                       <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                      <TableCell className="text-right">${treatment.amount.toFixed(2)}</TableCell>
+                                      <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
                                   </TableRow>
                               ))
                           ) : (
@@ -316,15 +316,15 @@ export function BillingClient() {
                    <div className="space-y-2 text-right font-medium">
                         <div className="flex justify-end items-center text-md">
                             <span className="text-muted-foreground mr-4">Total Amount:</span>
-                            <span>${totalAmount.toFixed(2)}</span>
+                            <span>Rs. {totalAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-end items-center text-md">
                             <span className="text-muted-foreground mr-4">Total Discount:</span>
-                            <span className="text-destructive">-${totalDiscount.toFixed(2)}</span>
+                            <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-end items-center text-md">
                             <span className="text-muted-foreground mr-4">Amount Paid:</span>
-                            <span className="text-green-600">${amountPaid.toFixed(2)}</span>
+                            <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
                         </div>
                          <Separator className="my-2" />
                         <div className="flex justify-end items-center text-lg font-bold">
@@ -332,7 +332,7 @@ export function BillingClient() {
                             {balanceDue <= 0 && totalAmount > 0 ? (
                                 <span className="text-green-600">Fully Paid</span>
                             ) : (
-                                <span>${balanceDue.toFixed(2)}</span>
+                                <span>Rs. {balanceDue.toFixed(2)}</span>
                             )}
                         </div>
                     </div>
@@ -354,7 +354,7 @@ export function BillingClient() {
                                         <TableRow key={discount.dateAdded}>
                                             <TableCell>{discount.reason}</TableCell>
                                             <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
-                                            <TableCell className="text-right">-${discount.amount.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveDiscountClick(discount)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -448,7 +448,7 @@ export function BillingClient() {
                                     <TableRow key={payment.dateAdded}>
                                         <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                                         <TableCell>{payment.method}</TableCell>
-                                        <TableCell className="text-right">${payment.amount.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
                                     </TableRow>
                                 ))
                             ) : (
@@ -473,7 +473,7 @@ export function BillingClient() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently remove the discount of ${discountToDelete?.amount.toFixed(2)} for "{discountToDelete?.reason}".
+                    This will permanently remove the discount of Rs. {discountToDelete?.amount.toFixed(2)} for "{discountToDelete?.reason}".
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
