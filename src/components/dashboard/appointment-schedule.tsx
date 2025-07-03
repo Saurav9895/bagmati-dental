@@ -51,7 +51,9 @@ const formatTime12h = (time24h: string): string => {
 
 export function AppointmentSchedule({ appointments: initialAppointments, patients }: AppointmentScheduleProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
-  const [appointments, setAppointments] = React.useState(initialAppointments);
+  const [appointments, setAppointments] = React.useState(
+    initialAppointments.filter(appt => appt.status !== 'Completed')
+  );
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = React.useState(false);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
