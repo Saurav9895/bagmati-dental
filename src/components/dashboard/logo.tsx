@@ -1,4 +1,8 @@
+
+'use client';
+
 import * as React from 'react';
+import Image from 'next/image';
 
 const ToothIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -19,10 +23,47 @@ const ToothIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 export function Logo() {
+  const [logoSrc, setLogoSrc] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    try {
+      const savedLogo = localStorage.getItem('custom-logo');
+      if (savedLogo) {
+        setLogoSrc(savedLogo);
+      }
+    } catch (error) {
+      console.error("Could not access local storage for logo", error);
+    }
+    setIsLoading(false);
+  }, []);
+
+  if (isLoading) {
+    // Render a skeleton placeholder to prevent layout shift while loading from localStorage.
+    return (
+      <div className="flex items-center gap-2 h-6" aria-label="Loading logo...">
+        <div className="w-[150px] h-full bg-muted animate-pulse rounded-md" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
-      <ToothIcon className="h-6 w-6 text-primary" />
-      <h1 className="text-xl font-bold font-headline text-primary">DentalFlow</h1>
+      {logoSrc ? (
+        <Image 
+          src={logoSrc} 
+          alt="Custom Clinic Logo" 
+          width={128} 
+          height={32} 
+          className="h-8 w-auto object-contain" 
+          priority 
+        />
+      ) : (
+        <>
+          <ToothIcon className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold font-headline text-primary">DentalFlow</h1>
+        </>
+      )}
     </div>
   );
 }

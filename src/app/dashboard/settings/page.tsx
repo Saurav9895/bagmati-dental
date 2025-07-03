@@ -5,6 +5,9 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
 
 function hexToHsl(hex: string): string | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -63,6 +66,8 @@ function hslToHex(hslStr: string): string {
 
 export default function SettingsPage() {
   const [primaryColor, setPrimaryColor] = React.useState('#3b82f6');
+  const [logoSrc, setLogoSrc] = React.useState<string | null>(null);
+  const { toast } = useToast();
 
   React.useEffect(() => {
     const savedColor = localStorage.getItem('theme-primary-color');
@@ -73,6 +78,11 @@ export default function SettingsPage() {
       if (initialColor) {
         setPrimaryColor(hslToHex(initialColor));
       }
+    }
+    
+    const savedLogo = localStorage.getItem('custom-logo');
+    if (savedLogo) {
+      setLogoSrc(savedLogo);
     }
   }, []);
 
@@ -85,6 +95,37 @@ export default function SettingsPage() {
       document.documentElement.style.setProperty('--primary', newHslColor);
       localStorage.setItem('theme-primary-color', newHslColor);
     }
+  };
+
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) { // Limit file size to 1MB
+        toast({
+          variant: 'destructive',
+          title: 'File too large',
+          description: 'Please upload an image smaller than 1MB.',
+        });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        setLogoSrc(dataUrl);
+        localStorage.setItem('custom-logo', dataUrl);
+        toast({ title: 'Logo updated successfully! Refreshing...' });
+        // Force a reload to see the change everywhere.
+        setTimeout(() => window.location.reload(), 1000);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const handleRemoveLogo = () => {
+    setLogoSrc(null);
+    localStorage.removeItem('custom-logo');
+    toast({ title: 'Logo removed. Refreshing...' });
+    setTimeout(() => window.location.reload(), 1000);
   };
 
   return (
@@ -112,6 +153,29 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground">Changes are saved automatically to your browser.</p>
           </div>
         </CardContent>
+      </Card>
+      
+      <Card>
+          <CardHeader>
+            <CardTitle>Logo Settings</CardTitle>
+            <CardDescription>Upload a custom logo for your clinic. It will appear in the sidebar and login page.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2 max-w-lg">
+                <Label htmlFor="logo-upload">Upload Logo (PNG, JPG, SVG)</Label>
+                <Input id="logo-upload" type="file" accept="image/png, image/jpeg, image/svg+xml" onChange={handleLogoChange} />
+                <p className="text-sm text-muted-foreground">Recommended size: 128x32 pixels. Max size: 1MB.</p>
+            </div>
+            {logoSrc && (
+                <div>
+                    <Label>Current Logo Preview</Label>
+                    <div className="mt-2 p-4 border rounded-lg flex items-center justify-between">
+                        <Image src={logoSrc} alt="Custom Logo Preview" width={128} height={32} className="object-contain" />
+                        <Button variant="destructive" size="sm" onClick={handleRemoveLogo}>Remove Logo</Button>
+                    </div>
+                </div>
+            )}
+          </CardContent>
       </Card>
     </div>
   );
