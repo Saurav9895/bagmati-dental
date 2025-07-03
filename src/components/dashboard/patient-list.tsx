@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MoreHorizontal, PlusCircle, Trash2, Edit } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -263,7 +264,11 @@ export function PatientList() {
             ) : patients.length > 0 ? (
               patients.map((patient) => (
                 <TableRow key={patient.id}>
-                  <TableCell className="font-medium">{patient.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link href={`/dashboard/patients/${patient.id}`} className="hover:underline">
+                      {patient.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={patient.status === 'Active' ? 'default' : 'secondary'}
                      className={patient.status === 'Active' ? 'bg-accent text-accent-foreground' : ''}>
