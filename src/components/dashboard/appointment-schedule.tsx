@@ -111,101 +111,104 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
               New Appointment
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Create New Appointment</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                <FormField
-                  control={form.control}
-                  name="patientId"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Patient</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className={cn(
-                                "w-full justify-between",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value
-                                ? patients.find(
-                                    (patient) => patient.id === field.value
-                                  )?.name
-                                : "Select patient"}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
-                          <Command>
-                            <CommandInput placeholder="Search patient..." />
-                            <CommandEmpty>No patient found.</CommandEmpty>
-                            <CommandList>
-                                <CommandGroup>
-                                {patients.map((patient) => (
-                                    <CommandItem
-                                    value={patient.name}
-                                    key={patient.id}
-                                    onSelect={() => {
-                                        form.setValue("patientId", patient.id)
-                                    }}
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                        <FormField
+                        control={form.control}
+                        name="patientId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Patient</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                        "w-full justify-between",
+                                        !field.value && "text-muted-foreground"
+                                    )}
                                     >
-                                    <Check
-                                        className={cn(
-                                        "mr-2 h-4 w-4",
-                                        patient.id === field.value
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                    />
-                                    {patient.name}
-                                    </CommandItem>
-                                ))}
-                                </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField control={form.control} name="procedure" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Procedure</FormLabel>
-                      <FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                 <FormField control={form.control} name="date" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl><Input type="date" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                 <FormField control={form.control} name="time" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Time</FormLabel>
-                      <FormControl><Input type="time" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                 <FormField control={form.control} name="doctor" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Doctor</FormLabel>
-                      <FormControl><Input placeholder="Doctor's name" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-              
+                                    {field.value
+                                        ? patients.find(
+                                            (patient) => patient.id === field.value
+                                        )?.name
+                                        : "Select patient"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search patient..." />
+                                    <CommandEmpty>No patient found.</CommandEmpty>
+                                    <CommandList>
+                                        <CommandGroup>
+                                        {patients.map((patient) => (
+                                            <CommandItem
+                                            value={patient.name}
+                                            key={patient.id}
+                                            onSelect={() => {
+                                                form.setValue("patientId", patient.id)
+                                            }}
+                                            >
+                                            <Check
+                                                className={cn(
+                                                "mr-2 h-4 w-4",
+                                                patient.id === field.value
+                                                    ? "opacity-100"
+                                                    : "opacity-0"
+                                                )}
+                                            />
+                                            {patient.name}
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    </div>
+                    <FormField control={form.control} name="procedure" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Procedure</FormLabel>
+                        <FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="doctor" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Doctor</FormLabel>
+                        <FormControl><Input placeholder="Doctor's name" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="date" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Date</FormLabel>
+                        <FormControl><Input type="date" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="time" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Time</FormLabel>
+                        <FormControl><Input type="time" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Appointment
