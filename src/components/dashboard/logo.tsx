@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -41,8 +40,8 @@ export function Logo() {
   if (isLoading) {
     // Render a skeleton placeholder to prevent layout shift while loading from localStorage.
     return (
-      <div className="flex items-center gap-2 h-6" aria-label="Loading logo...">
-        <div className="w-[150px] h-full bg-muted animate-pulse rounded-md" />
+      <div className="flex items-center gap-2" aria-label="Loading logo...">
+        <div className="w-[160px] h-[70px] bg-muted animate-pulse rounded-md" />
       </div>
     );
   }
@@ -53,9 +52,9 @@ export function Logo() {
         <Image 
           src={logoSrc} 
           alt="Custom Clinic Logo" 
-          width={128} 
-          height={32} 
-          className="h-8 w-auto object-contain" 
+          width={160} 
+          height={70} 
+          className="h-auto w-[160px] object-contain" 
           priority 
         />
       ) : (

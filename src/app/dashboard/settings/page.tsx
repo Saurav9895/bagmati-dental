@@ -164,13 +164,13 @@ export default function SettingsPage() {
             <div className="space-y-2 max-w-lg">
                 <Label htmlFor="logo-upload">Upload Logo (PNG, JPG, SVG)</Label>
                 <Input id="logo-upload" type="file" accept="image/png, image/jpeg, image/svg+xml" onChange={handleLogoChange} />
-                <p className="text-sm text-muted-foreground">Recommended size: 128x32 pixels. Max size: 1MB.</p>
+                <p className="text-sm text-muted-foreground">Recommended size: 160x70 pixels. Max size: 1MB.</p>
             </div>
             {logoSrc && (
                 <div>
                     <Label>Current Logo Preview</Label>
                     <div className="mt-2 p-4 border rounded-lg flex items-center justify-between">
-                        <Image src={logoSrc} alt="Custom Logo Preview" width={128} height={32} className="object-contain" />
+                        <Image src={logoSrc} alt="Custom Logo Preview" width={160} height={70} className="object-contain" />
                         <Button variant="destructive" size="sm" onClick={handleRemoveLogo}>Remove Logo</Button>
                     </div>
                 </div>
