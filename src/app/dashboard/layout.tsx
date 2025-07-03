@@ -15,18 +15,15 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/dashboard/logo';
-import { LayoutDashboard, Calendar, Users, ClipboardList, BrainCircuit, Bell, Settings, HeartPulse, CreditCard } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/schedule', label: 'Schedule', icon: Calendar },
   { href: '/dashboard/patients', label: 'Patients', icon: Users },
-  { href: '/dashboard/forms', label: 'Forms', icon: ClipboardList },
-  { href: '/dashboard/ai-diagnosis', label: 'AI Diagnosis', icon: BrainCircuit },
   { href: '/dashboard/treatments', label: 'Treatments', icon: HeartPulse },
   { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
-  { href: '/dashboard/reminders', label: 'Reminders', icon: Bell },
 ];
 
 const getTitleFromPathname = (pathname: string) => {
