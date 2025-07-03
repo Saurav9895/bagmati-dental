@@ -18,15 +18,18 @@ export type Patient = {
   }[];
   payments?: Payment[];
   discounts?: Discount[];
+  createdAt?: any;
 };
 
 export type Appointment = {
   id: string;
+  patientId: string;
   patientName: string;
   procedure: string;
   time: string;
   date: string;
   doctor: string;
+  createdAt?: any;
 };
 
 export type Treatment = {
@@ -34,6 +37,7 @@ export type Treatment = {
   name: string;
   description: string;
   amount: number;
+  createdAt?: any;
 };
 
 export type Payment = {

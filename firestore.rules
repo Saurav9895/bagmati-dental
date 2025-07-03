@@ -1,18 +1,23 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /patients/{patientId} {
-      allow read, create, update, delete: if true; // DEV ONLY
-    }
-    
-    match /treatments/{treatmentId} {
-      allow read, create, update, delete: if true; // DEV ONLY
+      allow read, write: if true; // Insecure, for development only
     }
 
     match /counters/{counterId} {
-      allow read, write: if true; // DEV ONLY
+      allow read, write: if true; // Insecure, for development only
+    }
+
+    match /treatments/{treatmentId} {
+      allow read, write: if true; // Insecure, for development only
+    }
+
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // Insecure, for development only
     }
   }
 }

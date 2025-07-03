@@ -1,22 +1,56 @@
+
 'use client';
 
 import * as React from 'react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { addAppointment } from '@/app/actions/appointments';
+import type { Appointment, Patient } from '@/lib/types';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import type { Appointment } from '@/lib/types';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 interface AppointmentScheduleProps {
   appointments: Appointment[];
+  patients: Patient[];
 }
 
-export function AppointmentSchedule({ appointments: initialAppointments }: AppointmentScheduleProps) {
+const appointmentSchema = z.object({
+    patientId: z.string({ required_error: "Please select a patient." }),
+    procedure: z.string().min(2, "Procedure must be at least 2 characters."),
+    date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
+    time: z.string().min(1, "Time is required."),
+    doctor: z.string().min(2, "Doctor's name must be at least 2 characters."),
+});
+
+type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+
+export function AppointmentSchedule({ appointments: initialAppointments, patients }: AppointmentScheduleProps) {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [appointments, setAppointments] = React.useState(initialAppointments);
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<AppointmentFormValues>({
+    resolver: zodResolver(appointmentSchema),
+    defaultValues: {
+        procedure: '',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        time: '',
+        doctor: '',
+    },
+  });
+
   const weekDays = eachDayOfInterval({
     start: startOfWeek(currentDate, { weekStartsOn: 1 }),
     end: endOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -25,20 +59,36 @@ export function AppointmentSchedule({ appointments: initialAppointments }: Appoi
   const handlePrevWeek = () => setCurrentDate(subDays(currentDate, 7));
   const handleNextWeek = () => setCurrentDate(addDays(currentDate, 7));
 
-  const handleAddAppointment = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const newAppointment: Appointment = {
-      id: `APT${Math.floor(Math.random() * 1000)}`,
-      patientName: formData.get('patientName') as string,
-      procedure: formData.get('procedure') as string,
-      date: formData.get('date') as string,
-      time: formData.get('time') as string,
-      doctor: formData.get('doctor') as string,
+  const onSubmit = async (data: AppointmentFormValues) => {
+    const selectedPatient = patients.find(p => p.id === data.patientId);
+    if (!selectedPatient) {
+        toast({ variant: 'destructive', title: 'Invalid patient selected.' });
+        return;
+    }
+
+    const appointmentData = {
+        ...data,
+        patientName: selectedPatient.name,
     };
-    setAppointments([...appointments, newAppointment]);
-    // Here you would typically close the dialog
+
+    const result = await addAppointment(appointmentData);
+
+    if (result.success && result.data) {
+        setAppointments(prev => [...prev, result.data!]);
+        toast({ title: 'Appointment created successfully!' });
+        setIsDialogOpen(false);
+        form.reset({
+            procedure: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            time: '',
+            doctor: '',
+            patientId: undefined,
+        });
+    } else {
+        toast({ variant: 'destructive', title: 'Failed to create appointment', description: result.error });
+    }
   };
+
 
   return (
     <div className="flex h-full flex-col">
@@ -54,7 +104,7 @@ export function AppointmentSchedule({ appointments: initialAppointments }: Appoi
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -65,29 +115,103 @@ export function AppointmentSchedule({ appointments: initialAppointments }: Appoi
             <DialogHeader>
               <DialogTitle>Create New Appointment</DialogTitle>
             </DialogHeader>
-            <form className="grid gap-4 py-4" onSubmit={handleAddAppointment}>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="patientName" className="text-right">Patient</Label>
-                <Input id="patientName" name="patientName" className="col-span-3" placeholder="Patient's full name" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="procedure" className="text-right">Procedure</Label>
-                <Input id="procedure" name="procedure" className="col-span-3" placeholder="e.g., Routine Check-up" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="date" className="text-right">Date</Label>
-                <Input id="date" name="date" type="date" className="col-span-3" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="time" className="text-right">Time</Label>
-                <Input id="time" name="time" type="time" className="col-span-3" />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="doctor" className="text-right">Doctor</Label>
-                <Input id="doctor" name="doctor" className="col-span-3" placeholder="Doctor's name" />
-              </div>
-              <Button type="submit" className="w-full">Save Appointment</Button>
-            </form>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                <FormField
+                  control={form.control}
+                  name="patientId"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Patient</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? patients.find(
+                                    (patient) => patient.id === field.value
+                                  )?.name
+                                : "Select patient"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search patient..." />
+                            <CommandEmpty>No patient found.</CommandEmpty>
+                            <CommandList>
+                                <CommandGroup>
+                                {patients.map((patient) => (
+                                    <CommandItem
+                                    value={patient.name}
+                                    key={patient.id}
+                                    onSelect={() => {
+                                        form.setValue("patientId", patient.id)
+                                    }}
+                                    >
+                                    <Check
+                                        className={cn(
+                                        "mr-2 h-4 w-4",
+                                        patient.id === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                    />
+                                    {patient.name}
+                                    </CommandItem>
+                                ))}
+                                </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField control={form.control} name="procedure" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Procedure</FormLabel>
+                      <FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                 <FormField control={form.control} name="date" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date</FormLabel>
+                      <FormControl><Input type="date" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                 <FormField control={form.control} name="time" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time</FormLabel>
+                      <FormControl><Input type="time" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                 <FormField control={form.control} name="doctor" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Doctor</FormLabel>
+                      <FormControl><Input placeholder="Doctor's name" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+              
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Appointment
+                </Button>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -99,6 +223,7 @@ export function AppointmentSchedule({ appointments: initialAppointments }: Appoi
             <div className="flex-1 space-y-2 overflow-y-auto">
               {appointments
                 .filter((appt) => format(new Date(appt.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'))
+                .sort((a, b) => a.time.localeCompare(b.time))
                 .map((appt) => (
                   <Card key={appt.id} className="bg-primary/10 border-primary/50 text-sm">
                     <CardContent className="p-2">
