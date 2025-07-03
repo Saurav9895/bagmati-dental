@@ -25,7 +25,7 @@ import { Textarea } from '../ui/textarea';
 
 const paymentSchema = z.object({
     amount: z.coerce.number().positive("Amount must be a positive number."),
-    method: z.enum(['Cash', 'Card', 'Bank Transfer', 'Other']),
+    method: z.enum(['Cash', 'Bank Transfer']),
     date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
 });
 
@@ -56,7 +56,7 @@ export function BillingClient() {
     resolver: zodResolver(paymentSchema),
     defaultValues: {
         amount: 0,
-        method: 'Card',
+        method: 'Cash',
         date: new Date().toISOString().split('T')[0],
     },
   });
@@ -106,7 +106,7 @@ export function BillingClient() {
     setSelectedPatient(patient);
     paymentForm.reset({
         amount: 0,
-        method: 'Card',
+        method: 'Cash',
         date: new Date().toISOString().split('T')[0],
     });
     discountForm.reset({ reason: "", amount: 0 });
@@ -413,10 +413,8 @@ export function BillingClient() {
                                                 </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="Card">Card</SelectItem>
                                                     <SelectItem value="Cash">Cash</SelectItem>
                                                     <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                                                    <SelectItem value="Other">Other</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />

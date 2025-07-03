@@ -46,7 +46,7 @@ export type Treatment = {
 export type Payment = {
   amount: number;
   date: string;
-  method: 'Cash' | 'Card' | 'Bank Transfer' | 'Other';
+  method: 'Cash' | 'Bank Transfer';
   dateAdded: string;
 };
 
