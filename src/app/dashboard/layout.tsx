@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -18,11 +18,13 @@ import {
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/dashboard/logo';
-import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard, Landmark, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard, Landmark, ChevronDown, LogOut } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { AuthProvider } from '@/context/auth-context';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -43,7 +45,7 @@ const getTitleFromPathname = (pathname: string) => {
     return 'Patient Detail';
   }
   
-  if(pathname === '/dashboard/settings') return 'Settings';
+  if(pathname === '/dashboard/settings') return 'Site Settings';
 
   const mainNavItem = navItems.find((item) => item.href === pathname);
   if (mainNavItem) return mainNavItem.label;
@@ -58,8 +60,14 @@ const getTitleFromPathname = (pathname: string) => {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const pageTitle = getTitleFromPathname(pathname);
   const [isAccountingOpen, setIsAccountingOpen] = React.useState(pathname.startsWith('/dashboard/accounting'));
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
 
   return (
@@ -117,11 +125,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </SidebarContent>
           <SidebarFooter className="p-4">
             <SidebarMenu>
+               <SidebarMenuItem>
+                  <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
+                    <LogOut/>
+                    <span>Logout</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Settings" isActive={pathname === '/dashboard/settings'}>
+                  <SidebarMenuButton asChild tooltip="Site Settings" isActive={pathname === '/dashboard/settings'}>
                     <a href="/dashboard/settings">
                       <Settings/>
-                      <span>Settings</span>
+                      <span>Site Settings</span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
