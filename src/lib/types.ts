@@ -18,3 +18,10 @@ export type Appointment = {
   date: string;
   doctor: string;
 };
+
+export type Treatment = {
+  id: string;
+  name: string;
+  description: string;
+  amount: number;
+};
