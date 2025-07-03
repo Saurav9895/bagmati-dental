@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight, PlusCircle, Trash2, Loader2, ChevronsUpDown,
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
 
 import type { Appointment, Patient } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -248,7 +249,9 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                         handleEditClick(appt);
                       }}
                     >
-                      <p className="font-bold">{appt.patientName}</p>
+                      <Link href={`/dashboard/patients/${appt.patientId}`} onClick={(e) => e.stopPropagation()} className="font-bold hover:underline">
+                        {appt.patientName}
+                      </Link>
                       <p>{appt.procedure}</p>
                       <p className="text-muted-foreground">
                         {formatTime12h(appt.time)} - {appt.doctor}
