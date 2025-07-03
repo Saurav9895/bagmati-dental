@@ -53,3 +53,12 @@ export type Discount = {
   amount: number;
   dateAdded: string;
 };
+
+export type Expense = {
+    id: string;
+    name: string;
+    category: 'Equipment' | 'Supplies' | 'Utilities' | 'Salaries' | 'Rent' | 'Other';
+    amount: number;
+    date: string;
+    createdAt?: any;
+};
