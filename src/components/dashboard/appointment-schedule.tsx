@@ -2,13 +2,13 @@
 
 import * as React from 'react';
 import { format, addDays, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Check, ChevronsUpDown, Loader2, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { addAppointment } from '@/app/actions/appointments';
+import { addAppointment, deleteAppointment } from '@/app/actions/appointments';
 import type { Appointment, Patient } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface AppointmentScheduleProps {
   appointments: Appointment[];
@@ -41,6 +42,9 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
   const [appointments, setAppointments] = React.useState(initialAppointments);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = React.useState(false);
+  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = React.useState<Appointment | null>(null);
+
   const { toast } = useToast();
 
   const form = useForm<AppointmentFormValues>({
@@ -93,8 +97,30 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
     }
   };
 
+  const handleDeleteClick = (appointment: Appointment) => {
+    setAppointmentToDelete(appointment);
+    setIsAlertOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!appointmentToDelete) return;
+    
+    const result = await deleteAppointment(appointmentToDelete.id);
+
+    if (result.success) {
+        setAppointments(prev => prev.filter(appt => appt.id !== appointmentToDelete!.id));
+        toast({ title: 'Appointment deleted successfully!' });
+    } else {
+        toast({ variant: 'destructive', title: 'Failed to delete appointment', description: result.error });
+    }
+    
+    setIsAlertOpen(false);
+    setAppointmentToDelete(null);
+  };
+
 
   return (
+    <>
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between pb-4">
         <div className="flex items-center gap-4">
@@ -254,12 +280,21 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                 .filter((appt) => format(new Date(appt.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'))
                 .sort((a, b) => a.time.localeCompare(b.time))
                 .map((appt) => (
-                  <Card key={appt.id} className="bg-primary/10 border-primary/50 text-sm">
+                  <Card key={appt.id} className="bg-primary/10 border-primary/50 text-sm relative group">
                     <CardContent className="p-2">
                       <p className="font-semibold">{appt.patientName}</p>
                       <p className="text-xs">{appt.procedure}</p>
                       <p className="text-xs text-muted-foreground">{appt.time} - {appt.doctor}</p>
                     </CardContent>
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100"
+                        onClick={() => handleDeleteClick(appt)}
+                    >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Delete appointment</span>
+                    </Button>
                   </Card>
                 ))}
             </div>
@@ -267,5 +302,22 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
         ))}
       </div>
     </div>
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete the appointment for {appointmentToDelete?.patientName} on {appointmentToDelete && format(new Date(appointmentToDelete.date), 'PPP')} at {appointmentToDelete?.time}.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setAppointmentToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete}>
+                    Continue
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

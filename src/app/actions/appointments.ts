@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/firebase';
 import type { Appointment } from '@/lib/types';
-import { collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc, deleteDoc } from 'firebase/firestore';
 
 export async function addAppointment(appointmentData: Omit<Appointment, 'id' | 'createdAt'>): Promise<{ success: boolean; data?: Appointment; error?: string }> {
     try {
@@ -29,6 +29,16 @@ export async function addAppointment(appointmentData: Omit<Appointment, 'id' | '
         }
     } catch (e) {
         console.error("Failed to add appointment: ", e);
+        return { success: false, error: (e as Error).message };
+    }
+}
+
+export async function deleteAppointment(appointmentId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await deleteDoc(doc(db, "appointments", appointmentId));
+        return { success: true };
+    } catch (e) {
+        console.error("Failed to delete appointment: ", e);
         return { success: false, error: (e as Error).message };
     }
 }
