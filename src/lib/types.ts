@@ -8,6 +8,14 @@ export type Patient = {
   lastVisit: string;
   address: string;
   medicalHistory?: string;
+  registrationNumber?: string;
+  assignedTreatments?: {
+    id: string;
+    name: string;
+    description: string;
+    amount: number;
+    dateAdded: string;
+  }[];
 };
 
 export type Appointment = {
