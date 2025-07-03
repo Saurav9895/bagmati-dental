@@ -236,51 +236,75 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
               <FormField
                 control={form.control}
                 name="patientId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Patient</FormLabel>
-                    <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className={cn('w-full justify-between', !field.value && 'text-muted-foreground')}
-                          >
-                            {field.value ? patients.find((p) => p.id === field.value)?.name : 'Select patient'}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                          <CommandInput placeholder="Search patient..." />
-                          <CommandList>
-                            <CommandEmpty>No patient found.</CommandEmpty>
-                            <CommandGroup>
-                              {patients.map((patient) => (
-                                <CommandItem
-                                  value={patient.name}
-                                  key={patient.id}
-                                  onSelect={() => {
-                                    form.setValue('patientId', patient.id);
-                                    setIsPatientPopoverOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn('mr-2 h-4 w-4', patient.id === field.value ? 'opacity-100' : 'opacity-0')}
-                                  />
-                                  {patient.name}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedPatient = patients.find((p) => p.id === field.value);
+                  return (
+                    <FormItem>
+                      <FormLabel>Patient</FormLabel>
+                      <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn('w-full justify-between text-left font-normal', !field.value && 'text-muted-foreground')}
+                            >
+                              {selectedPatient ? (
+                                  <div className="flex items-center">
+                                      {selectedPatient.name}
+                                      {selectedPatient.registrationNumber && (
+                                          <span className="ml-2 text-xs text-muted-foreground">
+                                              #{selectedPatient.registrationNumber}
+                                          </span>
+                                      )}
+                                  </div>
+                              ) : (
+                                  'Select patient by name or registration #'
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search by name or registration #" />
+                            <CommandList>
+                              <CommandEmpty>No patient found.</CommandEmpty>
+                              <CommandGroup>
+                                {patients.map((patient) => (
+                                  <CommandItem
+                                    value={`${patient.name} ${patient.registrationNumber || ''}`}
+                                    key={patient.id}
+                                    onSelect={() => {
+                                      form.setValue('patientId', patient.id);
+                                      setIsPatientPopoverOpen(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        'mr-2 h-4 w-4',
+                                        patient.id === field.value ? 'opacity-100' : 'opacity-0'
+                                      )}
+                                    />
+                                     <div className="flex items-center">
+                                          {patient.name}
+                                          {patient.registrationNumber && (
+                                              <span className="ml-2 text-xs text-muted-foreground">
+                                                  #{patient.registrationNumber}
+                                              </span>
+                                          )}
+                                      </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField control={form.control} name="procedure" render={({ field }) => (<FormItem><FormLabel>Procedure</FormLabel><FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="doctor" render={({ field }) => (<FormItem><FormLabel>Doctor</FormLabel><FormControl><Input placeholder="Doctor's name" {...field} /></FormControl><FormMessage /></FormItem>)} />
