@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { createNewUser } from '@/app/actions/users';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -23,8 +24,14 @@ const passwordSchema = z.object({
   newPassword: z.string().min(6, 'New password must be at least 6 characters.'),
 });
 
+const newUserSchema = z.object({
+  email: z.string().email('Please enter a valid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+});
+
 type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
+type NewUserFormValues = z.infer<typeof newUserSchema>;
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -32,6 +39,7 @@ export default function SettingsPage() {
   
   const [isProfileUpdating, setIsProfileUpdating] = React.useState(false);
   const [isPasswordUpdating, setIsPasswordUpdating] = React.useState(false);
+  const [isCreatingUser, setIsCreatingUser] = React.useState(false);
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -44,6 +52,11 @@ export default function SettingsPage() {
   const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { currentPassword: '', newPassword: '' },
+  });
+
+  const newUserForm = useForm<NewUserFormValues>({
+    resolver: zodResolver(newUserSchema),
+    defaultValues: { email: '', password: '' },
   });
   
   React.useEffect(() => {
@@ -90,6 +103,19 @@ export default function SettingsPage() {
     } finally {
       setIsPasswordUpdating(false);
     }
+  };
+
+  const onNewUserSubmit = async (data: NewUserFormValues) => {
+    setIsCreatingUser(true);
+    const result = await createNewUser(data.email, data.password);
+
+    if (result.success) {
+      toast({ title: 'User created successfully!' });
+      newUserForm.reset();
+    } else {
+      toast({ variant: 'destructive', title: 'User creation failed', description: result.error });
+    }
+    setIsCreatingUser(false);
   };
   
   if (loading) {
@@ -178,6 +204,49 @@ export default function SettingsPage() {
               <Button type="submit" disabled={isPasswordUpdating}>
                 {isPasswordUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Change Password
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+       <Card>
+        <CardHeader>
+          <CardTitle>Create New User</CardTitle>
+          <CardDescription>Add a new user to the system. The new user will be able to log in with the provided credentials.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...newUserForm}>
+            <form onSubmit={newUserForm.handleSubmit(onNewUserSubmit)} className="space-y-4 max-w-lg">
+              <FormField
+                control={newUserForm.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New User's Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="new.user@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={newUserForm.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isCreatingUser}>
+                {isCreatingUser && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create User
               </Button>
             </form>
           </Form>
