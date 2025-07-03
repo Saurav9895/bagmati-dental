@@ -265,7 +265,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingAppointment ? 'Edit' : 'Create New'} Appointment</DialogTitle>
           </DialogHeader>
