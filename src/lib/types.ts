@@ -6,6 +6,8 @@ export type Patient = {
   phone: string;
   status: 'Active' | 'Inactive';
   lastVisit: string;
+  address: string;
+  medicalHistory?: string;
 };
 
 export type Appointment = {

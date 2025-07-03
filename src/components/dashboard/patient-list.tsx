@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import type { Patient } from '@/lib/types';
 
 const patientSchema = z.object({
@@ -20,6 +21,8 @@ const patientSchema = z.object({
   email: z.string().email("Invalid email address."),
   phone: z.string().min(10, "Phone number seems too short."),
   dob: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date of birth."),
+  address: z.string().min(5, "Address must be at least 5 characters."),
+  medicalHistory: z.string().optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -30,7 +33,7 @@ export function PatientList({ patients: initialPatients }: { patients: Patient[]
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { name: "", email: "", phone: "", dob: "" },
+    defaultValues: { name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" },
   });
 
   const onSubmit = (data: PatientFormValues) => {
@@ -39,6 +42,7 @@ export function PatientList({ patients: initialPatients }: { patients: Patient[]
       status: 'Active',
       lastVisit: new Date().toISOString().split('T')[0],
       ...data,
+      medicalHistory: data.medicalHistory || undefined,
     };
     setPatients([newPatient, ...patients]);
     form.reset();
@@ -90,6 +94,20 @@ export function PatientList({ patients: initialPatients }: { patients: Patient[]
                   <FormItem>
                     <FormLabel>Date of Birth</FormLabel>
                     <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="address" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl><Input placeholder="123 Main St, Anytown, USA" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="medicalHistory" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Medical History</FormLabel>
+                    <FormControl><Textarea placeholder="Any allergies, existing conditions, etc." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
