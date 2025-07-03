@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import type { Expense } from '@/lib/types';
 import { addExpense, getExpenses } from '@/app/actions/expenses';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Line, LineChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { startOfWeek, endOfWeek, subWeeks, startOfToday, parseISO, isWithinInterval } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
@@ -259,25 +259,26 @@ export default function ExpensesPage() {
             <Separator />
              {chartData.length > 0 ? (
                 <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                    <BarChart accessibilityLayer data={chartData} layout="vertical">
-                        <CartesianGrid horizontal={false} />
-                        <YAxis
+                    <LineChart accessibilityLayer data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis
                             dataKey="category"
-                            type="category"
                             tickLine={false}
                             tickMargin={10}
                             axisLine={false}
                             className='text-xs'
                         />
-                        <XAxis dataKey="total" type="number" hide />
+                        <YAxis
+                             tickFormatter={(value) => `Rs. ${Number(value) > 999 ? `${Number(value) / 1000}k` : value}`}
+                        />
                         <ChartTooltip
-                            cursor={false}
+                            cursor={true}
                             content={<ChartTooltipContent
                                 formatter={(value) => `Rs. ${value.toLocaleString()}`}
                                 />}
                         />
-                        <Bar dataKey="total" fill="var(--color-total)" radius={4} />
-                    </BarChart>
+                        <Line dataKey="total" type="monotone" stroke="var(--color-total)" strokeWidth={2} dot={{r: 4}} />
+                    </LineChart>
                 </ChartContainer>
             ) : (
                   <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-8 text-center">

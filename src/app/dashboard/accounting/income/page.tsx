@@ -13,7 +13,7 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 import { startOfWeek, endOfWeek, subWeeks, startOfToday, parseISO, isWithinInterval, format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Separator } from '@/components/ui/separator';
 
@@ -184,7 +184,13 @@ export default function IncomePage() {
                      <Separator />
                      {chartData.length > 0 ? (
                         <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                            <BarChart accessibilityLayer data={chartData}>
+                            <AreaChart accessibilityLayer data={chartData}>
+                                <defs>
+                                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--color-total)" stopOpacity={0.8}/>
+                                        <stop offset="95%" stopColor="var(--color-total)" stopOpacity={0.1}/>
+                                    </linearGradient>
+                                </defs>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="date"
@@ -197,7 +203,7 @@ export default function IncomePage() {
                                     tickFormatter={(value) => `Rs. ${Number(value) > 999 ? `${Number(value) / 1000}k` : value}`}
                                 />
                                 <ChartTooltip
-                                    cursor={false}
+                                    cursor={true}
                                     content={<ChartTooltipContent
                                         formatter={(value) => `Rs. ${value.toLocaleString()}`}
                                         labelFormatter={(label, payload) => {
@@ -206,10 +212,11 @@ export default function IncomePage() {
                                             }
                                             return label;
                                         }}
+                                        indicator="dot"
                                     />}
                                 />
-                                <Bar dataKey="total" fill="var(--color-total)" radius={4} />
-                            </BarChart>
+                                <Area type="monotone" dataKey="total" stroke="var(--color-total)" fillOpacity={1} fill="url(#colorTotal)" strokeWidth={2} />
+                            </AreaChart>
                         </ChartContainer>
                     ) : (
                          <div className="flex h-[250px] w-full items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-8 text-center">
