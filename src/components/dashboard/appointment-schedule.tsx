@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -138,9 +137,10 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                                     )}
                                     >
                                     {field.value
-                                        ? patients.find(
-                                            (patient) => patient.id === field.value
-                                        )?.name
+                                        ? (() => {
+                                            const patient = patients.find(p => p.id === field.value);
+                                            return patient ? `${patient.name} ${patient.registrationNumber ? `(#${patient.registrationNumber})` : ''}` : "Select patient"
+                                        })()
                                         : "Select patient"}
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                     </Button>
@@ -148,13 +148,13 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                 <Command>
-                                    <CommandInput placeholder="Search patient..." />
+                                    <CommandInput placeholder="Search by name or registration #" />
                                     <CommandEmpty>No patient found.</CommandEmpty>
                                     <CommandList>
                                         <CommandGroup>
                                         {patients.map((patient) => (
                                             <CommandItem
-                                            value={patient.name}
+                                            value={`${patient.name} ${patient.registrationNumber || ''}`}
                                             key={patient.id}
                                             onSelect={() => {
                                                 form.setValue("patientId", patient.id)
@@ -169,7 +169,14 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                                                     : "opacity-0"
                                                 )}
                                             />
-                                            {patient.name}
+                                            <div className="flex justify-between w-full items-center">
+                                                <span>{patient.name}</span>
+                                                {patient.registrationNumber && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        #{patient.registrationNumber}
+                                                    </span>
+                                                )}
+                                            </div>
                                             </CommandItem>
                                         ))}
                                         </CommandGroup>

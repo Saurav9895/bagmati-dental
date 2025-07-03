@@ -92,9 +92,11 @@ export function BillingClient() {
     if (searchQuery === '') {
       setFilteredPatients(allPatients);
     } else {
+      const lowercasedQuery = searchQuery.toLowerCase();
       setFilteredPatients(
         allPatients.filter(patient =>
-          patient.name.toLowerCase().includes(searchQuery.toLowerCase())
+          patient.name.toLowerCase().includes(lowercasedQuery) ||
+          (patient.registrationNumber && patient.registrationNumber.includes(searchQuery))
         )
       );
     }
@@ -200,7 +202,7 @@ export function BillingClient() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search for a patient..."
+              placeholder="Search by name or registration #"
               className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
