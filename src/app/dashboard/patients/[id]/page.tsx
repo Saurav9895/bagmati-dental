@@ -11,7 +11,12 @@ async function getPatient(id: string): Promise<Patient | null> {
   const docSnap = await getDoc(docRef);
 
   if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() } as Patient;
+    const data = docSnap.data();
+    // The `createdAt` field is a Firestore Timestamp, which is not serializable
+    // and cannot be passed from a Server Component to a Client Component.
+    // We omit it here since it's not used on the client.
+    const { createdAt, ...rest } = data;
+    return { id: docSnap.id, ...rest } as Patient;
   } else {
     return null;
   }
@@ -20,7 +25,13 @@ async function getPatient(id: string): Promise<Patient | null> {
 async function getTreatments(): Promise<Treatment[]> {
     const treatmentsCollection = collection(db, 'treatments');
     const querySnapshot = await getDocs(treatmentsCollection);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Treatment[];
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      // The `createdAt` field is a Firestore Timestamp, which is not serializable.
+      // We omit it to avoid errors when passing from Server to Client Components.
+      const { createdAt, ...rest } = data;
+      return { id: doc.id, ...rest };
+    }) as Treatment[];
 }
 
 
