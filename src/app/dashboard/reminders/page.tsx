@@ -15,7 +15,7 @@ export default function RemindersPage() {
 
   const generateReminders = () => {
     const reminders = upcomingAppointments.map(appt => 
-      `Hi ${appt.patientName}, this is a reminder for your appointment for a ${appt.procedure} on ${new Date(appt.date).toLocaleDateString()} at ${appt.time} with ${appt.doctor} at DentalFlow Clinic. See you soon!`
+      `Hi ${appt.patientName}, this is a reminder for your appointment for a ${appt.procedure} on ${new Date(appt.date).toLocaleDateString()} at ${appt.time} with ${appt.doctor} at Bagmati Dental Clinic. See you soon!`
     );
     setGeneratedReminders(reminders);
   };

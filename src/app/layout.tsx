@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'DentalFlow',
+  title: 'Bagmati Dental Clinic',
   description: 'A modern clinic management system for dental practices.',
 };
 

@@ -60,7 +60,7 @@ export function Logo() {
       ) : (
         <>
           <ToothIcon className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold font-headline text-primary">DentalFlow</h1>
+          <h1 className="text-xl font-bold font-headline text-primary">Bagmati Dental Clinic</h1>
         </>
       )}
     </div>
