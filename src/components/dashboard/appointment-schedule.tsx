@@ -228,88 +228,88 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create New Appointment</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-              <FormField
-                control={form.control}
-                name="patientId"
-                render={({ field }) => {
-                  const selectedPatient = patients.find((p) => p.id === field.value);
-                  return (
-                    <FormItem>
-                      <FormLabel>Patient</FormLabel>
-                      <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className={cn('w-full justify-between text-left font-normal', !field.value && 'text-muted-foreground')}
-                            >
-                              {selectedPatient ? (
-                                  <div className="flex items-center">
-                                      {selectedPatient.name}
-                                      {selectedPatient.registrationNumber && (
-                                          <span className="ml-2 text-xs text-muted-foreground">
-                                              #{selectedPatient.registrationNumber}
-                                          </span>
-                                      )}
-                                  </div>
-                              ) : (
-                                  'Select patient by name or registration #'
-                              )}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Search by name or registration #" />
-                            <CommandList>
-                              <CommandEmpty>No patient found.</CommandEmpty>
-                              <CommandGroup>
-                                {patients.map((patient) => (
-                                  <CommandItem
-                                    value={`${patient.name} ${patient.registrationNumber || ''}`}
-                                    key={patient.id}
-                                    onSelect={() => {
-                                      form.setValue('patientId', patient.id);
-                                      setIsPatientPopoverOpen(false);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        'mr-2 h-4 w-4',
-                                        patient.id === field.value ? 'opacity-100' : 'opacity-0'
-                                      )}
-                                    />
-                                     <div className="flex items-center">
-                                          {patient.name}
-                                          {patient.registrationNumber && (
-                                              <span className="ml-2 text-xs text-muted-foreground">
-                                                  #{patient.registrationNumber}
-                                              </span>
-                                          )}
-                                      </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
-              <FormField control={form.control} name="procedure" render={({ field }) => (<FormItem><FormLabel>Procedure</FormLabel><FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="doctor" render={({ field }) => (<FormItem><FormLabel>Doctor</FormLabel><FormControl><Input placeholder="Doctor's name" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="patientId"
+                  render={({ field }) => {
+                    const selectedPatient = patients.find((p) => p.id === field.value);
+                    return (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Patient</FormLabel>
+                        <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn('w-full justify-between text-left font-normal', !field.value && 'text-muted-foreground')}
+                              >
+                                {selectedPatient ? (
+                                    <div className="flex items-center">
+                                        {selectedPatient.name}
+                                        {selectedPatient.registrationNumber && (
+                                            <span className="ml-2 text-xs text-muted-foreground">
+                                                #{selectedPatient.registrationNumber}
+                                            </span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    'Select patient by name or registration #'
+                                )}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search by name or registration #" />
+                              <CommandList>
+                                <CommandEmpty>No patient found.</CommandEmpty>
+                                <CommandGroup>
+                                  {patients.map((patient) => (
+                                    <CommandItem
+                                      value={`${patient.name} ${patient.registrationNumber || ''}`}
+                                      key={patient.id}
+                                      onSelect={() => {
+                                        form.setValue('patientId', patient.id);
+                                        setIsPatientPopoverOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          'mr-2 h-4 w-4',
+                                          patient.id === field.value ? 'opacity-100' : 'opacity-0'
+                                        )}
+                                      />
+                                      <div className="flex items-center">
+                                            {patient.name}
+                                            {patient.registrationNumber && (
+                                                <span className="ml-2 text-xs text-muted-foreground">
+                                                    #{patient.registrationNumber}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+                <FormField control={form.control} name="procedure" render={({ field }) => (<FormItem><FormLabel>Procedure</FormLabel><FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="doctor" render={({ field }) => (<FormItem><FormLabel>Doctor</FormLabel><FormControl><Input placeholder="Doctor's name" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 <FormField
                   control={form.control}
                   name="date"
@@ -332,8 +332,8 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                   )}
                 />
                 <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="description" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Prescribed Amoxicillin 500mg..." {...field} value={field.value || ''} rows={3} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Prescribed Amoxicillin 500mg..." {...field} value={field.value || ''} rows={3} /></FormControl><FormMessage /></FormItem>)} />
               <DialogFooter className="pt-2">
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
