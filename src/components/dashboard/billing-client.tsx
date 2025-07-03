@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -223,7 +224,11 @@ export function BillingClient() {
                          <Separator className="my-2" />
                         <div className="flex justify-end items-center text-lg font-bold">
                             <span className="text-muted-foreground mr-4">Balance Due:</span>
-                            <span>${balanceDue.toFixed(2)}</span>
+                            {balanceDue <= 0 && totalAmount > 0 ? (
+                                <span className="text-green-600">Fully Paid</span>
+                            ) : (
+                                <span>${balanceDue.toFixed(2)}</span>
+                            )}
                         </div>
                     </div>
               </CardContent>
