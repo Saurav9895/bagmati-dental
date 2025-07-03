@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -228,7 +227,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Create New Appointment</DialogTitle>
           </DialogHeader>
