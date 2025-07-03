@@ -319,7 +319,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                       <FormControl>
                         <Input
                           type="date"
-                          value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                          value={field.value instanceof Date && !isNaN(field.value.getTime()) ? format(field.value, 'yyyy-MM-dd') : ''}
                           onChange={(e) => {
                             const dateValue = e.target.value;
                             // Add time component to avoid timezone issues where date might be off by one.
