@@ -1,6 +1,6 @@
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment } from '@/lib/types';
+import type { Patient, Treatment, Appointment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -34,10 +34,26 @@ async function getTreatments(): Promise<Treatment[]> {
     }) as Treatment[];
 }
 
+async function getAppointmentsForPatient(patientId: string): Promise<Appointment[]> {
+    const appointmentsCollection = collection(db, 'appointments');
+    const q = query(
+      appointmentsCollection,
+      where('patientId', '==', patientId),
+      orderBy('date', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const { createdAt, ...rest } = data;
+      return { id: doc.id, ...rest } as Appointment;
+    });
+}
+
 
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
   const patient = await getPatient(params.id);
   const treatments = await getTreatments();
+  const appointments = await getAppointmentsForPatient(params.id);
 
   if (!patient) {
     return (
@@ -57,5 +73,5 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
     );
   }
 
-  return <PatientDetailClient initialPatient={patient} treatments={treatments} />;
+  return <PatientDetailClient initialPatient={patient} treatments={treatments} appointments={appointments} />;
 }

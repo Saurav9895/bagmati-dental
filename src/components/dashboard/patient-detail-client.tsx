@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment } from '@/lib/types';
+import type { Patient, Treatment, Appointment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard } from 'lucide-react';
 import Link from 'next/link';
@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type AssignedTreatment = Treatment & { dateAdded: string };
 
-export function PatientDetailClient({ initialPatient, treatments }: { initialPatient: Patient, treatments: Treatment[] }) {
+export function PatientDetailClient({ initialPatient, treatments, appointments }: { initialPatient: Patient, treatments: Treatment[], appointments: Appointment[] }) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [showTreatmentForm, setShowTreatmentForm] = React.useState(false);
     const [selectedTreatmentId, setSelectedTreatmentId] = React.useState<string | undefined>(undefined);
@@ -168,6 +168,42 @@ export function PatientDetailClient({ initialPatient, treatments }: { initialPat
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                                 {patient.medicalHistory || 'No medical history provided.'}
                             </p>
+                        </CardContent>
+                    </Card>
+                    
+                    <Card className="md:col-span-2 lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CalendarIcon className="h-5 w-5" />
+                                Appointment History
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {appointments && appointments.length > 0 ? (
+                                <div className="space-y-4">
+                                    {appointments.map((appt) => (
+                                        <div key={appt.id} className="p-3 border rounded-md bg-card shadow-sm">
+                                            <div className="flex justify-between items-start gap-4">
+                                                <div>
+                                                    <p className="font-semibold">{appt.procedure}</p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
+                                                    </p>
+                                                </div>
+                                                <p className="text-sm font-medium text-muted-foreground shrink-0">{appt.time}</p>
+                                            </div>
+                                            {appt.description && (
+                                                <div className="mt-3 pt-3 border-t">
+                                                    <p className="text-sm font-semibold mb-1">Notes / Prescription:</p>
+                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{appt.description}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No appointment history found.</p>
+                            )}
                         </CardContent>
                     </Card>
 

@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AppointmentScheduleProps {
   appointments: Appointment[];
@@ -30,6 +31,7 @@ const appointmentSchema = z.object({
     date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
     time: z.string().min(1, "Time is required."),
     doctor: z.string().min(2, "Doctor's name must be at least 2 characters."),
+    description: z.string().optional(),
 });
 
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
@@ -48,6 +50,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
         date: format(new Date(), 'yyyy-MM-dd'),
         time: '',
         doctor: '',
+        description: '',
     },
   });
 
@@ -83,6 +86,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
             time: '',
             doctor: '',
             patientId: undefined,
+            description: '',
         });
     } else {
         toast({ variant: 'destructive', title: 'Failed to create appointment', description: result.error });
@@ -218,6 +222,19 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                         </FormItem>
                     )} />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description (Prescription, Notes, etc.)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="e.g., Prescribed Amoxicillin 500mg..." {...field} value={field.value || ''} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                     {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Appointment

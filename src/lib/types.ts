@@ -29,6 +29,7 @@ export type Appointment = {
   time: string;
   date: string;
   doctor: string;
+  description?: string;
   createdAt?: any;
 };
 
