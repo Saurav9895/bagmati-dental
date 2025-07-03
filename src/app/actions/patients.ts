@@ -46,10 +46,14 @@ export async function addTreatmentToPatient(patientId: string, treatment: Treatm
         assignedTreatments: updatedTreatments
       });
       
+      // The patientData from firestore contains a non-serializable 'createdAt' field.
+      // We must omit it before returning it to the client.
+      const { createdAt, ...serializablePatientData } = patientData;
+
       // Return the new data to update the client state
       return {
           id: patientId,
-          ...patientData,
+          ...serializablePatientData,
           registrationNumber: newRegistrationNumber,
           assignedTreatments: updatedTreatments
       };
