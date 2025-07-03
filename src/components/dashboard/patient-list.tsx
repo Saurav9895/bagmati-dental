@@ -1,10 +1,11 @@
+
 'use client';
 
 import * as React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MoreHorizontal, PlusCircle, Trash2, Edit } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Search, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, upda
 import type { Patient } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const patientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -35,10 +37,14 @@ type PatientFormValues = z.infer<typeof patientSchema>;
 
 export function PatientList() {
   const [patients, setPatients] = React.useState<Patient[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedPatientIds, setSelectedPatientIds] = React.useState<string[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingPatient, setEditingPatient] = React.useState<Patient | null>(null);
-  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  
+  const [isSingleDeleteAlertOpen, setIsSingleDeleteAlertOpen] = React.useState(false);
+  const [isBulkDeleteAlertOpen, setIsBulkDeleteAlertOpen] = React.useState(false);
   const [deletingPatientId, setDeletingPatientId] = React.useState<string | null>(null);
 
   const { toast } = useToast();
@@ -47,6 +53,16 @@ export function PatientList() {
     resolver: zodResolver(patientSchema),
     defaultValues: { name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" },
   });
+  
+  const filteredPatients = React.useMemo(() => {
+    if (!searchQuery) return patients;
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return patients.filter(p =>
+      p.name.toLowerCase().includes(lowercasedQuery) ||
+      (p.registrationNumber && p.registrationNumber.toLowerCase().includes(lowercasedQuery)) ||
+      p.email.toLowerCase().includes(lowercasedQuery)
+    );
+  }, [searchQuery, patients]);
 
   React.useEffect(() => {
     const fetchPatients = async () => {
@@ -81,6 +97,20 @@ export function PatientList() {
       form.reset({ name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" });
     }
   }, [editingPatient, form]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedPatientIds(filteredPatients.map(p => p.id));
+    } else {
+      setSelectedPatientIds([]);
+    }
+  };
+
+  const handleSelectPatient = (patientId: string, checked: boolean) => {
+    setSelectedPatientIds(prev =>
+      checked ? [...prev, patientId] : prev.filter(id => id !== patientId)
+    );
+  };
   
   const handleDialogOpenChange = (open: boolean) => {
     setIsFormOpen(open);
@@ -96,10 +126,14 @@ export function PatientList() {
   
   const handleDeleteClick = (patientId: string) => {
     setDeletingPatientId(patientId);
-    setIsAlertOpen(true);
+    setIsSingleDeleteAlertOpen(true);
+  };
+  
+  const handleBulkDeleteClick = () => {
+    setIsBulkDeleteAlertOpen(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmSingleDelete = async () => {
     if (!deletingPatientId) return;
     try {
         await deleteDoc(doc(db, "patients", deletingPatientId));
@@ -115,10 +149,33 @@ export function PatientList() {
             description: (error as Error).message || "An unexpected error occurred.",
         });
     } finally {
-        setIsAlertOpen(false);
+        setIsSingleDeleteAlertOpen(false);
         setDeletingPatientId(null);
     }
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+        const deletePromises = selectedPatientIds.map(id => deleteDoc(doc(db, "patients", id)));
+        await Promise.all(deletePromises);
+        
+        setPatients(patients.filter(p => !selectedPatientIds.includes(p.id)));
+        toast({
+            title: "Patients Deleted",
+            description: `${selectedPatientIds.length} patient records have been successfully deleted.`,
+        });
+    } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Failed to delete patients",
+            description: (error as Error).message || "An unexpected error occurred.",
+        });
+    } finally {
+        setSelectedPatientIds([]);
+        setIsBulkDeleteAlertOpen(false);
+    }
   }
+
 
   const onSubmit = async (data: PatientFormValues) => {
     try {
@@ -169,80 +226,125 @@ export function PatientList() {
   return (
     <>
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
         <div>
           <CardTitle>Patients</CardTitle>
           <CardDescription>Manage your clinic's patient records.</CardDescription>
         </div>
-        <Dialog open={isFormOpen} onOpenChange={handleDialogOpenChange}>
-          <DialogTrigger asChild>
-            <Button size="sm" onClick={() => setEditingPatient(null)}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Patient
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingPatient ? 'Edit Patient' : 'Add New Patient'}</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl><Input placeholder="john.doe@example.com" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl><Input placeholder="123-456-7890" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="dob" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
-                      <FormControl><Input type="date" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="address" render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Address</FormLabel>
-                      <FormControl><Input placeholder="123 Main St, Anytown, USA" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                  <FormField control={form.control} name="medicalHistory" render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>Medical History</FormLabel>
-                      <FormControl><Textarea placeholder="Any allergies, existing conditions, etc." value={field.value || ''} onChange={field.onChange} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
-                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Saving...' : 'Save Patient'}
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search patients..."
+                    className="pl-8 sm:w-[300px] w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
+            <div className="flex gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" disabled={selectedPatientIds.length === 0} className="w-full sm:w-auto">
+                            Actions
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                            className="text-destructive"
+                            onSelect={handleBulkDeleteClick}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete ({selectedPatientIds.length})
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Dialog open={isFormOpen} onOpenChange={handleDialogOpenChange}>
+                    <DialogTrigger asChild>
+                        <Button size="sm" onClick={() => setEditingPatient(null)} className="w-full sm:w-auto">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        New Patient
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                        <DialogTitle>{editingPatient ? 'Edit Patient' : 'Add New Patient'}</DialogTitle>
+                        </DialogHeader>
+                        <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <FormField control={form.control} name="name" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Full Name</FormLabel>
+                                <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="email" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl><Input placeholder="john.doe@example.com" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="phone" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Phone</FormLabel>
+                                <FormControl><Input placeholder="123-456-7890" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="dob" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Date of Birth</FormLabel>
+                                <FormControl><Input type="date" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="address" render={({ field }) => (
+                                <FormItem className="md:col-span-2">
+                                <FormLabel>Address</FormLabel>
+                                <FormControl><Input placeholder="123 Main St, Anytown, USA" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="medicalHistory" render={({ field }) => (
+                                <FormItem className="md:col-span-2">
+                                <FormLabel>Medical History</FormLabel>
+                                <FormControl><Textarea placeholder="Any allergies, existing conditions, etc." value={field.value || ''} onChange={field.onChange} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            </div>
+                            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                            {form.formState.isSubmitting ? 'Saving...' : 'Save Patient'}
+                            </Button>
+                        </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox
+                    checked={filteredPatients.length > 0 && selectedPatientIds.length === filteredPatients.length}
+                    onCheckedChange={(value) => handleSelectAll(!!value)}
+                    aria-label="Select all"
+                    // This is an example of an indeterminate checkbox
+                    // It's checked if some but not all items are selected
+                    ref={element => {
+                        if (element) {
+                            element.indeterminate = selectedPatientIds.length > 0 && selectedPatientIds.length < filteredPatients.length
+                        }
+                    }}
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Email</TableHead>
@@ -254,6 +356,7 @@ export function PatientList() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
+                  <TableCell><Skeleton className="h-5 w-5" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
@@ -261,9 +364,16 @@ export function PatientList() {
                   <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
                 </TableRow>
               ))
-            ) : patients.length > 0 ? (
-              patients.map((patient) => (
-                <TableRow key={patient.id}>
+            ) : filteredPatients.length > 0 ? (
+              filteredPatients.map((patient) => (
+                <TableRow key={patient.id} data-state={selectedPatientIds.includes(patient.id) && "selected"}>
+                  <TableCell>
+                     <Checkbox
+                        checked={selectedPatientIds.includes(patient.id)}
+                        onCheckedChange={(value) => handleSelectPatient(patient.id, !!value)}
+                        aria-label={`Select patient ${patient.name}`}
+                     />
+                  </TableCell>
                   <TableCell className="font-medium">
                     <Link href={`/dashboard/patients/${patient.id}`} className="hover:underline">
                       {patient.name}
@@ -303,8 +413,8 @@ export function PatientList() {
               ))
             ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
-                    No patients found. Add one to get started.
+                  <TableCell colSpan={6} className="text-center h-24">
+                    {searchQuery ? 'No patients match your search.' : 'No patients found. Add one to get started.'}
                   </TableCell>
                 </TableRow>
             )}
@@ -312,7 +422,7 @@ export function PatientList() {
         </Table>
       </CardContent>
     </Card>
-    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+    <AlertDialog open={isSingleDeleteAlertOpen} onOpenChange={setIsSingleDeleteAlertOpen}>
       <AlertDialogContent>
           <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -322,7 +432,23 @@ export function PatientList() {
           </AlertDialogHeader>
           <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setDeletingPatientId(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDelete}>
+              <AlertDialogAction onClick={confirmSingleDelete}>
+                  Continue
+              </AlertDialogAction>
+          </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    <AlertDialog open={isBulkDeleteAlertOpen} onOpenChange={setIsBulkDeleteAlertOpen}>
+      <AlertDialogContent>
+          <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                  This will permanently delete the selected {selectedPatientIds.length} patient records. This action cannot be undone.
+              </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmBulkDelete}>
                   Continue
               </AlertDialogAction>
           </AlertDialogFooter>
