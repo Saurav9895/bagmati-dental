@@ -75,6 +75,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = React.useState(false);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = React.useState<Appointment | null>(null);
+  const [isCompleting, setIsCompleting] = React.useState(false);
   const { toast } = useToast();
 
   const form = useForm<AppointmentFormValues>({
@@ -130,6 +131,20 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
     setIsAlertOpen(true);
     setIsDialogOpen(false); // Close the edit dialog
   };
+
+  const handleMarkAsComplete = async (appointment: Appointment) => {
+    setIsCompleting(true);
+    const result = await updateAppointment(appointment.id, { status: 'Completed' });
+    if (result.success) {
+      setAppointments((prev) => prev.filter((appt) => appt.id !== appointment.id));
+      toast({ title: 'Appointment marked as complete!' });
+      handleDialogOpenChange(false);
+    } else {
+      toast({ variant: 'destructive', title: 'Failed to update appointment', description: result.error });
+    }
+    setIsCompleting(false);
+  };
+
 
   const handleConfirmDelete = async () => {
     if (!appointmentToDelete) return;
@@ -330,13 +345,29 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                 <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Prescribed Amoxicillin 500mg..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter className="sm:justify-between">
+              <DialogFooter className="sm:justify-between pt-4 gap-2">
                 {editingAppointment ? (
-                  <Button type="button" variant="destructive" onClick={() => handleDeleteClick(editingAppointment)}>
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                  </Button>
-                ) : <div />}
-                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                     <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleMarkAsComplete(editingAppointment)}
+                        disabled={isCompleting || form.formState.isSubmitting}
+                      >
+                        {isCompleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                        Mark as Complete
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => handleDeleteClick(editingAppointment)}
+                        disabled={isCompleting || form.formState.isSubmitting}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </Button>
+                  </div>
+                ) : <div/>}
+                <Button type="submit" disabled={form.formState.isSubmitting || isCompleting}>
                   {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingAppointment ? 'Save Changes' : 'Save Appointment'}
                 </Button>

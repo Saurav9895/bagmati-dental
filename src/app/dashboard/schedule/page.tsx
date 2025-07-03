@@ -8,12 +8,13 @@ async function getAppointments(): Promise<Appointment[]> {
     const appointmentsCollection = collection(db, 'appointments');
     const q = query(appointmentsCollection, orderBy('date', 'desc'));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
+    const allAppointments = querySnapshot.docs.map(doc => {
       const data = doc.data();
       // Omit non-serializable fields before passing from Server to Client Component.
       const { createdAt, ...rest } = data;
       return { id: doc.id, ...rest } as Appointment;
     });
+    return allAppointments.filter(appt => appt.status !== 'Completed');
 }
 
 async function getPatients(): Promise<Patient[]> {
