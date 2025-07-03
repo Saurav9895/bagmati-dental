@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -116,12 +115,12 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
               New Appointment
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-5xl">
+          <DialogContent className="sm:max-w-5xl p-5">
             <DialogHeader>
               <DialogTitle>Create New Appointment</DialogTitle>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="md:col-span-2">
                         <FormField
