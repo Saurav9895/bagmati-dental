@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import type { Patient } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -81,11 +81,15 @@ export function PatientList() {
   const onSubmit = async (data: PatientFormValues) => {
     try {
       const newPatientData = {
-        ...data,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        dob: data.dob,
+        address: data.address,
+        medicalHistory: data.medicalHistory || "",
         status: 'Active' as const,
         lastVisit: new Date().toISOString().split('T')[0],
-        createdAt: Timestamp.now(),
-        medicalHistory: data.medicalHistory || "",
+        createdAt: serverTimestamp(),
       };
       
       const docRef = await addDoc(collection(db, "patients"), newPatientData);
@@ -109,7 +113,7 @@ export function PatientList() {
       toast({
         variant: "destructive",
         title: "Failed to add patient",
-        description: "An unexpected error occurred. Please try again.",
+        description: (error as Error).message || "An unexpected error occurred. Please try again.",
       });
     }
   };
