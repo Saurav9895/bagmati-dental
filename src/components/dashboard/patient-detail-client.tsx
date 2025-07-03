@@ -17,6 +17,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type AssignedTreatment = Treatment & { dateAdded: string };
 
+const formatTime12h = (time24h: string): string => {
+    if (!time24h) return '';
+    const [hours, minutes] = time24h.split(':');
+    const h = parseInt(hours, 10);
+    const m = parseInt(minutes, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
+};
+
 export function PatientDetailClient({ initialPatient, treatments, appointments }: { initialPatient: Patient, treatments: Treatment[], appointments: Appointment[] }) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [showTreatmentForm, setShowTreatmentForm] = React.useState(false);
@@ -190,7 +200,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments }
                                                         {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
                                                     </p>
                                                 </div>
-                                                <p className="text-sm font-medium text-muted-foreground shrink-0">{appt.time}</p>
+                                                <p className="text-sm font-medium text-muted-foreground shrink-0">{formatTime12h(appt.time)}</p>
                                             </div>
                                             {appt.description && (
                                                 <div className="mt-3 pt-3 border-t">

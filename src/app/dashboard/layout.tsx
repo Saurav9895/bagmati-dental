@@ -30,6 +30,9 @@ const navItems = [
 ];
 
 const getTitleFromPathname = (pathname: string) => {
+  if (pathname.startsWith('/dashboard/patients/') && pathname.split('/').length > 3) {
+    return 'Patient Detail';
+  }
   const item = navItems.find((item) => item.href === pathname);
   return item ? item.label : 'Dashboard';
 }
