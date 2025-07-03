@@ -18,7 +18,7 @@ import {
   SidebarMenuSubButton,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/dashboard/logo';
-import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard, Landmark, ChevronDown, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings, HeartPulse, CreditCard, Landmark, ChevronDown, LogOut, Box } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,12 @@ const navItems = [
   { href: '/dashboard/patients', label: 'Patients', icon: Users },
   { href: '/dashboard/treatments', label: 'Treatments', icon: HeartPulse },
   { href: '/dashboard/billing', label: 'Billing', icon: CreditCard },
+  { href: '/dashboard/stock', label: 'Stock Management', icon: Box },
+];
+
+const staffNavItems = [
+    { href: '/dashboard/staff/doctors', label: 'Doctors' },
+    { href: '/dashboard/staff/staff', label: 'Other Staff' },
 ];
 
 const accountingNavItems = [
@@ -51,6 +57,11 @@ const getTitleFromPathname = (pathname: string) => {
   const mainNavItem = navItems.find((item) => item.href === pathname);
   if (mainNavItem) return mainNavItem.label;
 
+  const staffNavItem = staffNavItems.find((item) => item.href === pathname);
+  if (staffNavItem) return staffNavItem.label;
+  
+  if (pathname.startsWith('/dashboard/staff')) return 'Staff Management';
+
   const accountingNavItem = accountingNavItems.find((item) => item.href === pathname);
   if (accountingNavItem) return accountingNavItem.label;
   
@@ -64,6 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pageTitle = getTitleFromPathname(pathname);
   const [isAccountingOpen, setIsAccountingOpen] = React.useState(pathname.startsWith('/dashboard/accounting'));
+  const [isStaffOpen, setIsStaffOpen] = React.useState(pathname.startsWith('/dashboard/staff'));
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -94,6 +106,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+               <SidebarMenuItem>
+                <Collapsible open={isStaffOpen} onOpenChange={setIsStaffOpen} className="w-full">
+                    <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                            isActive={pathname.startsWith('/dashboard/staff')}
+                            tooltip="Staff Management"
+                            className="!justify-between w-full"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Users />
+                                <span>Staff Management</span>
+                            </div>
+                            <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isStaffOpen && "rotate-180")} />
+                        </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <SidebarMenuSub>
+                            {staffNavItems.map((item) => (
+                                <SidebarMenuSubItem key={item.href}>
+                                    <SidebarMenuSubButton asChild isActive={pathname === item.href}>
+                                        <a href={item.href}>{item.label}</a>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            ))}
+                        </SidebarMenuSub>
+                    </CollapsibleContent>
+                </Collapsible>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <Collapsible open={isAccountingOpen} onOpenChange={setIsAccountingOpen} className="w-full">
                     <CollapsibleTrigger asChild>

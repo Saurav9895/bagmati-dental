@@ -64,3 +64,32 @@ export type Expense = {
     date: string;
     createdAt?: any;
 };
+
+export type Doctor = {
+  id: string;
+  name: string;
+  specialization: string;
+  phone: string;
+  email?: string;
+  createdAt?: any;
+};
+
+export type StaffMember = {
+  id: string;
+  name: string;
+  role: string;
+  phone: string;
+  email?: string;
+  createdAt?: any;
+};
+
+export type StockItem = {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  reorderLevel: number;
+  supplier?: string;
+  lastUpdatedAt?: any;
+  createdAt?: any;
+};
