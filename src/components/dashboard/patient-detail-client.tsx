@@ -237,7 +237,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         <CardContent className="space-y-4 text-sm">
                             <div className="flex items-center gap-4">
                                 <Mail className="h-5 w-5 text-muted-foreground" />
-                                <span>{patient.email}</span>
+                                <span>{patient.email || 'N/A'}</span>
                             </div>
                             <div className="flex items-center gap-4">
                                 <Phone className="h-5 w-5 text-muted-foreground" />
@@ -249,7 +249,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             </div>
                             <div className="flex items-center gap-4">
                                 <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-                                <span>Date of Birth: {new Date(patient.dob).toLocaleDateString()}</span>
+                                <span>Date of Birth: {patient.dob ? new Date(patient.dob).toLocaleDateString() : 'N/A'}</span>
                             </div>
                         </CardContent>
                     </Card>

@@ -1,8 +1,9 @@
+
 export type Patient = {
   id: string;
   name: string;
-  dob: string;
-  email: string;
+  dob?: string;
+  email?: string;
   phone: string;
   status: 'Active' | 'Inactive';
   lastVisit: string;

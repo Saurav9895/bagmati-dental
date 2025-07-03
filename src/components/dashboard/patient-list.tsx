@@ -28,7 +28,7 @@ const patientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address.").or(z.literal('')).optional(),
   phone: z.string().min(10, "Phone number seems too short."),
-  dob: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date of birth."),
+  dob: z.string().optional(),
   address: z.string().min(5, "Address must be at least 5 characters."),
   medicalHistory: z.string().optional(),
 });
@@ -60,7 +60,7 @@ export function PatientList() {
     return patients.filter(p =>
       p.name.toLowerCase().includes(lowercasedQuery) ||
       (p.registrationNumber && p.registrationNumber.toLowerCase().includes(lowercasedQuery)) ||
-      p.email.toLowerCase().includes(lowercasedQuery)
+      (p.email && p.email.toLowerCase().includes(lowercasedQuery))
     );
   }, [searchQuery, patients]);
 
@@ -92,7 +92,12 @@ export function PatientList() {
   
   React.useEffect(() => {
     if (editingPatient) {
-      form.reset(editingPatient);
+      form.reset({
+        ...editingPatient,
+        dob: editingPatient.dob || '',
+        email: editingPatient.email || '',
+        medicalHistory: editingPatient.medicalHistory || '',
+      });
     } else {
       form.reset({ name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" });
     }
@@ -181,6 +186,7 @@ export function PatientList() {
     const patientPayload = {
       ...data,
       email: data.email || '',
+      dob: data.dob || '',
     };
     try {
       if (editingPatient) {
@@ -287,7 +293,7 @@ export function PatientList() {
                             )} />
                             <FormField control={form.control} name="email" render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Email</FormLabel>
+                                <FormLabel>Email (Optional)</FormLabel>
                                 <FormControl><Input placeholder="john.doe@example.com" {...field} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -301,7 +307,7 @@ export function PatientList() {
                             )} />
                             <FormField control={form.control} name="dob" render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Date of Birth</FormLabel>
+                                <FormLabel>Date of Birth (Optional)</FormLabel>
                                 <FormControl><Input type="date" {...field} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
@@ -384,7 +390,7 @@ export function PatientList() {
                     </Link>
                   </TableCell>
                   <TableCell>{patient.phone}</TableCell>
-                  <TableCell>{patient.email}</TableCell>
+                  <TableCell>{patient.email || 'N/A'}</TableCell>
                   <TableCell>{patient.registrationNumber || 'N/A'}</TableCell>
                   <TableCell>
                     <DropdownMenu>
