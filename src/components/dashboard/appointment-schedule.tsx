@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -232,7 +233,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
             <DialogTitle>Create New Appointment</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <FormField
                 control={form.control}
                 name="patientId"
@@ -332,8 +333,8 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                 />
                 <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Prescribed Amoxicillin 500mg..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter className="pt-4">
+              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., Prescribed Amoxicillin 500mg..." {...field} value={field.value || ''} rows={3} /></FormControl><FormMessage /></FormItem>)} />
+              <DialogFooter className="pt-2">
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Save Appointment
