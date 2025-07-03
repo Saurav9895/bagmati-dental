@@ -16,12 +16,8 @@ import { Loader2 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Separator } from '@/components/ui/separator';
+import { getIncome, type Transaction } from '@/app/actions/income';
 
-type Transaction = Payment & {
-    patientName: string;
-    patientId: string;
-    patientRegistrationNumber?: string;
-};
 
 const processIncomeDataForChart = (transactions: Transaction[]) => {
     if (!transactions.length) return [];
@@ -60,29 +56,9 @@ export default function IncomePage() {
         async function getIncomeData() {
             setIsLoading(true);
             try {
-                const patientsCollection = collection(db, 'patients');
-                const q = query(patientsCollection, orderBy('name'));
-                const querySnapshot = await getDocs(q);
-                const patients = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Patient[];
-
-                const transactions: Transaction[] = [];
-
-                patients.forEach(patient => {
-                    if (patient.payments && patient.payments.length > 0) {
-                        patient.payments.forEach(payment => {
-                            transactions.push({
-                                ...payment,
-                                patientName: patient.name,
-                                patientId: patient.id,
-                                patientRegistrationNumber: patient.registrationNumber,
-                            });
-                        });
-                    }
-                });
-                
-                const sortedTransactions = transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                setAllTransactions(sortedTransactions);
-                setFilteredTransactions(sortedTransactions);
+                const transactions = await getIncome();
+                setAllTransactions(transactions);
+                setFilteredTransactions(transactions);
             } catch (error) {
                 console.error("Failed to fetch income data:", error);
             } finally {
