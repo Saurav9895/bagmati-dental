@@ -12,7 +12,7 @@ import {
   subWeeks,
   addWeeks,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, PlusCircle, Loader2, ChevronsUpDown, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, Loader2, ChevronsUpDown, Check, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,7 +21,7 @@ import Link from 'next/link';
 import type { Appointment, Patient } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { addAppointment } from '@/app/actions/appointments';
+import { addAppointment, deleteAppointment } from '@/app/actions/appointments';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -31,6 +31,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 interface AppointmentScheduleProps {
   appointments: Appointment[];
@@ -63,6 +65,8 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isPatientPopoverOpen, setIsPatientPopoverOpen] = React.useState(false);
+  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [deletingAppointment, setDeletingAppointment] = React.useState<Appointment | null>(null);
   const { toast } = useToast();
 
   const form = useForm<AppointmentFormValues>({
@@ -96,6 +100,29 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
       patientId: undefined,
     });
     setIsDialogOpen(true);
+  };
+  
+  const handleDeleteClick = (e: React.MouseEvent, appt: Appointment) => {
+    e.stopPropagation();
+    setDeletingAppointment(appt);
+    setIsAlertOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingAppointment) return;
+    const result = await deleteAppointment(deletingAppointment.id);
+    if (result.success) {
+      setAppointments(appointments.filter(a => a.id !== deletingAppointment.id));
+      toast({ title: 'Appointment deleted successfully!' });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to delete appointment',
+        description: result.error,
+      });
+    }
+    setIsAlertOpen(false);
+    setDeletingAppointment(null);
   };
 
   const onSubmit = async (data: AppointmentFormValues) => {
@@ -174,9 +201,20 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                         e.stopPropagation();
                       }}
                     >
-                      <Link href={`/dashboard/patients/${appt.patientId}`} className="font-bold hover:underline">
-                        {appt.patientName}
-                      </Link>
+                      <div className="flex justify-between items-start gap-1">
+                          <Link href={`/dashboard/patients/${appt.patientId}`} className="font-bold hover:underline flex-1 truncate">
+                              {appt.patientName}
+                          </Link>
+                          <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 shrink-0 text-destructive hover:bg-destructive/20"
+                              onClick={(e) => handleDeleteClick(e, appt)}
+                              aria-label="Delete appointment"
+                          >
+                              <Trash2 className="h-3 w-3" />
+                          </Button>
+                      </div>
                       <p>{appt.procedure}</p>
                       <p className="text-muted-foreground">
                         {formatTime12h(appt.time)} - {appt.doctor}
@@ -282,6 +320,22 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
           </Form>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the appointment for {deletingAppointment?.patientName} on {deletingAppointment && format(new Date(deletingAppointment.date), 'PPP')} at {deletingAppointment && formatTime12h(deletingAppointment.time)}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingAppointment(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

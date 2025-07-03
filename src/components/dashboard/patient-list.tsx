@@ -59,7 +59,7 @@ export function PatientList() {
     const lowercasedQuery = searchQuery.toLowerCase();
     return patients.filter(p =>
       p.name.toLowerCase().includes(lowercasedQuery) ||
-      (p.registrationNumber && p.registrationNumber.toLowerCase().includes(lowercasedQuery)) ||
+      (p.registrationNumber && p.registrationNumber.includes(searchQuery)) ||
       (p.email && p.email.toLowerCase().includes(lowercasedQuery))
     );
   }, [searchQuery, patients]);
@@ -246,7 +246,7 @@ export function PatientList() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="search"
-                    placeholder="Search patients..."
+                    placeholder="Search by name, email, or reg. #"
                     className="pl-8 sm:w-[300px] w-full"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
