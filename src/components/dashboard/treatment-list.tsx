@@ -4,20 +4,21 @@ import * as React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MoreHorizontal, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Treatment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
@@ -30,7 +31,10 @@ type TreatmentFormValues = z.infer<typeof treatmentSchema>;
 export function TreatmentList() {
   const [treatments, setTreatments] = React.useState<Treatment[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [open, setOpen] = React.useState(false);
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingTreatment, setEditingTreatment] = React.useState<Treatment | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [deletingTreatmentId, setDeletingTreatmentId] = React.useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<TreatmentFormValues>({
@@ -44,15 +48,10 @@ export function TreatmentList() {
         const treatmentsCollection = collection(db, 'treatments');
         const q = query(treatmentsCollection, orderBy('createdAt', 'desc'));
         const querySnapshot = await getDocs(q);
-        const treatmentsList = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
+        const treatmentsList = querySnapshot.docs.map(doc => ({
             id: doc.id,
-            name: data.name,
-            description: data.description,
-            amount: data.amount,
-          };
-        }) as Treatment[];
+            ...doc.data(),
+        })) as Treatment[];
         setTreatments(treatmentsList);
       } catch (error) {
         console.error("Error fetching treatments: ", error);
@@ -68,55 +67,109 @@ export function TreatmentList() {
 
     fetchTreatments();
   }, [toast]);
+  
+  React.useEffect(() => {
+    if (isFormOpen && editingTreatment) {
+      form.reset(editingTreatment);
+    } else if (!isFormOpen) {
+      form.reset({ name: "", description: "", amount: 0 });
+    }
+  }, [isFormOpen, editingTreatment, form]);
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsFormOpen(open);
+    if (!open) {
+      setEditingTreatment(null);
+    }
+  }
+
+  const handleEditClick = (treatment: Treatment) => {
+    setEditingTreatment(treatment);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteClick = (treatmentId: string) => {
+    setDeletingTreatmentId(treatmentId);
+    setIsAlertOpen(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!deletingTreatmentId) return;
+    try {
+        await deleteDoc(doc(db, "treatments", deletingTreatmentId));
+        setTreatments(treatments.filter(t => t.id !== deletingTreatmentId));
+        toast({
+            title: "Treatment Deleted",
+            description: "The treatment has been successfully deleted.",
+        });
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Failed to delete treatment",
+            description: (error as Error).message || "An unexpected error occurred.",
+        });
+    } finally {
+        setIsAlertOpen(false);
+        setDeletingTreatmentId(null);
+    }
+  }
 
   const onSubmit = async (data: TreatmentFormValues) => {
     try {
-      const newTreatmentData = {
-        ...data,
-        createdAt: serverTimestamp(),
-      };
-      
-      const docRef = await addDoc(collection(db, "treatments"), newTreatmentData);
-      
-      const newTreatmentForState: Treatment = {
-        id: docRef.id,
-        ...data,
-      };
-
-      setTreatments([newTreatmentForState, ...treatments]);
+      if (editingTreatment) {
+        const treatmentRef = doc(db, "treatments", editingTreatment.id);
+        await updateDoc(treatmentRef, data);
+        setTreatments(treatments.map(t => t.id === editingTreatment.id ? { ...t, ...data } : t));
+        toast({
+          title: "Treatment Updated",
+          description: `${data.name} has been successfully updated.`,
+        });
+      } else {
+        const newTreatmentData = {
+          ...data,
+          createdAt: serverTimestamp(),
+        };
+        const docRef = await addDoc(collection(db, "treatments"), newTreatmentData);
+        const newTreatmentForState: Treatment = {
+          id: docRef.id,
+          ...data,
+        };
+        setTreatments([newTreatmentForState, ...treatments]);
+        toast({
+          title: "Treatment Added",
+          description: `${data.name} has been successfully added to the list.`,
+        });
+      }
       form.reset();
-      setOpen(false);
-      toast({
-        title: "Treatment Added",
-        description: `${data.name} has been successfully added to the list.`,
-      });
+      handleDialogOpenChange(false);
     } catch (error) {
-      console.error("Error adding document: ", error);
+      console.error("Error saving document: ", error);
       toast({
         variant: "destructive",
-        title: "Failed to add treatment",
+        title: `Failed to ${editingTreatment ? 'update' : 'add'} treatment`,
         description: (error as Error).message || "An unexpected error occurred. Please try again.",
       });
     }
   };
   
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Treatments</CardTitle>
           <CardDescription>Manage the treatments offered by your clinic.</CardDescription>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={isFormOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setEditingTreatment(null)}>
               <PlusCircle className="mr-2 h-4 w-4" />
               New Treatment
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Add New Treatment</DialogTitle>
+              <DialogTitle>{editingTreatment ? 'Edit Treatment' : 'Add New Treatment'}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -185,8 +238,15 @@ export function TreatmentList() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditClick(treatment)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleDeleteClick(treatment.id)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -203,5 +263,23 @@ export function TreatmentList() {
         </Table>
       </CardContent>
     </Card>
+    <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the treatment
+                    from your records.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingTreatmentId(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>
+                    Continue
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
