@@ -64,3 +64,37 @@ export async function addTreatmentToPatient(patientId: string, treatment: Treatm
     return { success: false, error: (e as Error).message || "An unexpected error occurred." };
   }
 }
+
+export async function removeTreatmentFromPatient(patientId: string, treatmentToRemove: Treatment & { dateAdded: string }) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+            const currentTreatments = patientData.assignedTreatments || [];
+
+            // Filter out the treatment to be removed.
+            const updatedTreatments = currentTreatments.filter(
+                t => t.dateAdded !== treatmentToRemove.dateAdded
+            );
+
+            transaction.update(patientRef, { assignedTreatments: updatedTreatments });
+            
+            const { createdAt, ...serializablePatientData } = patientData;
+
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                assignedTreatments: updatedTreatments
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
