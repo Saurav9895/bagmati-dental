@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/firebase';
 import type { Appointment } from '@/lib/types';
-import { collection, addDoc, serverTimestamp, getDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 export async function addAppointment(appointmentData: Omit<Appointment, 'id' | 'createdAt'>): Promise<{ success: boolean; data?: Appointment; error?: string }> {
     try {
@@ -29,6 +29,25 @@ export async function addAppointment(appointmentData: Omit<Appointment, 'id' | '
         }
     } catch (e) {
         console.error("Failed to add appointment: ", e);
+        return { success: false, error: (e as Error).message };
+    }
+}
+
+export async function updateAppointment(appointmentId: string, appointmentData: Partial<Omit<Appointment, 'id' | 'createdAt'>>): Promise<{ success: boolean; data?: Appointment; error?: string }> {
+    try {
+        const appointmentRef = doc(db, "appointments", appointmentId);
+        await updateDoc(appointmentRef, appointmentData);
+
+        const updatedDocSnap = await getDoc(appointmentRef);
+        if (updatedDocSnap.exists()) {
+            const updatedAppointment = { id: updatedDocSnap.id, ...updatedDocSnap.data() } as Appointment;
+            const { createdAt, ...serializableAppointment } = updatedAppointment;
+            return { success: true, data: serializableAppointment as Appointment };
+        } else {
+            throw new Error("Failed to retrieve updated appointment.");
+        }
+    } catch (e) {
+        console.error("Failed to update appointment: ", e);
         return { success: false, error: (e as Error).message };
     }
 }

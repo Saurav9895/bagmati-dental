@@ -4,7 +4,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,7 +21,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { addAppointment } from '@/app/actions/appointments';
+import { addAppointment, updateAppointment } from '@/app/actions/appointments';
 import { format } from 'date-fns';
 
 type AssignedTreatment = Treatment & { dateAdded: string };
@@ -59,6 +59,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
     const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
     const [isSubmittingAppointment, setIsSubmittingAppointment] = React.useState(false);
+    const [editingAppointment, setEditingAppointment] = React.useState<Appointment | null>(null);
 
     const { toast } = useToast();
 
@@ -73,16 +74,29 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         },
     });
 
-    const handleAddAppointment = async (data: AppointmentFormValues) => {
+    const handleAppointmentSubmit = async (data: AppointmentFormValues) => {
         setIsSubmittingAppointment(true);
-        const result = await addAppointment({
-            ...data,
-            patientId: patient.id,
-            patientName: patient.name,
-        });
+        let result;
+        if (editingAppointment) {
+            result = await updateAppointment(editingAppointment.id, data);
+        } else {
+            result = await addAppointment({
+                ...data,
+                patientId: patient.id,
+                patientName: patient.name,
+            });
+        }
 
         if (result.success && result.data) {
-            const newAppointments = [result.data, ...appointments];
+            let newAppointments;
+            if (editingAppointment) {
+                newAppointments = appointments.map(a => a.id === editingAppointment.id ? { ...a, ...result.data! } : a);
+                toast({ title: "Appointment updated successfully!" });
+            } else {
+                newAppointments = [result.data, ...appointments];
+                toast({ title: "Appointment added successfully!" });
+            }
+
             newAppointments.sort((a, b) => {
                 const dateA = new Date(a.date).getTime();
                 const dateB = new Date(b.date).getTime();
@@ -92,20 +106,37 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 return a.time.localeCompare(b.time);
             });
             setAppointments(newAppointments);
-
-            toast({ title: "Appointment added successfully!" });
             setIsAppointmentDialogOpen(false);
-            appointmentForm.reset({
-                procedure: '',
-                date: format(new Date(), 'yyyy-MM-dd'),
-                time: '',
-                doctor: '',
-                description: '',
-            });
+            setEditingAppointment(null);
+            appointmentForm.reset();
         } else {
-            toast({ variant: 'destructive', title: 'Failed to add appointment', description: result.error });
+            toast({ variant: 'destructive', title: `Failed to ${editingAppointment ? 'update' : 'add'} appointment`, description: result.error });
         }
         setIsSubmittingAppointment(false);
+    };
+    
+    const handleNewAppointmentClick = () => {
+        setEditingAppointment(null);
+        appointmentForm.reset({
+            procedure: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            time: '',
+            doctor: '',
+            description: '',
+        });
+        setIsAppointmentDialogOpen(true);
+    };
+
+    const handleEditAppointmentClick = (appointment: Appointment) => {
+        setEditingAppointment(appointment);
+        appointmentForm.reset({
+            procedure: appointment.procedure,
+            date: format(new Date(appointment.date), 'yyyy-MM-dd'),
+            time: appointment.time,
+            doctor: appointment.doctor,
+            description: appointment.description || '',
+        });
+        setIsAppointmentDialogOpen(true);
     };
 
     const totalAmount = React.useMemo(() => {
@@ -256,74 +287,10 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 <CalendarIcon className="h-5 w-5" />
                                 <CardTitle>Appointment History</CardTitle>
                             </div>
-                             <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        New Appointment
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-5xl">
-                                    <DialogHeader>
-                                        <DialogTitle>New Appointment for {patient.name}</DialogTitle>
-                                        <DialogDescription>
-                                            Fill out the form below to schedule a new appointment.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <Form {...appointmentForm}>
-                                        <form onSubmit={appointmentForm.handleSubmit(handleAddAppointment)} className="space-y-4 py-4">
-                                            <FormField control={appointmentForm.control} name="procedure" render={({ field }) => (
-                                                <FormItem>
-                                                <FormLabel>Procedure</FormLabel>
-                                                <FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl>
-                                                <FormMessage />
-                                                </FormItem>
-                                            )} />
-                                            <FormField control={appointmentForm.control} name="doctor" render={({ field }) => (
-                                                <FormItem>
-                                                <FormLabel>Doctor</FormLabel>
-                                                <FormControl><Input placeholder="Doctor's name" {...field} /></FormControl>
-                                                <FormMessage />
-                                                </FormItem>
-                                            )} />
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <FormField control={appointmentForm.control} name="date" render={({ field }) => (
-                                                    <FormItem>
-                                                    <FormLabel>Date</FormLabel>
-                                                    <FormControl><Input type="date" {...field} /></FormControl>
-                                                    <FormMessage />
-                                                    </FormItem>
-                                                )} />
-                                                <FormField control={appointmentForm.control} name="time" render={({ field }) => (
-                                                    <FormItem>
-                                                    <FormLabel>Time</FormLabel>
-                                                    <FormControl><Input type="time" {...field} /></FormControl>
-                                                    <FormMessage />
-                                                    </FormItem>
-                                                )} />
-                                            </div>
-                                            <FormField
-                                                control={appointmentForm.control}
-                                                name="description"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                    <FormLabel>Description (Notes, etc.)</FormLabel>
-                                                    <FormControl>
-                                                        <Textarea placeholder="Optional notes for the appointment..." {...field} value={field.value || ''} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                    </FormItem>
-                                            )} />
-                                            <DialogFooter>
-                                                <Button type="submit" disabled={isSubmittingAppointment}>
-                                                    {isSubmittingAppointment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                    Save Appointment
-                                                </Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </Form>
-                                </DialogContent>
-                            </Dialog>
+                            <Button variant="outline" size="sm" onClick={handleNewAppointmentClick}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                New Appointment
+                            </Button>
                         </CardHeader>
                         <CardContent>
                             {appointments && appointments.length > 0 ? (
@@ -337,7 +304,13 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                         {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
                                                     </p>
                                                 </div>
-                                                <p className="text-sm font-medium text-muted-foreground shrink-0">{formatTime12h(appt.time)}</p>
+                                                <div className="flex items-center">
+                                                    <p className="text-sm font-medium text-muted-foreground shrink-0 pr-2">{formatTime12h(appt.time)}</p>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditAppointmentClick(appt)}>
+                                                        <Edit className="h-4 w-4" />
+                                                        <span className="sr-only">Edit appointment</span>
+                                                    </Button>
+                                                </div>
                                             </div>
                                             {appt.description && (
                                                 <div className="mt-3 pt-3 border-t">
@@ -545,6 +518,68 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
                 </div>
             </div>
+             <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
+                <DialogContent className="sm:max-w-5xl">
+                    <DialogHeader>
+                        <DialogTitle>{editingAppointment ? 'Edit' : 'New'} Appointment for {patient.name}</DialogTitle>
+                        <DialogDescription>
+                            Fill out the form below to {editingAppointment ? 'update the' : 'schedule a new'} appointment.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...appointmentForm}>
+                        <form onSubmit={appointmentForm.handleSubmit(handleAppointmentSubmit)} className="space-y-4 py-4">
+                            <FormField control={appointmentForm.control} name="procedure" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Procedure</FormLabel>
+                                <FormControl><Input placeholder="e.g., Routine Check-up" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={appointmentForm.control} name="doctor" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Doctor</FormLabel>
+                                <FormControl><Input placeholder="Doctor's name" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={appointmentForm.control} name="date" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Date</FormLabel>
+                                    <FormControl><Input type="date" {...field} /></FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={appointmentForm.control} name="time" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Time</FormLabel>
+                                    <FormControl><Input type="time" {...field} /></FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <FormField
+                                control={appointmentForm.control}
+                                name="description"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Description (Notes, etc.)</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="Optional notes for the appointment..." {...field} value={field.value || ''} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                            )} />
+                            <DialogFooter>
+                                <Button type="submit" disabled={isSubmittingAppointment}>
+                                    {isSubmittingAppointment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Save Appointment
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
