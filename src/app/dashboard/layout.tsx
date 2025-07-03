@@ -15,7 +15,7 @@ import {
   SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/dashboard/logo';
-import { LayoutDashboard, Calendar, Users, ClipboardList, BrainCircuit, Bell, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, ClipboardList, BrainCircuit, Bell, Settings, LogOut, Loader2 } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
@@ -73,14 +73,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <p>Loading session...</p>
-      </div>
-    );
-  }
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -126,7 +118,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </Sidebar>
       <SidebarInset>
         <DashboardHeader title={pageTitle} user={user} onLogout={handleLogout} />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">
+          {loading ? (
+            <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
