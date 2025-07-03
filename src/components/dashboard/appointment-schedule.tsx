@@ -39,6 +39,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [appointments, setAppointments] = React.useState(initialAppointments);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [isPatientPopoverOpen, setIsPatientPopoverOpen] = React.useState(false);
   const { toast } = useToast();
 
   const form = useForm<AppointmentFormValues>({
@@ -125,7 +126,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Patient</FormLabel>
-                            <Popover>
+                            <Popover open={isPatientPopoverOpen} onOpenChange={setIsPatientPopoverOpen}>
                                 <PopoverTrigger asChild>
                                 <FormControl>
                                     <Button
@@ -157,6 +158,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                                             key={patient.id}
                                             onSelect={() => {
                                                 form.setValue("patientId", patient.id)
+                                                setIsPatientPopoverOpen(false);
                                             }}
                                             >
                                             <Check
