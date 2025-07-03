@@ -78,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Logo />
           </SidebarHeader>
           <SidebarContent>
-            <SidebarMenu>
+            <SidebarMenu className="group-data-[state=expanded]/sidebar:ml-[50px]">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-4">
-            <SidebarMenu>
+            <SidebarMenu className="group-data-[state=expanded]/sidebar:ml-[50px]">
                <SidebarMenuItem>
                   <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
                     <LogOut/>
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Sidebar>
         <SidebarInset>
           <DashboardHeader title={pageTitle} />
-          <main className="flex-1 py-4 md:py-6 pl-[50px] pr-4 md:pr-6">
+          <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
         </SidebarInset>
