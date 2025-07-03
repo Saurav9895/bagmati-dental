@@ -71,7 +71,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentSchema),
-    defaultValues: { procedure: '', date: new Date(), time: '', doctor: '', description: '' },
+    defaultValues: { procedure: '', date: new Date(), time: '', doctor: '', patientId: undefined, description: '' },
   });
 
   const weekDays = React.useMemo(() => {
@@ -233,7 +233,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
             <DialogTitle>Create New Appointment</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -319,7 +319,7 @@ export function AppointmentSchedule({ appointments: initialAppointments, patient
                       <FormControl>
                         <Input
                           type="date"
-                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                          value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                           onChange={(e) => {
                             const dateValue = e.target.value;
                             // Add time component to avoid timezone issues where date might be off by one.
