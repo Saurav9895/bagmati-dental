@@ -14,7 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, getDocs, query, orderBy, Timestamp } from 'firebase/firestore';
 import type { Patient } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 const patientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -27,26 +31,87 @@ const patientSchema = z.object({
 
 type PatientFormValues = z.infer<typeof patientSchema>;
 
-export function PatientList({ patients: initialPatients }: { patients: Patient[] }) {
-  const [patients, setPatients] = React.useState(initialPatients);
+export function PatientList() {
+  const [patients, setPatients] = React.useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const [open, setOpen] = React.useState(false);
+  const { toast } = useToast();
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
     defaultValues: { name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" },
   });
 
-  const onSubmit = (data: PatientFormValues) => {
-    const newPatient: Patient = {
-      id: `DF${Math.floor(Math.random() * 1000)}`,
-      status: 'Active',
-      lastVisit: new Date().toISOString().split('T')[0],
-      ...data,
-      medicalHistory: data.medicalHistory || undefined,
+  React.useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const patientsCollection = collection(db, 'patients');
+        const q = query(patientsCollection, orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        const patientsList = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            dob: data.dob,
+            address: data.address,
+            medicalHistory: data.medicalHistory,
+            status: data.status,
+            lastVisit: data.lastVisit,
+          };
+        }) as Patient[];
+        setPatients(patientsList);
+      } catch (error) {
+        console.error("Error fetching patients: ", error);
+        toast({
+          variant: "destructive",
+          title: "Failed to load patients",
+          description: "There was an error fetching the patient list. Please try again later.",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setPatients([newPatient, ...patients]);
-    form.reset();
-    setOpen(false);
+
+    fetchPatients();
+  }, [toast]);
+
+  const onSubmit = async (data: PatientFormValues) => {
+    try {
+      const newPatientData = {
+        ...data,
+        status: 'Active' as const,
+        lastVisit: new Date().toISOString().split('T')[0],
+        createdAt: Timestamp.now(),
+        medicalHistory: data.medicalHistory || "",
+      };
+      
+      const docRef = await addDoc(collection(db, "patients"), newPatientData);
+      
+      const newPatientForState: Patient = {
+        id: docRef.id,
+        ...data,
+        status: 'Active',
+        lastVisit: newPatientData.lastVisit,
+      };
+
+      setPatients([newPatientForState, ...patients]);
+      form.reset();
+      setOpen(false);
+      toast({
+        title: "Patient Added",
+        description: `${data.name} has been successfully added to the patient list.`,
+      });
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to add patient",
+        description: "An unexpected error occurred. Please try again.",
+      });
+    }
   };
   
   return (
@@ -113,7 +178,9 @@ export function PatientList({ patients: initialPatients }: { patients: Patient[]
                     </FormItem>
                   )} />
                 </div>
-                <Button type="submit" className="w-full">Save Patient</Button>
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Saving...' : 'Save Patient'}
+                </Button>
               </form>
             </Form>
           </DialogContent>
@@ -131,34 +198,52 @@ export function PatientList({ patients: initialPatients }: { patients: Patient[]
             </TableRow>
           </TableHeader>
           <TableBody>
-            {patients.map((patient) => (
-              <TableRow key={patient.id}>
-                <TableCell className="font-medium">{patient.name}</TableCell>
-                <TableCell>
-                  <Badge variant={patient.status === 'Active' ? 'default' : 'secondary'}
-                   className={patient.status === 'Active' ? 'bg-accent text-accent-foreground' : ''}>
-                    {patient.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>{patient.email}</TableCell>
-                <TableCell>{patient.lastVisit}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>View History</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
+                </TableRow>
+              ))
+            ) : patients.length > 0 ? (
+              patients.map((patient) => (
+                <TableRow key={patient.id}>
+                  <TableCell className="font-medium">{patient.name}</TableCell>
+                  <TableCell>
+                    <Badge variant={patient.status === 'Active' ? 'default' : 'secondary'}
+                     className={patient.status === 'Active' ? 'bg-accent text-accent-foreground' : ''}>
+                      {patient.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{patient.email}</TableCell>
+                  <TableCell>{patient.lastVisit}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Toggle menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem>View History</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center h-24">
+                    No patients found. Add one to get started.
+                  </TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </CardContent>
