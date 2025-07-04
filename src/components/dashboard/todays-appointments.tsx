@@ -31,15 +31,14 @@ export function TodaysAppointmentsClient({ initialAppointments }: { initialAppoi
     const [updatingId, setUpdatingId] = React.useState<string | null>(null);
     const { toast } = useToast();
 
+    React.useEffect(() => {
+        setAppointments(initialAppointments);
+    }, [initialAppointments]);
+
     const handleMarkAsComplete = async (appointmentId: string) => {
         setUpdatingId(appointmentId);
         const result = await updateAppointment(appointmentId, { status: 'Completed' });
         if (result.success) {
-            setAppointments(prev => 
-                prev.map(appt => 
-                    appt.id === appointmentId ? { ...appt, status: 'Completed' } : appt
-                )
-            );
             toast({ title: 'Appointment marked as complete!' });
         } else {
             toast({ variant: 'destructive', title: 'Failed to update appointment', description: result.error });
