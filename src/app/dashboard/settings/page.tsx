@@ -4,9 +4,6 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 
 function hexToHsl(hex: string): string | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -41,6 +38,7 @@ function hexToHsl(hex: string): string | null {
 function hslToHex(hslStr: string): string {
     if (!hslStr) return '#000000';
     const [h, s, l] = hslStr.replace(/%/g, '').split(' ').map(Number);
+    if (isNaN(h) || isNaN(s) || isNaN(l)) return '#000000';
     const sNorm = s / 100;
     const lNorm = l / 100;
     const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm;
@@ -64,7 +62,7 @@ function hslToHex(hslStr: string): string {
 
 
 export default function SettingsPage() {
-  const [primaryColor, setPrimaryColor] = React.useState('#CA4B80');
+  const [primaryColor, setPrimaryColor] = React.useState('#B62F67');
 
   React.useEffect(() => {
     const savedColor = localStorage.getItem('theme-primary-color');
@@ -72,11 +70,9 @@ export default function SettingsPage() {
       setPrimaryColor(hslToHex(savedColor));
     } else {
       const rootStyle = getComputedStyle(document.documentElement);
-      const primaryH = rootStyle.getPropertyValue('--primary').split(' ')[0];
-      const primaryS = rootStyle.getPropertyValue('--primary-foreground').split(' ')[1];
-      const primaryL = rootStyle.getPropertyValue('--primary-foreground').split(' ')[2];
-      if (primaryH && primaryS && primaryL) {
-        setPrimaryColor(hslToHex(`${primaryH} ${primaryS} ${primaryL}`));
+      const primaryHsl = rootStyle.getPropertyValue('--primary').trim();
+      if (primaryHsl) {
+        setPrimaryColor(hslToHex(primaryHsl));
       }
     }
   }, []);
