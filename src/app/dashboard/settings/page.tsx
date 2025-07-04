@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -119,21 +118,6 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground">Changes are saved automatically to your browser.</p>
           </div>
         </CardContent>
-      </Card>
-      
-      <Card>
-          <CardHeader>
-            <CardTitle>Logo Settings</CardTitle>
-            <CardDescription>The app logo is managed in the `public/logo.png` file. Replace that file to update the logo.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-                <Label>Current Logo Preview</Label>
-                <div className="mt-2 p-4 border rounded-lg flex items-center justify-center">
-                    <Image src="/logo.png" alt="Custom Logo Preview" width={160} height={70} className="object-contain" />
-                </div>
-            </div>
-          </CardContent>
       </Card>
     </div>
   );
