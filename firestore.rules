@@ -1,41 +1,12 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Rules for all collections. This allows any authenticated user to
-    // read and write data. For a production app, you should implement
-    // more granular security rules.
-
-    match /patients/{patientId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /appointments/{appointmentId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /treatments/{treatmentId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /expenses/{expenseId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /counters/{counterId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /doctors/{doctorId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /staff/{staffId} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /stock/{stockItemId} {
+    // Allow read/write access to all documents to any authenticated user.
+    // This is a common starting point for development. For production,
+    // you should implement more granular rules.
+    match /{document=**} {
       allow read, write: if request.auth != null;
     }
   }
