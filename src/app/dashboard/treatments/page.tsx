@@ -1,9 +1,11 @@
 import { TreatmentList } from "@/components/dashboard/treatment-list";
+import { getTreatments } from "@/app/actions/treatments";
 
-export default function TreatmentsPage() {
+export default async function TreatmentsPage() {
+  const treatments = await getTreatments();
   return (
     <div>
-      <TreatmentList />
+      <TreatmentList initialTreatments={treatments} />
     </div>
   );
 }

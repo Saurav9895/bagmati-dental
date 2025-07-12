@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PatientDetailClient } from '@/components/dashboard/patient-detail-client';
+import { getTreatments as fetchAllTreatments } from '@/app/actions/treatments';
 
 async function getPatient(id: string): Promise<Patient | null> {
   const docRef = doc(db, 'patients', id);
@@ -20,18 +21,6 @@ async function getPatient(id: string): Promise<Patient | null> {
   } else {
     return null;
   }
-}
-
-async function getTreatments(): Promise<Treatment[]> {
-    const treatmentsCollection = collection(db, 'treatments');
-    const querySnapshot = await getDocs(treatmentsCollection);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      // The `createdAt` field is a Firestore Timestamp, which is not serializable.
-      // We omit it to avoid errors when passing from Server to Client Components.
-      const { createdAt, ...rest } = data;
-      return { id: doc.id, ...rest };
-    }) as Treatment[];
 }
 
 async function getAppointmentsForPatient(patientId: string): Promise<Appointment[]> {
@@ -52,7 +41,7 @@ async function getAppointmentsForPatient(patientId: string): Promise<Appointment
 
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
   const patient = await getPatient(params.id);
-  const treatments = await getTreatments();
+  const treatments = await fetchAllTreatments();
   const appointments = await getAppointmentsForPatient(params.id);
 
   if (!patient) {

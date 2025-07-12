@@ -15,11 +15,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Treatment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { addTreatment, updateTreatment, deleteTreatment } from '@/app/actions/treatments';
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
@@ -29,9 +28,9 @@ const treatmentSchema = z.object({
 
 type TreatmentFormValues = z.infer<typeof treatmentSchema>;
 
-export function TreatmentList() {
-  const [treatments, setTreatments] = React.useState<Treatment[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export function TreatmentList({ initialTreatments }: { initialTreatments: Treatment[] }) {
+  const [treatments, setTreatments] = React.useState<Treatment[]>(initialTreatments);
+  const [isLoading, setIsLoading] = React.useState(false);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingTreatment, setEditingTreatment] = React.useState<Treatment | null>(null);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -43,32 +42,6 @@ export function TreatmentList() {
     defaultValues: { name: "", description: "", amount: 0 },
   });
 
-  React.useEffect(() => {
-    const fetchTreatments = async () => {
-      try {
-        const treatmentsCollection = collection(db, 'treatments');
-        const q = query(treatmentsCollection, orderBy('createdAt', 'desc'));
-        const querySnapshot = await getDocs(q);
-        const treatmentsList = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-        })) as Treatment[];
-        setTreatments(treatmentsList);
-      } catch (error) {
-        console.error("Error fetching treatments: ", error);
-        toast({
-          variant: "destructive",
-          title: "Failed to load treatments",
-          description: "There was an error fetching the treatment list. Please try again later.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTreatments();
-  }, [toast]);
-  
   React.useEffect(() => {
     if (isFormOpen && editingTreatment) {
       form.reset(editingTreatment);
@@ -96,61 +69,40 @@ export function TreatmentList() {
   
   const confirmDelete = async () => {
     if (!deletingTreatmentId) return;
-    try {
-        await deleteDoc(doc(db, "treatments", deletingTreatmentId));
-        setTreatments(treatments.filter(t => t.id !== deletingTreatmentId));
-        toast({
-            title: "Treatment Deleted",
-            description: "The treatment has been successfully deleted.",
-        });
-    } catch (error) {
-        toast({
-            variant: "destructive",
-            title: "Failed to delete treatment",
-            description: (error as Error).message || "An unexpected error occurred.",
-        });
-    } finally {
-        setIsAlertOpen(false);
-        setDeletingTreatmentId(null);
+    const result = await deleteTreatment(deletingTreatmentId);
+    if (result.success) {
+      setTreatments(treatments.filter(t => t.id !== deletingTreatmentId));
+      toast({ title: "Treatment Deleted" });
+    } else {
+      toast({ variant: "destructive", title: "Failed to delete treatment", description: result.error });
     }
+    setIsAlertOpen(false);
+    setDeletingTreatmentId(null);
   }
 
   const onSubmit = async (data: TreatmentFormValues) => {
-    try {
-      if (editingTreatment) {
-        const treatmentRef = doc(db, "treatments", editingTreatment.id);
-        await updateDoc(treatmentRef, data);
+    if (editingTreatment) {
+      const result = await updateTreatment(editingTreatment.id, data);
+      if (result.success) {
         setTreatments(treatments.map(t => t.id === editingTreatment.id ? { ...t, ...data } : t));
-        toast({
-          title: "Treatment Updated",
-          description: `${data.name} has been successfully updated.`,
-        });
+        toast({ title: "Treatment Updated" });
       } else {
-        const newTreatmentData = {
-          ...data,
-          createdAt: serverTimestamp(),
-        };
-        const docRef = await addDoc(collection(db, "treatments"), newTreatmentData);
-        const newTreatmentForState: Treatment = {
-          id: docRef.id,
-          ...data,
-        };
-        setTreatments([newTreatmentForState, ...treatments]);
-        toast({
-          title: "Treatment Added",
-          description: `${data.name} has been successfully added to the list.`,
-        });
+        toast({ variant: "destructive", title: "Failed to update treatment", description: result.error });
+        return;
       }
-      form.reset();
-      handleDialogOpenChange(false);
-    } catch (error) {
-      console.error("Error saving document: ", error);
-      toast({
-        variant: "destructive",
-        title: `Failed to ${editingTreatment ? 'update' : 'add'} treatment`,
-        description: (error as Error).message || "An unexpected error occurred. Please try again.",
-      });
+    } else {
+      const result = await addTreatment(data);
+      if (result.success && result.data) {
+        setTreatments([result.data, ...treatments]);
+        toast({ title: "Treatment Added" });
+      } else {
+        toast({ variant: "destructive", title: "Failed to add treatment", description: result.error });
+        return;
+      }
     }
+    
+    form.reset();
+    handleDialogOpenChange(false);
   };
   
   return (
@@ -214,7 +166,7 @@ export function TreatmentList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {isLoading && initialTreatments.length === 0 ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-4 w-32" /></TableCell>
