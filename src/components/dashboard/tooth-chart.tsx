@@ -103,9 +103,9 @@ interface ToothChartProps {
   assignedTreatmentsByTooth?: Map<number, AssignedTreatment[]>;
 }
 
-const upperRight = Array.from({ length: 8 }, (_, i) => i + 1);
+const upperRight = Array.from({ length: 8 }, (_, i) => 8 - i);
 const upperLeft = Array.from({ length: 8 }, (_, i) => i + 9);
-const lowerRight = Array.from({ length: 8 }, (_, i) => 32 - i);
+const lowerRight = Array.from({ length: 8 }, (_, i) => i + 25);
 const lowerLeft = Array.from({ length: 8 }, (_, i) => 24 - i);
 
 export const ToothChart: React.FC<ToothChartProps> = ({
@@ -126,7 +126,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
     <TooltipProvider>
       <div className="flex justify-center overflow-x-auto p-4 bg-muted/30 rounded-lg">
         <svg viewBox="0 0 580 120" width="100%" style={{ minWidth: '560px' }}>
-          {/* Upper Right Quadrant */}
+          {/* Upper Right Quadrant (Teeth 1-8) */}
           {upperRight.map((num, i) => (
             <Tooth
               key={`upper-${num}`}
@@ -138,7 +138,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               transform={`translate(${250 - i * 32}, 5)`}
             />
           ))}
-          {/* Upper Left Quadrant */}
+          {/* Upper Left Quadrant (Teeth 9-16) */}
           {upperLeft.map((num, i) => (
             <Tooth
               key={`upper-${num}`}
@@ -154,7 +154,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
           {/* Midline Separator */}
           <line x1="280" y1="0" x2="280" y2="120" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2" />
 
-          {/* Lower Right Quadrant */}
+          {/* Lower Right Quadrant (Teeth 25-32) */}
           {lowerRight.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
@@ -166,7 +166,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               transform={`translate(${250 - i * 32}, 75)`}
             />
           ))}
-          {/* Lower Left Quadrant */}
+          {/* Lower Left Quadrant (Teeth 17-24) */}
           {lowerLeft.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
