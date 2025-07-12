@@ -1,4 +1,14 @@
 
+
+export type AssignedTreatment = {
+  id: string;
+  name: string;
+  description: string;
+  amount: number;
+  dateAdded: string;
+  tooth?: number; // Optional tooth number
+};
+
 export type Patient = {
   id: string;
   name: string;
@@ -10,13 +20,7 @@ export type Patient = {
   address: string;
   medicalHistory?: string;
   registrationNumber?: string;
-  assignedTreatments?: {
-    id: string;
-    name: string;
-    description: string;
-    amount: number;
-    dateAdded: string;
-  }[];
+  assignedTreatments?: AssignedTreatment[];
   payments?: Payment[];
   discounts?: Discount[];
   createdAt?: any;

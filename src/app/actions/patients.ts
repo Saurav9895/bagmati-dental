@@ -1,10 +1,10 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment, Payment, Discount } from '@/lib/types';
+import type { Patient, Treatment, Payment, Discount, AssignedTreatment } from '@/lib/types';
 import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
 
-export async function addTreatmentToPatient(patientId: string, treatment: Treatment) {
+export async function addTreatmentToPatient(patientId: string, treatment: Treatment, tooth?: number) {
   const patientRef = doc(db, 'patients', patientId);
   const counterRef = doc(db, 'counters', 'patientRegistration');
 
@@ -33,10 +33,14 @@ export async function addTreatmentToPatient(patientId: string, treatment: Treatm
       }
 
       // Add the new treatment to the patient's record.
-      const newAssignedTreatment = {
+      const newAssignedTreatment: AssignedTreatment = {
         ...treatment,
         dateAdded: new Date().toISOString(),
       };
+      if (tooth) {
+        newAssignedTreatment.tooth = tooth;
+      }
+
 
       const currentTreatments = patientData.assignedTreatments || [];
       const updatedTreatments = [...currentTreatments, newAssignedTreatment];
@@ -65,7 +69,7 @@ export async function addTreatmentToPatient(patientId: string, treatment: Treatm
   }
 }
 
-export async function removeTreatmentFromPatient(patientId: string, treatmentToRemove: Treatment & { dateAdded: string }) {
+export async function removeTreatmentFromPatient(patientId: string, treatmentToRemove: AssignedTreatment) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {

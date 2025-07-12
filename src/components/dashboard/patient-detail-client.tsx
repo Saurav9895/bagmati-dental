@@ -2,12 +2,11 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { addTreatmentToPatient, removeTreatmentFromPatient } from '@/app/actions/patients';
@@ -24,8 +23,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
 import { format } from 'date-fns';
 import { Badge } from '../ui/badge';
-
-type AssignedTreatment = Treatment & { dateAdded: string };
+import { ToothChart } from './tooth-chart';
 
 const appointmentSchema = z.object({
     procedure: z.string().min(2, "Procedure must be at least 2 characters."),
@@ -50,7 +48,7 @@ const formatTime12h = (time24h: string): string => {
 export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments }: { initialPatient: Patient, treatments: Treatment[], appointments: Appointment[] }) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
-    const [showTreatmentForm, setShowTreatmentForm] = React.useState(false);
+    
     const [selectedTreatmentId, setSelectedTreatmentId] = React.useState<string | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
@@ -61,6 +59,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
     const [isSubmittingAppointment, setIsSubmittingAppointment] = React.useState(false);
     const [editingAppointment, setEditingAppointment] = React.useState<Appointment | null>(null);
+    
+    const [isTreatmentDialogOpen, setIsTreatmentDialogOpen] = React.useState(false);
+    const [selectedTooth, setSelectedTooth] = React.useState<number | null>(null);
 
     const { toast } = useToast();
 
@@ -170,14 +171,15 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
         setIsSubmitting(true);
         try {
-            const result = await addTreatmentToPatient(patient.id, selectedTreatment);
+            const result = await addTreatmentToPatient(patient.id, selectedTreatment, selectedTooth ?? undefined);
             
             if (result.success && result.data) {
                 const updatedPatient = { ...patient, ...(result.data as Partial<Patient>) };
                 setPatient(updatedPatient);
                 toast({ title: "Treatment added successfully!" });
-                setShowTreatmentForm(false);
-                setSelectedTreatmentId(undefined); 
+                setIsTreatmentDialogOpen(false);
+                setSelectedTreatmentId(undefined);
+                setSelectedTooth(null);
             } else {
                 toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
             }
@@ -213,6 +215,26 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             setTreatmentToDelete(null);
         }
     }
+    
+    const onToothClick = (toothNumber: number) => {
+        setSelectedTooth(toothNumber);
+        setIsTreatmentDialogOpen(true);
+    }
+    
+    const assignedTreatmentsByTooth = React.useMemo(() => {
+        const map = new Map<number, AssignedTreatment[]>();
+        if (patient.assignedTreatments) {
+            for (const treatment of patient.assignedTreatments) {
+                if (treatment.tooth) {
+                    if (!map.has(treatment.tooth)) {
+                        map.set(treatment.tooth, []);
+                    }
+                    map.get(treatment.tooth)!.push(treatment);
+                }
+            }
+        }
+        return map;
+    }, [patient.assignedTreatments]);
 
 
     return (
@@ -333,35 +355,11 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             )}
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox
-                                    id="add-treatment-checkbox"
-                                    checked={showTreatmentForm}
-                                    onCheckedChange={(checked) => setShowTreatmentForm(Boolean(checked))}
-                                />
-                                <label htmlFor="add-treatment-checkbox" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    Proceed with new treatment
-                                </label>
+                            <div>
+                                <h4 className="font-semibold mb-2 text-base">Dental Chart</h4>
+                                <CardDescription className="mb-4">Click on a tooth to assign a treatment.</CardDescription>
+                                <ToothChart onToothClick={onToothClick} assignedTreatments={assignedTreatmentsByTooth} />
                             </div>
-
-                            {showTreatmentForm && (
-                                <div className="p-4 border rounded-lg space-y-4 bg-muted/50">
-                                    <Select onValueChange={setSelectedTreatmentId} value={selectedTreatmentId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a treatment to add" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {treatments.map(t => (
-                                                <SelectItem key={t.id} value={t.id}>{t.name} - Rs. {t.amount.toFixed(2)}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Button onClick={handleAddTreatment} disabled={isSubmitting || !selectedTreatmentId}>
-                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                                        Add Treatment to Plan
-                                    </Button>
-                                </div>
-                            )}
 
                             <div>
                                 <h4 className="font-semibold mb-2 text-base">Assigned Treatments</h4>
@@ -370,7 +368,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                         {patient.assignedTreatments.map((t) => (
                                             <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
                                                 <div className="flex-1">
-                                                    <p className="font-medium">{t.name}</p>
+                                                    <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
                                                     <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
@@ -404,6 +402,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Treatment</TableHead>
+                                            <TableHead>Tooth #</TableHead>
                                             <TableHead>Date Added</TableHead>
                                             <TableHead className="text-right">Amount</TableHead>
                                         </TableRow>
@@ -413,13 +412,14 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                             patient.assignedTreatments.map(treatment => (
                                                 <TableRow key={treatment.dateAdded}>
                                                     <TableCell className="font-medium">{treatment.name}</TableCell>
+                                                    <TableCell>{treatment.tooth || 'N/A'}</TableCell>
                                                     <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
                                                     <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={3} className="text-center h-24">No treatments assigned.</TableCell>
+                                                <TableCell colSpan={4} className="text-center h-24">No treatments assigned.</TableCell>
                                             </TableRow>
                                         )}
                                     </TableBody>
@@ -573,6 +573,30 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             </DialogFooter>
                         </form>
                     </Form>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isTreatmentDialogOpen} onOpenChange={setIsTreatmentDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Assign Treatment to Tooth #{selectedTooth}</DialogTitle>
+                        <DialogDescription>Select a treatment to assign to this tooth.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                         <Select onValueChange={setSelectedTreatmentId} value={selectedTreatmentId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a treatment to add" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {treatments.map(t => (
+                                    <SelectItem key={t.id} value={t.id}>{t.name} - Rs. {t.amount.toFixed(2)}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Button onClick={handleAddTreatment} disabled={isSubmitting || !selectedTreatmentId} className="w-full">
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                            Assign Treatment
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
