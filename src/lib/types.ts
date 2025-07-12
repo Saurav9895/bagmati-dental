@@ -79,4 +79,3 @@ export type StockItem = {
   lastUpdatedAt?: any;
   createdAt?: any;
 };
-
