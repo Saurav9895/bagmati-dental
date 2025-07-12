@@ -43,7 +43,8 @@ export type Treatment = {
   id:string;
   name: string;
   description: string;
-  amount: number;
+  defaultAmount: number;
+  prices?: { [toothNumber: number]: number };
   createdAt?: any;
 };
 

@@ -20,7 +20,7 @@ export async function addTreatment(itemData: Omit<Treatment, 'id' | 'createdAt'>
 }
 
 export async function getTreatments(): Promise<Treatment[]> {
-    const q = query(collection(db, "treatments"), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, "treatments"), orderBy('name', 'asc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -29,7 +29,7 @@ export async function getTreatments(): Promise<Treatment[]> {
     }) as Treatment[];
 }
 
-export async function updateTreatment(id: string, data: Partial<Treatment>): Promise<{ success: boolean; error?: string }> {
+export async function updateTreatment(id: string, data: Partial<Omit<Treatment, 'id' | 'createdAt'>>): Promise<{ success: boolean; error?: string }> {
     try {
         await updateDoc(doc(db, "treatments", id), data);
         return { success: true };

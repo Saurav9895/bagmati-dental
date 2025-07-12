@@ -171,7 +171,13 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
         setIsSubmitting(true);
         try {
-            const result = await addTreatmentToPatient(patient.id, selectedTreatment, selectedTooth ?? undefined);
+            // Determine the correct price
+            const toothSpecificPrice = selectedTooth ? selectedTreatment.prices?.[selectedTooth] : undefined;
+            const priceToApply = toothSpecificPrice ?? selectedTreatment.defaultAmount;
+
+            const treatmentWithPrice = { ...selectedTreatment, amount: priceToApply };
+
+            const result = await addTreatmentToPatient(patient.id, treatmentWithPrice, selectedTooth ?? undefined);
             
             if (result.success && result.data) {
                 const updatedPatient = { ...patient, ...(result.data as Partial<Patient>) };
@@ -514,7 +520,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 </div>
             </div>
              <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
-                <DialogContent className="sm:max-w-5xl">
+                <DialogContent className="sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{editingAppointment ? 'Edit' : 'New'} Appointment for {patient.name}</DialogTitle>
                         <DialogDescription>
@@ -575,7 +581,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     </Form>
                 </DialogContent>
             </Dialog>
-            <Dialog open={isTreatmentDialogOpen} onOpenChange={setIsTreatmentDialogOpen}>
+            <Dialog open={isTreatmentDialogOpen} onOpenChange={(open) => { if(!open) { setSelectedTooth(null); setSelectedTreatmentId(undefined); } setIsTreatmentDialogOpen(open); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Assign Treatment to Tooth #{selectedTooth}</DialogTitle>
@@ -588,7 +594,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             </SelectTrigger>
                             <SelectContent>
                                 {treatments.map(t => (
-                                    <SelectItem key={t.id} value={t.id}>{t.name} - Rs. {t.amount.toFixed(2)}</SelectItem>
+                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

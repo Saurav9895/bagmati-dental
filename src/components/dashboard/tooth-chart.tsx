@@ -3,17 +3,19 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { AssignedTreatment } from '@/lib/types';
+import type { AssignedTreatment, Treatment } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ToothProps extends React.SVGProps<SVGPathElement> {
   toothNumber: number;
   onClick: (toothNumber: number) => void;
-  treatments?: AssignedTreatment[];
+  assignedTreatments?: AssignedTreatment[];
+  price?: number;
 }
 
-const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, treatments, ...props }) => {
-  const hasTreatment = treatments && treatments.length > 0;
+const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments, price, ...props }) => {
+  const hasAssignedTreatment = assignedTreatments && assignedTreatments.length > 0;
+  const hasSpecificPrice = price !== undefined;
 
   const toothContent = (
     <g onClick={() => onClick(toothNumber)} className="cursor-pointer group">
@@ -21,7 +23,8 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, treatments, ...prop
         {...props}
         className={cn(
           'fill-white stroke-gray-400 stroke-2 transition-colors duration-200 group-hover:fill-blue-200',
-          { 'fill-yellow-300': hasTreatment }
+          { 'fill-yellow-300': hasAssignedTreatment },
+          { 'fill-green-200': hasSpecificPrice && !hasAssignedTreatment}
         )}
       />
       <text
@@ -38,17 +41,36 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, treatments, ...prop
     </g>
   );
 
-  if (hasTreatment) {
+  const tooltipContent = [];
+  if (hasAssignedTreatment) {
+    tooltipContent.push(
+      <div key="treatments">
+        <p className="font-bold">Assigned:</p>
+        <ul>
+          {assignedTreatments?.map((t, i) => (
+            <li key={i}>- {t.name} (Rs. {t.amount})</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  if (hasSpecificPrice) {
+      tooltipContent.push(
+        <div key="price" className={cn(hasAssignedTreatment && 'mt-2')}>
+            <p className="font-bold">Specific Price:</p>
+            <p>Rs. {price.toFixed(2)}</p>
+        </div>
+      );
+  }
+
+
+  if (tooltipContent.length > 0) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>{toothContent}</TooltipTrigger>
         <TooltipContent>
-          <p className="font-bold">Tooth #{toothNumber}</p>
-          <ul>
-            {treatments.map((t, i) => (
-              <li key={i}>- {t.name} (Rs. {t.amount})</li>
-            ))}
-          </ul>
+          <div className='font-bold mb-2'>Tooth #{toothNumber}</div>
+          {tooltipContent}
         </TooltipContent>
       </Tooltip>
     );
@@ -59,7 +81,8 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, treatments, ...prop
 
 interface ToothChartProps {
   onToothClick: (toothNumber: number) => void;
-  assignedTreatments: Map<number, AssignedTreatment[]>;
+  assignedTreatments?: Map<number, AssignedTreatment[]>;
+  treatmentPrices?: { [toothNumber: number]: number };
 }
 
 const upperArch = [
@@ -76,19 +99,19 @@ const lowerArch = [
   { p: "M510,100 a20,20 0 0,0 40,0", t: 29, n: 35 }, { p: "M550,100 a20,20 0 0,0 40,0", t: 30, n: 36 }, { p: "M590,100 a20,20 0 0,0 40,0", t: 31, n: 37 }, { p: "M630,100 a20,20 0 0,0 40,0", t: 32, n: 38 },
 ];
 
-export const ToothChart: React.FC<ToothChartProps> = ({ onToothClick, assignedTreatments }) => {
+export const ToothChart: React.FC<ToothChartProps> = ({ onToothClick, assignedTreatments, treatmentPrices }) => {
   return (
     <TooltipProvider>
       <div className="flex justify-center">
         <svg viewBox="0 0 680 150" width="100%">
           <g>
             {upperArch.map(({ p, n }) => (
-              <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} treatments={assignedTreatments.get(n)} />
+              <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} assignedTreatments={assignedTreatments?.get(n)} price={treatmentPrices?.[n]} />
             ))}
           </g>
           <g>
             {lowerArch.map(({ p, n }) => (
-              <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} treatments={assignedTreatments.get(n)} />
+              <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} assignedTreatments={assignedTreatments?.get(n)} price={treatmentPrices?.[n]} />
             ))}
           </g>
         </svg>
