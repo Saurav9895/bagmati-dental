@@ -147,7 +147,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
     const totalAmount = React.useMemo(() => {
         if (!patient || !patient.assignedTreatments) return 0;
-        return patient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
+        return patient.assignedTreatments.reduce((total, treatment) => total + (treatment.amount || 0), 0);
     }, [patient]);
 
     const amountPaid = React.useMemo(() => {
@@ -178,6 +178,16 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             // Determine the correct price
             const toothSpecificPrice = selectedTooth ? selectedTreatment.prices?.[selectedTooth] : undefined;
             const priceToApply = toothSpecificPrice ?? selectedTreatment.defaultAmount;
+
+            if (typeof priceToApply !== 'number') {
+                toast({
+                    variant: 'destructive',
+                    title: 'Price not set',
+                    description: 'This treatment does not have a price for this tooth or a default price. Please set one in the treatments section.'
+                });
+                setIsSubmitting(false);
+                return;
+            }
 
             const treatmentWithPrice = { ...selectedTreatment, amount: priceToApply };
 
@@ -384,7 +394,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                             <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
                                                         </div>
                                                         <div className="flex items-center gap-4">
-                                                            <span className="font-semibold text-primary">Rs. {t.amount.toFixed(2)}</span>
+                                                            <span className="font-semibold text-primary">Rs. {(t.amount || 0).toFixed(2)}</span>
                                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
                                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                                                 <span className="sr-only">Remove treatment</span>
@@ -428,7 +438,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                     <TableCell className="font-medium">{treatment.name}</TableCell>
                                                     <TableCell>{treatment.tooth || 'N/A'}</TableCell>
                                                     <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                                    <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">Rs. {(treatment.amount || 0).toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))
                                         ) : (
