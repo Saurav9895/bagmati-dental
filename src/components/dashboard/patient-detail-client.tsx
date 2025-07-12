@@ -4,7 +4,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -263,11 +263,11 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <Card className="lg:col-span-2">
+                    <Card className="lg:col-span-3">
                         <CardHeader>
                             <CardTitle>Contact Information</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4 text-sm">
+                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div className="flex items-center gap-4">
                                 <Mail className="h-5 w-5 text-muted-foreground" />
                                 <span>{patient.email || 'N/A'}</span>
@@ -284,20 +284,14 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                                 <span>Date of Birth: {patient.dob ? new Date(patient.dob).toLocaleDateString() : 'N/A'}</span>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="md:col-span-2 lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileText className="h-5 w-5" />
-                                Medical History
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                {patient.medicalHistory || 'No medical history provided.'}
-                            </p>
+                            <div className="flex items-center gap-4">
+                                <UserIcon className="h-5 w-5 text-muted-foreground" />
+                                <span>Age: {patient.age || 'N/A'}</span>
+                            </div>
+                             <div className="flex items-center gap-4">
+                                <UserIcon className="h-5 w-5 text-muted-foreground" />
+                                <span>Gender: {patient.gender || 'N/A'}</span>
+                            </div>
                         </CardContent>
                     </Card>
                     

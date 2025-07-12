@@ -23,14 +23,16 @@ import type { Patient } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const patientSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address.").or(z.literal('')).optional(),
   phone: z.string().min(10, "Phone number seems too short."),
   dob: z.string().optional(),
+  age: z.coerce.number().int().positive("Age must be a positive number."),
+  gender: z.enum(['Male', 'Female', 'Other'], { required_error: 'Please select a gender.'}),
   address: z.string().min(5, "Address must be at least 5 characters."),
-  medicalHistory: z.string().optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -51,7 +53,7 @@ export function PatientList() {
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" },
+    defaultValues: { name: "", email: "", phone: "", dob: "", age: 0, address: "" },
   });
   
   const filteredPatients = React.useMemo(() => {
@@ -96,10 +98,11 @@ export function PatientList() {
         ...editingPatient,
         dob: editingPatient.dob || '',
         email: editingPatient.email || '',
-        medicalHistory: editingPatient.medicalHistory || '',
+        age: editingPatient.age || 0,
+        gender: editingPatient.gender,
       });
     } else {
-      form.reset({ name: "", email: "", phone: "", dob: "", address: "", medicalHistory: "" });
+      form.reset({ name: "", email: "", phone: "", dob: "", age: 0, address: "" });
     }
   }, [editingPatient, form]);
 
@@ -203,7 +206,6 @@ export function PatientList() {
       } else {
         const newPatientData = {
           ...patientPayload,
-          medicalHistory: patientPayload.medicalHistory || "",
           status: 'Active' as const,
           lastVisit: new Date().toISOString().split('T')[0],
           createdAt: serverTimestamp(),
@@ -312,17 +314,35 @@ export function PatientList() {
                                 <FormMessage />
                                 </FormItem>
                             )} />
+                            <FormField control={form.control} name="age" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Age</FormLabel>
+                                <FormControl><Input type="number" placeholder="30" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="gender" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Gender</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a gender" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
                             <FormField control={form.control} name="address" render={({ field }) => (
                                 <FormItem className="md:col-span-2">
                                 <FormLabel>Address</FormLabel>
                                 <FormControl><Input placeholder="123 Main St, Anytown, USA" {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                            <FormField control={form.control} name="medicalHistory" render={({ field }) => (
-                                <FormItem className="md:col-span-2">
-                                <FormLabel>Medical History</FormLabel>
-                                <FormControl><Textarea placeholder="Any allergies, existing conditions, etc." value={field.value || ''} onChange={field.onChange} /></FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )} />

@@ -13,12 +13,13 @@ export type Patient = {
   id: string;
   name: string;
   dob?: string;
+  age: number;
+  gender: 'Male' | 'Female' | 'Other';
   email?: string;
   phone: string;
   status: 'Active' | 'Inactive';
   lastVisit: string;
   address: string;
-  medicalHistory?: string;
   registrationNumber?: string;
   assignedTreatments?: AssignedTreatment[];
   payments?: Payment[];
