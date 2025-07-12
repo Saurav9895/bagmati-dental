@@ -40,9 +40,10 @@ async function getAppointmentsForPatient(patientId: string): Promise<Appointment
 
 
 export default async function PatientDetailPage({ params }: { params: { id: string } }) {
-  const patient = await getPatient(params.id);
+  const resolvedParams = await params;
+  const patient = await getPatient(resolvedParams.id);
   const treatments = await fetchAllTreatments();
-  const appointments = await getAppointmentsForPatient(params.id);
+  const appointments = await getAppointmentsForPatient(resolvedParams.id);
 
   if (!patient) {
     return (
