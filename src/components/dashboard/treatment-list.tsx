@@ -17,6 +17,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { addTreatment, updateTreatment, deleteTreatment } from '@/app/actions/treatments';
 import { ToothChart } from './tooth-chart';
 import { ScrollArea } from '../ui/scroll-area';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
