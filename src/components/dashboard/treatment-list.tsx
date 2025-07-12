@@ -5,27 +5,21 @@ import * as React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, ChevronsUpDown } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, ChevronsUpDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import type { Treatment } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { addTreatment, updateTreatment, deleteTreatment } from '@/app/actions/treatments';
 import { ToothChart } from './tooth-chart';
 import { ScrollArea } from '../ui/scroll-area';
-import { Separator } from '../ui/separator';
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
-  description: z.string().min(10, "Description must be at least 10 characters."),
-  defaultAmount: z.coerce.number().positive("Amount must be a positive number."),
 });
 
 type TreatmentFormValues = z.infer<typeof treatmentSchema>;
@@ -40,6 +34,7 @@ type ToothPriceFormValues = z.infer<typeof toothPriceSchema>;
 export function TreatmentList({ initialTreatments }: { initialTreatments: Treatment[] }) {
   const [treatments, setTreatments] = React.useState<Treatment[]>(initialTreatments);
   const [selectedTreatment, setSelectedTreatment] = React.useState<Treatment | null>(initialTreatments[0] || null);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingTreatment, setEditingTreatment] = React.useState<Treatment | null>(null);
@@ -55,7 +50,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
 
   const form = useForm<TreatmentFormValues>({
     resolver: zodResolver(treatmentSchema),
-    defaultValues: { name: "", description: "", defaultAmount: 0 },
+    defaultValues: { name: "" },
   });
 
   const priceForm = useForm<ToothPriceFormValues>({
@@ -63,21 +58,25 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
       defaultValues: { price: 0 }
   });
 
+  const filteredTreatments = React.useMemo(() => {
+    if (!searchQuery) return treatments;
+    const lowercasedQuery = searchQuery.toLowerCase();
+    return treatments.filter(t => t.name.toLowerCase().includes(lowercasedQuery));
+  }, [searchQuery, treatments]);
+
   React.useEffect(() => {
     if (isFormOpen && editingTreatment) {
       form.reset({
           name: editingTreatment.name,
-          description: editingTreatment.description,
-          defaultAmount: editingTreatment.defaultAmount,
       });
     } else if (!isFormOpen) {
-      form.reset({ name: "", description: "", defaultAmount: 0 });
+      form.reset({ name: "" });
     }
   }, [isFormOpen, editingTreatment, form]);
   
   React.useEffect(() => {
     if (selectedTreatment && selectedTooth) {
-        const currentPrice = selectedTreatment.prices?.[selectedTooth] || selectedTreatment.defaultAmount;
+        const currentPrice = selectedTreatment.prices?.[selectedTooth] || selectedTreatment.defaultAmount || 0;
         priceForm.reset({ price: currentPrice });
     }
   }, [selectedTooth, selectedTreatment, priceForm]);
@@ -132,7 +131,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
         return;
       }
     } else {
-      const payload: Omit<Treatment, 'id'> = { ...data, prices: {} };
+      const payload: Omit<Treatment, 'id'> = { ...data, description: '', defaultAmount: 0, prices: {} };
       const result = await addTreatment(payload);
       if (result.success && result.data) {
         setTreatments([result.data, ...treatments]);
@@ -211,20 +210,6 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                           <FormMessage />
                         </FormItem>
                       )} />
-                      <FormField control={form.control} name="description" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl><Textarea placeholder="Describe the treatment..." {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name="defaultAmount" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Default Price (Rs.)</FormLabel>
-                          <FormControl><Input type="number" placeholder="e.g., 250" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
                       <DialogFooter>
                           <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                               {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Treatment'}
@@ -241,14 +226,22 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                 <div className="md:col-span-1">
                      <h3 className="text-lg font-semibold mb-2">Available Treatments</h3>
                      <CardDescription className="mb-4">Select a treatment to view and edit its prices on the dental chart.</CardDescription>
+                      <div className="relative mb-4">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search treatments..."
+                          className="pl-10"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                      </div>
                      <ScrollArea className="h-[400px] rounded-md border">
                         <div className="p-2">
-                            {treatments.length > 0 ? (
-                            treatments.map(treatment => (
+                            {filteredTreatments.length > 0 ? (
+                            filteredTreatments.map(treatment => (
                                 <div key={treatment.id} className={`group w-full text-left p-2 rounded-md hover:bg-muted text-sm flex justify-between items-center ${selectedTreatment?.id === treatment.id ? 'bg-muted font-semibold' : ''}`}>
                                     <button onClick={() => setSelectedTreatment(treatment)} className="flex-1 text-left">
                                         <p>{treatment.name}</p>
-                                        <p className="text-xs text-muted-foreground">Default: Rs. {typeof treatment.defaultAmount === 'number' ? treatment.defaultAmount.toFixed(2) : 'N/A'}</p>
                                     </button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -258,7 +251,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuItem onSelect={() => handleEditClick(treatment)}>
-                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                                <Edit className="mr-2 h-4 w-4" /> Edit Name
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => handleDeleteClick(treatment)} className="text-destructive">
                                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -268,7 +261,9 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                                 </div>
                             ))
                             ) : (
-                            <p className="text-center text-sm text-muted-foreground p-4">No treatments found. Add one to get started.</p>
+                            <p className="text-center text-sm text-muted-foreground p-4">
+                                {searchQuery ? "No treatments match your search." : "No treatments found."}
+                            </p>
                             )}
                         </div>
                     </ScrollArea>
@@ -276,7 +271,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                 <div className="md:col-span-2">
                     <h3 className="text-lg font-semibold mb-2">Tooth-Specific Pricing</h3>
                     <CardDescription className="mb-4">
-                        {selectedTreatment ? `Editing prices for: ${selectedTreatment.name}. Click a tooth to set a price.` : 'Select a treatment to manage its pricing.'}
+                        {selectedTreatment ? `Editing prices for: ${selectedTreatment.name}. Click a tooth to set its price.` : 'Select a treatment to manage its pricing.'}
                     </CardDescription>
                     <div className="p-4 border rounded-lg">
                         <ToothChart onToothClick={onToothClick} treatmentPrices={selectedTreatment?.prices} />
