@@ -23,8 +23,7 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments,
         {...props}
         className={cn(
           'fill-white stroke-gray-400 stroke-2 transition-colors duration-200 group-hover:fill-blue-200',
-          { 'fill-yellow-300': hasAssignedTreatment },
-          { 'fill-green-200': hasSpecificPrice && !hasAssignedTreatment}
+          { 'fill-yellow-300': hasAssignedTreatment }
         )}
       />
       <text
@@ -48,17 +47,15 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments,
         <p className="font-bold">Assigned:</p>
         <ul>
           {assignedTreatments?.map((t, i) => (
-            <li key={i}>- {t.name} (Rs. {t.amount})</li>
+            <li key={i}>- {t.name} (Rs. {(t.amount || 0).toFixed(2)})</li>
           ))}
         </ul>
       </div>
     );
-  }
-  if (hasSpecificPrice) {
+  } else {
       tooltipContent.push(
         <div key="price" className={cn(hasAssignedTreatment && 'mt-2')}>
-            <p className="font-bold">Specific Price:</p>
-            <p>Rs. {price.toFixed(2)}</p>
+            <p>Click to assign a treatment.</p>
         </div>
       );
   }
