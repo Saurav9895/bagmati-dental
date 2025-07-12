@@ -105,8 +105,8 @@ interface ToothChartProps {
 
 const upperRight = Array.from({ length: 8 }, (_, i) => 8 - i);
 const upperLeft = Array.from({ length: 8 }, (_, i) => i + 9);
-const lowerRight = Array.from({ length: 8 }, (_, i) => i + 25);
-const lowerLeft = Array.from({ length: 8 }, (_, i) => 24 - i);
+const lowerRight = Array.from({ length: 8 }, (_, i) => i + 25).reverse();
+const lowerLeft = Array.from({ length: 8 }, (_, i) => 24 - i).reverse();
 
 export const ToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
@@ -147,14 +147,11 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               assignedTreatments={assignedTreatmentsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={true}
-              transform={`translate(${290 + i * 32}, 5)`}
+              transform={`translate(${305 + i * 32}, 5)`}
             />
           ))}
           
-          {/* Midline Separator */}
-          <line x1="280" y1="0" x2="280" y2="120" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2" />
-
-          {/* Lower Right Quadrant (Teeth 25-32) */}
+          {/* Lower Right Quadrant (Teeth 25-32) - Reversed to match dental notation from patient's perspective */}
           {lowerRight.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
@@ -166,7 +163,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               transform={`translate(${250 - i * 32}, 75)`}
             />
           ))}
-          {/* Lower Left Quadrant (Teeth 17-24) */}
+          {/* Lower Left Quadrant (Teeth 17-24) - Reversed */}
           {lowerLeft.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
@@ -175,7 +172,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               assignedTreatments={assignedTreatmentsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={false}
-              transform={`translate(${290 + i * 32}, 75)`}
+              transform={`translate(${305 + i * 32}, 75)`}
             />
           ))}
         </svg>
