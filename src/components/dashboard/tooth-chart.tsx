@@ -1,30 +1,41 @@
 
+
 'use client';
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { AssignedTreatment, Treatment } from '@/lib/types';
+import type { AssignedTreatment } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+export const COLOR_PALETTE = [
+  '#84cc16', // lime-500
+  '#f97316', // orange-500
+  '#ec4899', // pink-500
+  '#6366f1', // indigo-500
+  '#0ea5e9', // sky-500
+  '#14b8a6', // teal-500
+];
 
 interface ToothProps extends React.SVGProps<SVGPathElement> {
   toothNumber: number;
   onClick: (toothNumber: number) => void;
   assignedTreatments?: AssignedTreatment[];
-  price?: number;
+  color?: string;
 }
 
-const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments, price, ...props }) => {
+const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments, color, ...props }) => {
   const hasAssignedTreatment = assignedTreatments && assignedTreatments.length > 0;
-  const hasSpecificPrice = price !== undefined;
 
   const toothContent = (
     <g onClick={() => onClick(toothNumber)} className="cursor-pointer group">
       <path
         {...props}
         className={cn(
-          'fill-white stroke-gray-400 stroke-2 transition-colors duration-200 group-hover:fill-blue-200',
-          { 'fill-yellow-300': hasAssignedTreatment }
+          'fill-white stroke-gray-400 stroke-2 transition-colors duration-200 group-hover:fill-blue-200'
         )}
+        style={{
+          fill: color ? color : 'white'
+        }}
       />
       <text
         x={props.d?.match(/M ([\d.]*)/)?.[1] || 0}
@@ -54,7 +65,7 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments,
     );
   } else {
       tooltipContent.push(
-        <div key="price" className={cn(hasAssignedTreatment && 'mt-2')}>
+        <div key="price">
             <p>Click to assign a treatment.</p>
         </div>
       );
@@ -78,7 +89,7 @@ const Tooth: React.FC<ToothProps> = ({ toothNumber, onClick, assignedTreatments,
 
 interface ToothChartProps {
   onToothClick: (toothNumber: number) => void;
-  assignedTreatments?: Map<number, AssignedTreatment[]>;
+  assignedTreatmentsByTooth?: Map<number, AssignedTreatment[]>;
   treatmentPrices?: { [toothNumber: number]: number };
 }
 
@@ -96,20 +107,32 @@ const lowerArch = [
   { p: "M510,100 a20,20 0 0,0 40,0", t: 29, n: 35 }, { p: "M550,100 a20,20 0 0,0 40,0", t: 30, n: 36 }, { p: "M590,100 a20,20 0 0,0 40,0", t: 31, n: 37 }, { p: "M630,100 a20,20 0 0,0 40,0", t: 32, n: 38 },
 ];
 
-export const ToothChart: React.FC<ToothChartProps> = ({ onToothClick, assignedTreatments, treatmentPrices }) => {
+export const ToothChart: React.FC<ToothChartProps> = ({ onToothClick, assignedTreatmentsByTooth, treatmentPrices }) => {
+  const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth?.keys() || []), [assignedTreatmentsByTooth]);
+
   return (
     <TooltipProvider>
       <div className="flex justify-center">
         <svg viewBox="0 0 680 150" width="100%">
           <g>
-            {upperArch.map(({ p, n }) => (
-              <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} assignedTreatments={assignedTreatments?.get(n)} price={treatmentPrices?.[n]} />
-            ))}
+            {upperArch.map(({ p, n }) => {
+              const assignedTreatments = assignedTreatmentsByTooth?.get(n);
+              const colorIndex = treatedTeeth.indexOf(n);
+              const color = colorIndex !== -1 ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length] : undefined;
+              return (
+                <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} assignedTreatments={assignedTreatments} color={color} />
+              )
+            })}
           </g>
           <g>
-            {lowerArch.map(({ p, n }) => (
-              <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} assignedTreatments={assignedTreatments?.get(n)} price={treatmentPrices?.[n]} />
-            ))}
+            {lowerArch.map(({ p, n }) => {
+              const assignedTreatments = assignedTreatmentsByTooth?.get(n);
+              const colorIndex = treatedTeeth.indexOf(n);
+              const color = colorIndex !== -1 ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length] : undefined;
+              return (
+                <Tooth key={n} toothNumber={n} d={p} onClick={onToothClick} assignedTreatments={assignedTreatments} color={color} />
+              )
+            })}
           </g>
         </svg>
       </div>

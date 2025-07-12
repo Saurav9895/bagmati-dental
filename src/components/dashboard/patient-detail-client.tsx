@@ -24,9 +24,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
 import { format } from 'date-fns';
 import { Badge } from '../ui/badge';
-import { ToothChart } from './tooth-chart';
-import { Checkbox } from '../ui/checkbox';
-import { Label } from '../ui/label';
+import { ToothChart, COLOR_PALETTE } from './tooth-chart';
+import { cn } from '@/lib/utils';
+
 
 const appointmentSchema = z.object({
     procedure: z.string().min(2, "Procedure must be at least 2 characters."),
@@ -71,8 +71,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const [isTreatmentDialogOpen, setIsTreatmentDialogOpen] = React.useState(false);
     const [selectedTooth, setSelectedTooth] = React.useState<number | null>(null);
-
-    const [showTreatmentPlan, setShowTreatmentPlan] = React.useState(false);
     
     const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
@@ -289,6 +287,8 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         }
         return map;
     }, [patient.assignedTreatments]);
+    
+    const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
 
 
     return (
@@ -436,46 +436,44 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             )}
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox id="show-treatment" checked={showTreatmentPlan} onCheckedChange={(checked) => setShowTreatmentPlan(!!checked)} />
-                                <Label htmlFor="show-treatment" className="cursor-pointer">Wants further treatment</Label>
+                             <div>
+                                <h4 className="font-semibold mb-2 text-base">Dental Chart</h4>
+                                <CardDescription className="mb-4">Click on a tooth to assign a treatment.</CardDescription>
+                                <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
                             </div>
 
-                            {showTreatmentPlan && (
-                                <>
-                                    <Separator />
-                                    <div>
-                                        <h4 className="font-semibold mb-2 text-base">Dental Chart</h4>
-                                        <CardDescription className="mb-4">Click on a tooth to assign a treatment.</CardDescription>
-                                        <ToothChart onToothClick={onToothClick} assignedTreatments={assignedTreatmentsByTooth} />
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-semibold mb-2 text-base">Assigned Treatments</h4>
-                                        {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
-                                            <ul className="space-y-2">
-                                                {patient.assignedTreatments.map((t) => (
-                                                    <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
-                                                        <div className="flex-1">
-                                                            <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
-                                                            <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-4">
-                                                            <span className="font-semibold text-primary">Rs. {(t.amount || 0).toFixed(2)}</span>
-                                                            <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                                <span className="sr-only">Remove treatment</span>
-                                                            </Button>
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground text-center py-4">No treatments assigned yet.</p>
-                                        )}
-                                    </div>
-                                </>
-                            )}
+                            <div>
+                                <h4 className="font-semibold mb-2 text-base">Assigned Treatments</h4>
+                                {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
+                                    <ul className="space-y-2">
+                                        {patient.assignedTreatments.map((t, index) => (
+                                            <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
+                                                <div className="flex items-center gap-3 flex-1">
+                                                     {t.tooth && (
+                                                        <div
+                                                            className="h-3 w-3 rounded-full shrink-0"
+                                                            style={{ backgroundColor: COLOR_PALETTE[treatedTeeth.indexOf(t.tooth) % COLOR_PALETTE.length] }}
+                                                        />
+                                                    )}
+                                                    <div>
+                                                        <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
+                                                        <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    <span className="font-semibold text-primary">Rs. {(t.amount || 0).toFixed(2)}</span>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                        <span className="sr-only">Remove treatment</span>
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No treatments assigned yet.</p>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
                     
