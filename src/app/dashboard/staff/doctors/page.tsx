@@ -1,12 +1,11 @@
-'use client';
+import { DoctorList } from "@/components/dashboard/doctor-list";
+import { getDoctors } from "@/app/actions/staff";
 
-import { redirect } from 'next/navigation';
-import { useEffect } from 'react';
-
-export default function DoctorsPage() {
-  useEffect(() => {
-    redirect('/dashboard');
-  }, []);
-  
-  return null;
+export default async function DoctorsPage() {
+    const doctors = await getDoctors();
+    return (
+        <div>
+            <DoctorList initialDoctors={doctors} />
+        </div>
+    );
 }
