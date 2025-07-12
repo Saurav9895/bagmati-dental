@@ -1,7 +1,8 @@
+
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment, Payment, Discount, AssignedTreatment } from '@/lib/types';
+import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription } from '@/lib/types';
 import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
 
 export async function addTreatmentToPatient(patientId: string, treatment: Treatment, tooth?: number) {
@@ -204,6 +205,45 @@ export async function removeDiscountFromPatient(patientId: string, discountToRem
                 id: patientId,
                 ...serializablePatientData,
                 discounts: updatedDiscounts
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+export async function addPrescriptionToPatient(patientId: string, prescriptionData: { notes: string; date: string; }) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+
+            const newPrescription: Prescription = {
+                id: crypto.randomUUID(),
+                ...prescriptionData,
+                dateAdded: new Date().toISOString(),
+            };
+            
+            const currentPrescriptions = patientData.prescriptions || [];
+            const updatedPrescriptions = [...currentPrescriptions, newPrescription];
+
+            transaction.update(patientRef, {
+                prescriptions: updatedPrescriptions
+            });
+
+            const { createdAt, ...serializablePatientData } = patientData;
+
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                prescriptions: updatedPrescriptions
             };
         });
         return { success: true, data: updatedPatientData };

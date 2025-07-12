@@ -1,15 +1,16 @@
 
+
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient } from '@/app/actions/patients';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -35,6 +36,12 @@ const appointmentSchema = z.object({
     description: z.string().optional(),
 });
 type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+
+const prescriptionSchema = z.object({
+  notes: z.string().min(2, "Prescription notes must be at least 2 characters."),
+  date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
+});
+type PrescriptionFormValues = z.infer<typeof prescriptionSchema>;
 
 
 const formatTime12h = (time24h: string): string => {
@@ -66,6 +73,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [selectedTooth, setSelectedTooth] = React.useState<number | null>(null);
 
     const [showTreatmentPlan, setShowTreatmentPlan] = React.useState(false);
+    
+    const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
+    const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
 
     const { toast } = useToast();
 
@@ -77,6 +87,14 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             time: '',
             doctor: '',
             description: '',
+        },
+    });
+
+    const prescriptionForm = useForm<PrescriptionFormValues>({
+        resolver: zodResolver(prescriptionSchema),
+        defaultValues: {
+            notes: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
         },
     });
 
@@ -119,6 +137,22 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             toast({ variant: 'destructive', title: `Failed to ${editingAppointment ? 'update' : 'add'} appointment`, description: result.error });
         }
         setIsSubmittingAppointment(false);
+    };
+
+    const handlePrescriptionSubmit = async (data: PrescriptionFormValues) => {
+        setIsSubmittingPrescription(true);
+        const result = await addPrescriptionToPatient(patient.id, data);
+
+        if (result.success && result.data) {
+            const updatedPatient = { ...patient, ...(result.data as Partial<Patient>) };
+            setPatient(updatedPatient);
+            toast({ title: "Prescription added successfully!" });
+            setIsPrescriptionDialogOpen(false);
+            prescriptionForm.reset({ notes: '', date: format(new Date(), 'yyyy-MM-dd') });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to add prescription', description: result.error });
+        }
+        setIsSubmittingPrescription(false);
     };
     
     const handleNewAppointmentClick = () => {
@@ -302,6 +336,39 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 <UserIcon className="h-5 w-5 text-muted-foreground" />
                                 <span>Gender: {patient.gender || 'N/A'}</span>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="md:col-span-2 lg:col-span-3">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <ScrollText className="h-5 w-5" />
+                                <CardTitle>Prescriptions</CardTitle>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => setIsPrescriptionDialogOpen(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Prescription
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                             {patient.prescriptions && patient.prescriptions.length > 0 ? (
+                                <div className="space-y-4">
+                                    {patient.prescriptions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p) => (
+                                        <div key={p.id} className="p-3 border rounded-md bg-card shadow-sm">
+                                            <div className="flex justify-between items-start gap-4">
+                                                <p className="font-semibold text-sm">
+                                                    {format(new Date(p.date), 'PPP')}
+                                                </p>
+                                            </div>
+                                             <div className="mt-2 pt-2 border-t">
+                                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No prescriptions found for this patient.</p>
+                            )}
                         </CardContent>
                     </Card>
                     
@@ -621,6 +688,41 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             Assign Treatment
                         </Button>
                     </div>
+                </DialogContent>
+            </Dialog>
+             <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Add New Prescription for {patient.name}</DialogTitle>
+                        <DialogDescription>
+                            Enter the prescription details below.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...prescriptionForm}>
+                        <form onSubmit={prescriptionForm.handleSubmit(handlePrescriptionSubmit)} className="space-y-4 py-4">
+                             <FormField control={prescriptionForm.control} name="date" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Date</FormLabel>
+                                <FormControl><Input type="date" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={prescriptionForm.control} name="notes" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Prescription Notes</FormLabel>
+                                <FormControl><Textarea placeholder="e.g., Amoxicillin 500mg, 3 times a day for 7 days..." {...field} rows={5} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
+                           
+                            <DialogFooter>
+                                <Button type="submit" disabled={isSubmittingPrescription}>
+                                    {isSubmittingPrescription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Save Prescription
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
                 </DialogContent>
             </Dialog>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>

@@ -1,5 +1,6 @@
 
 
+
 export type AssignedTreatment = {
   id: string;
   name: string;
@@ -7,6 +8,13 @@ export type AssignedTreatment = {
   amount: number;
   dateAdded: string;
   tooth?: number; // Optional tooth number
+};
+
+export type Prescription = {
+  id: string;
+  date: string;
+  notes: string;
+  dateAdded: string;
 };
 
 export type Patient = {
@@ -24,6 +32,7 @@ export type Patient = {
   assignedTreatments?: AssignedTreatment[];
   payments?: Payment[];
   discounts?: Discount[];
+  prescriptions?: Prescription[];
   createdAt?: any;
 };
 
