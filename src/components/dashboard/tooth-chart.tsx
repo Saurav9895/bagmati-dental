@@ -30,6 +30,9 @@ interface ToothProps extends React.SVGProps<SVGGElement> {
   isUpper: boolean;
 }
 
+// A more realistic tooth SVG path
+const realisticToothPath = "M15,3C12.7,3,11,4.4,10.2,6.5C8.4,5.4,6.2,5.1,4,5.9C4.5,7.9,5.5,9.6,7,10.9C6.9,11.2,6.9,11.5,6.9,11.8C6.9,14.7,9.3,17.1,12.2,17.1C12.5,17.1,12.8,17.1,13.1,17C13.1,18.9,14.6,20.5,16.5,20.5C18.4,20.5,19.9,18.9,19.9,17C20.2,17.1,20.5,17.1,20.8,17.1C23.7,17.1,26.1,14.7,26.1,11.8C26.1,11.5,26.1,11.2,26,10.9C27.5,9.6,28.5,7.9,29,5.9C26.8,5.1,24.6,5.4,22.8,6.5C22,4.4,20.3,3,18,3C17.4,3,16.8,3.1,16.2,3.3C15.8,3.1,15.4,3,15,3Z";
+
 const Tooth: React.FC<ToothProps> = ({
   toothNumber,
   onClick,
@@ -64,25 +67,24 @@ const Tooth: React.FC<ToothProps> = ({
           {...props}
         >
           <path
-            d="M 5,15 A 10,10 0 0 1 25,15"
-            strokeWidth="2"
-            fill="none"
+            d={realisticToothPath}
+            transform="scale(1.2)"
             className={cn(
-              'transition-colors duration-200 group-hover:stroke-blue-400',
-              hasAssignedTreatment ? '' : 'stroke-gray-400'
+              'transition-all duration-200 group-hover:fill-blue-200',
+              hasAssignedTreatment ? '' : 'fill-gray-200'
             )}
             style={{
-              stroke: color || (hasAssignedTreatment ? '#fde047' : '#9ca3af'),
+              fill: color || (hasAssignedTreatment ? '#fde047' : '#e5e7eb'), // yellow-200 or gray-200
             }}
           />
           <text
-            x="15"
-            y={isUpper ? 25 : -5}
+            x="18"
+            y={isUpper ? 38 : -8}
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="10"
-            fill="#6b7280"
-            className="pointer-events-none select-none font-sans"
+            fill="#374151" // gray-700
+            className="pointer-events-none select-none font-sans font-semibold"
           >
             {toothNumber}
           </text>
@@ -101,8 +103,10 @@ interface ToothChartProps {
   assignedTreatmentsByTooth?: Map<number, AssignedTreatment[]>;
 }
 
-const upperJawNumbers = Array.from({ length: 16 }, (_, i) => i + 1);
-const lowerJawNumbers = Array.from({ length: 16 }, (_, i) => i + 17);
+const upperRight = Array.from({ length: 8 }, (_, i) => i + 1);
+const upperLeft = Array.from({ length: 8 }, (_, i) => i + 9);
+const lowerRight = Array.from({ length: 8 }, (_, i) => 32 - i);
+const lowerLeft = Array.from({ length: 8 }, (_, i) => 24 - i);
 
 export const ToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
@@ -113,50 +117,67 @@ export const ToothChart: React.FC<ToothChartProps> = ({
     [assignedTreatmentsByTooth]
   );
   
+  const getToothColor = (toothNumber: number) => {
+    const colorIndex = treatedTeeth.indexOf(toothNumber);
+    return colorIndex !== -1 ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length] : undefined;
+  };
+
   return (
     <TooltipProvider>
       <div className="flex justify-center overflow-x-auto p-4 bg-muted/30 rounded-lg">
-        <svg viewBox="0 0 520 100" width="100%" style={{ minWidth: '500px' }}>
-          {/* Upper Jaw */}
-          {upperJawNumbers.map((num, i) => {
-            const assignedTreatments = assignedTreatmentsByTooth?.get(num);
-            const colorIndex = treatedTeeth.indexOf(num);
-            const color =
-              colorIndex !== -1
-                ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length]
-                : undefined;
-            return (
-              <Tooth
-                key={`upper-${num}`}
-                toothNumber={num}
-                onClick={onToothClick}
-                assignedTreatments={assignedTreatments}
-                color={color}
-                isUpper={true}
-                transform={`translate(${i * 32}, 0)`}
-              />
-            );
-          })}
-          {/* Lower Jaw */}
-          {lowerJawNumbers.map((num, i) => {
-            const assignedTreatments = assignedTreatmentsByTooth?.get(num);
-            const colorIndex = treatedTeeth.indexOf(num);
-            const color =
-              colorIndex !== -1
-                ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length]
-                : undefined;
-            return (
-              <Tooth
-                key={`lower-${num}`}
-                toothNumber={num}
-                onClick={onToothClick}
-                assignedTreatments={assignedTreatments}
-                color={color}
-                isUpper={false}
-                transform={`translate(${i * 32}, 50) scale(1, -1) translate(0, -50)`}
-              />
-            );
-          })}
+        <svg viewBox="0 0 580 120" width="100%" style={{ minWidth: '560px' }}>
+          {/* Upper Right Quadrant */}
+          {upperRight.map((num, i) => (
+            <Tooth
+              key={`upper-${num}`}
+              toothNumber={num}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              color={getToothColor(num)}
+              isUpper={true}
+              transform={`translate(${250 - i * 32}, 5)`}
+            />
+          ))}
+          {/* Upper Left Quadrant */}
+          {upperLeft.map((num, i) => (
+            <Tooth
+              key={`upper-${num}`}
+              toothNumber={num}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              color={getToothColor(num)}
+              isUpper={true}
+              transform={`translate(${290 + i * 32}, 5)`}
+            />
+          ))}
+          
+          {/* Midline Separator */}
+          <line x1="280" y1="0" x2="280" y2="120" stroke="#cbd5e1" strokeWidth="1" strokeDasharray="4 2" />
+
+          {/* Lower Right Quadrant */}
+          {lowerRight.map((num, i) => (
+            <Tooth
+              key={`lower-${num}`}
+              toothNumber={num}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              color={getToothColor(num)}
+              isUpper={false}
+              transform={`translate(${250 - i * 32}, 75)`}
+            />
+          ))}
+          {/* Lower Left Quadrant */}
+          {lowerLeft.map((num, i) => (
+            <Tooth
+              key={`lower-${num}`}
+              toothNumber={num}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              color={getToothColor(num)}
+              isUpper={false}
+              transform={`translate(${290 + i * 32}, 75)`}
+            />
+          ))}
         </svg>
       </div>
     </TooltipProvider>
