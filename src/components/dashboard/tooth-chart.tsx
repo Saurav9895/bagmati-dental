@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -122,7 +123,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
     <TooltipProvider>
       <div className="flex justify-center overflow-x-auto p-4 bg-muted/30 rounded-lg">
         <svg
-          viewBox={`-5 -15 ${totalWidth + 10} 120`}
+          viewBox={`0 -15 ${totalWidth} 120`}
           width="100%"
           style={{ minWidth: '600px' }}
         >
@@ -136,7 +137,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
             strokeWidth="1"
           />
 
-          {/* Upper Right Quadrant */}
+          {/* Upper Right Quadrant (Teeth 1-8) */}
           <g>
             {upperRightNumbers.map((num, i) => {
               const assignedTreatments = assignedTreatmentsByTooth?.get(num);
@@ -154,14 +155,14 @@ export const ToothChart: React.FC<ToothChartProps> = ({
                   color={color}
                   isUpper={true}
                   transform={`translate(${
-                    (upperRightNumbers.length - 1 - i) * toothWidth + 10
+                    quadrantWidth - (i + 1) * toothWidth
                   }, 10) scale(1)`}
                 />
               );
             })}
           </g>
 
-          {/* Upper Left Quadrant */}
+          {/* Upper Left Quadrant (Teeth 9-16) */}
           <g transform={`translate(${quadrantWidth + midLineGap}, 0)`}>
             {upperLeftNumbers.map((num, i) => {
               const assignedTreatments = assignedTreatmentsByTooth?.get(num);
@@ -178,13 +179,13 @@ export const ToothChart: React.FC<ToothChartProps> = ({
                   assignedTreatments={assignedTreatments}
                   color={color}
                   isUpper={true}
-                  transform={`translate(${i * toothWidth + 10}, 10) scale(1)`}
+                  transform={`translate(${i * toothWidth}, 10) scale(1)`}
                 />
               );
             })}
           </g>
-
-          {/* Lower Right Quadrant */}
+          
+          {/* Lower Right Quadrant (Teeth 25-32) - Displayed on the patient's right, so rendered first on the left side of the chart */}
           <g>
             {lowerRightNumbers
               .slice()
@@ -204,13 +205,13 @@ export const ToothChart: React.FC<ToothChartProps> = ({
                     assignedTreatments={assignedTreatments}
                     color={color}
                     isUpper={false}
-                    transform={`translate(${i * toothWidth + 10}, 60) scale(1)`}
+                    transform={`translate(${i * toothWidth}, 60) scale(1)`}
                   />
                 );
               })}
           </g>
 
-          {/* Lower Left Quadrant */}
+          {/* Lower Left Quadrant (Teeth 17-24) - Displayed on the patient's left, so rendered on the right side of the chart */}
           <g transform={`translate(${quadrantWidth + midLineGap}, 0)`}>
             {lowerLeftNumbers
               .slice()
@@ -231,7 +232,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
                     color={color}
                     isUpper={false}
                     transform={`translate(${
-                      (lowerLeftNumbers.length - 1 - i) * toothWidth + 10
+                      quadrantWidth - (i + 1) * toothWidth
                     }, 60) scale(1)`}
                   />
                 );
