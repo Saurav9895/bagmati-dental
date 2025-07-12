@@ -248,7 +248,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                                 <div key={treatment.id} className={`group w-full text-left p-2 rounded-md hover:bg-muted text-sm flex justify-between items-center ${selectedTreatment?.id === treatment.id ? 'bg-muted font-semibold' : ''}`}>
                                     <button onClick={() => setSelectedTreatment(treatment)} className="flex-1 text-left">
                                         <p>{treatment.name}</p>
-                                        <p className="text-xs text-muted-foreground">Default: Rs. {treatment.defaultAmount.toFixed(2)}</p>
+                                        <p className="text-xs text-muted-foreground">Default: Rs. {typeof treatment.defaultAmount === 'number' ? treatment.defaultAmount.toFixed(2) : 'N/A'}</p>
                                     </button>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
