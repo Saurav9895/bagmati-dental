@@ -229,7 +229,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                             filteredTreatments.map(treatment => (
                                 <TableRow key={treatment.id}>
                                     <TableCell className="font-medium">{treatment.name}</TableCell>
-                                    <TableCell className="text-right">Rs. {treatment.defaultAmount.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">Rs. {(treatment.defaultAmount || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
