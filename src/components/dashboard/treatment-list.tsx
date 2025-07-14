@@ -21,7 +21,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
-  defaultAmount: z.coerce.number().min(0, "Default amount cannot be negative.")
 });
 
 type TreatmentFormValues = z.infer<typeof treatmentSchema>;
@@ -40,7 +39,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
 
   const form = useForm<TreatmentFormValues>({
     resolver: zodResolver(treatmentSchema),
-    defaultValues: { name: "", defaultAmount: 0 },
+    defaultValues: { name: "" },
   });
 
   const filteredTreatments = React.useMemo(() => {
@@ -53,10 +52,9 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
     if (isFormOpen && editingTreatment) {
       form.reset({
           name: editingTreatment.name,
-          defaultAmount: editingTreatment.defaultAmount || 0,
       });
     } else if (!isFormOpen) {
-      form.reset({ name: "", defaultAmount: 0 });
+      form.reset({ name: "" });
     }
   }, [isFormOpen, editingTreatment, form]);
   
@@ -93,7 +91,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
 
   const onSubmit = async (data: TreatmentFormValues) => {
     if (editingTreatment) {
-      const updatedData: Partial<Treatment> = { name: data.name, defaultAmount: data.defaultAmount };
+      const updatedData: Partial<Treatment> = { name: data.name };
       const result = await updateTreatment(editingTreatment.id, updatedData);
       if (result.success) {
         const newTreatments = treatments.map(t => t.id === editingTreatment.id ? { ...t, ...updatedData } : t);
@@ -104,8 +102,8 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
         return;
       }
     } else {
-      const payload: Omit<Treatment, 'id'> = { ...data, description: '', prices: {} };
-      const result = await addTreatment(payload);
+      const payload: Omit<Treatment, 'id' | 'defaultAmount'> = { ...data, description: '', prices: {} };
+      const result = await addTreatment({ ...payload, defaultAmount: 0 });
       if (result.success && result.data) {
         setTreatments([result.data, ...treatments]);
         toast({ title: "Treatment Added" });
@@ -159,8 +157,8 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
             <CardHeader>
             <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
                 <div>
-                    <CardTitle>Treatments &amp; Pricing</CardTitle>
-                    <CardDescription>Manage services and their default prices offered at the clinic.</CardDescription>
+                    <CardTitle>Treatments</CardTitle>
+                    <CardDescription>Manage services offered at the clinic.</CardDescription>
                 </div>
                 <div className="flex w-full sm:w-auto gap-2">
                     <div className="relative flex-1 sm:flex-initial">
@@ -195,13 +193,6 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                                 <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="defaultAmount" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Default Price (Rs.)</FormLabel>
-                                <FormControl><Input type="number" placeholder="1500" {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
                             <DialogFooter>
                                 <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                                     {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Treatment'}
@@ -220,7 +211,6 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Treatment Name</TableHead>
-                                <TableHead className="text-right">Default Price</TableHead>
                                 <TableHead className="w-[80px] text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -229,7 +219,6 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                             filteredTreatments.map(treatment => (
                                 <TableRow key={treatment.id}>
                                     <TableCell className="font-medium">{treatment.name}</TableCell>
-                                    <TableCell className="text-right">Rs. {(treatment.defaultAmount || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -252,7 +241,7 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={3} className="h-24 text-center">
+                                <TableCell colSpan={2} className="h-24 text-center">
                                     {searchQuery ? "No treatments found." : "No treatments created yet."}
                                 </TableCell>
                             </TableRow>
@@ -283,3 +272,5 @@ export function TreatmentList({ initialTreatments }: { initialTreatments: Treatm
     </>
   );
 }
+
+    
