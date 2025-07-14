@@ -220,7 +220,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                 <CardTitle>Clinical Examination Setup</CardTitle>
                 <CardDescription>Define standard templates for chief complaints and dental examinations.</CardDescription>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-6">
+            <CardContent className="space-y-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-4">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
