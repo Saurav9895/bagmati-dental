@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import type { AssignedTreatment } from '@/lib/types';
+import type { AssignedTreatment, ToothExamination } from '@/lib/types';
 import {
   Tooltip,
   TooltipContent,
@@ -26,7 +26,7 @@ export const COLOR_PALETTE = [
 interface ToothProps extends React.SVGProps<SVGGElement> {
   toothNumber: number | string;
   onClick: (toothNumber: number | string) => void;
-  assignedTreatments?: AssignedTreatment[];
+  toothExaminations?: ToothExamination[];
   color?: string;
   isUpper: boolean;
 }
@@ -38,25 +38,27 @@ const realisticToothPath = "M16 3c-1.1 0-2 .9-2 2 0 .9.6 1.6 1.4 1.9C14.5 7.5 13
 const Tooth: React.FC<ToothProps> = ({
   toothNumber,
   onClick,
-  assignedTreatments,
+  toothExaminations,
   color,
   isUpper,
   ...props
 }) => {
-  const hasAssignedTreatment = assignedTreatments && assignedTreatments.length > 0;
+  const hasExamination = toothExaminations && toothExaminations.length > 0;
 
-  const tooltipContent = hasAssignedTreatment ? (
-    <div key="treatments">
-      <p className="font-bold">Assigned:</p>
-      <ul>
-        {assignedTreatments.map((t, i) => (
-          <li key={i}>- {t.name} (Rs. {(t.amount || 0).toFixed(2)})</li>
+  const tooltipContent = hasExamination ? (
+    <div key="examinations">
+        {toothExaminations.map((exam, i) => (
+            <div key={i} className={i > 0 ? 'mt-2 pt-2 border-t' : ''}>
+                <p><span className="font-semibold">Exam:</span> {exam.dentalExamination}</p>
+                <p><span className="font-semibold">Diagnosis:</span> {exam.diagnosis}</p>
+                {exam.investigation && <p><span className="font-semibold">Investigation:</span> {exam.investigation}</p>}
+                <p className="text-xs text-muted-foreground">{new Date(exam.date).toLocaleDateString()}</p>
+            </div>
         ))}
-      </ul>
     </div>
   ) : (
-    <div key="price">
-      <p>Click to assign a treatment.</p>
+    <div key="no-exam">
+      <p>Click to record an examination.</p>
     </div>
   );
 
@@ -73,10 +75,10 @@ const Tooth: React.FC<ToothProps> = ({
             transform="scale(1.2)"
             className={cn(
               'transition-all duration-200 group-hover:fill-blue-200',
-              hasAssignedTreatment ? '' : 'fill-gray-200'
+              hasExamination ? '' : 'fill-gray-200'
             )}
             style={{
-              fill: color || (hasAssignedTreatment ? '#fde047' : '#e5e7eb'), // yellow-200 or gray-200
+              fill: color || (hasExamination ? '#fde047' : '#e5e7eb'), // yellow-200 or gray-200
             }}
           />
           <text
@@ -102,7 +104,7 @@ const Tooth: React.FC<ToothProps> = ({
 
 interface ToothChartProps {
   onToothClick: (toothNumber: number | string) => void;
-  assignedTreatmentsByTooth?: Map<number | string, AssignedTreatment[]>;
+  toothExaminationsByTooth?: Map<number | string, ToothExamination[]>;
 }
 
 // FDI Notation for permanent teeth
@@ -114,11 +116,11 @@ const lowerLeftFDI = Array.from({ length: 8 }, (_, i) => i + 31);  // 31, 32, ..
 
 export const ToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
-  assignedTreatmentsByTooth,
+  toothExaminationsByTooth,
 }) => {
   const treatedTeeth = React.useMemo(
-    () => Array.from(assignedTreatmentsByTooth?.keys() || []),
-    [assignedTreatmentsByTooth]
+    () => Array.from(toothExaminationsByTooth?.keys() || []),
+    [toothExaminationsByTooth]
   );
   
   const getToothColor = (toothNumber: number | string) => {
@@ -136,7 +138,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               key={`upper-${num}`}
               toothNumber={num}
               onClick={onToothClick}
-              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={true}
               transform={`translate(${250 - i * 32}, 5)`}
@@ -148,7 +150,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               key={`upper-${num}`}
               toothNumber={num}
               onClick={onToothClick}
-              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={true}
               transform={`translate(${305 + i * 32}, 5)`}
@@ -161,7 +163,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               key={`lower-${num}`}
               toothNumber={num}
               onClick={onToothClick}
-              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={false}
               transform={`translate(${250 - i * 32}, 75)`}
@@ -173,7 +175,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               key={`lower-${num}`}
               toothNumber={num}
               onClick={onToothClick}
-              assignedTreatments={assignedTreatmentsByTooth?.get(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={false}
               transform={`translate(${305 + i * 32}, 75)`}
@@ -195,11 +197,11 @@ const primaryLowerRight = ['85', '84', '83', '82', '81'].map(n => ({ num: n, lab
 
 export const PrimaryToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
-  assignedTreatmentsByTooth,
+  toothExaminationsByTooth,
 }) => {
   const treatedTeeth = React.useMemo(
-    () => Array.from(assignedTreatmentsByTooth?.keys() || []),
-    [assignedTreatmentsByTooth]
+    () => Array.from(toothExaminationsByTooth?.keys() || []),
+    [toothExaminationsByTooth]
   );
   
   const getToothColor = (toothNumber: number | string) => {
@@ -217,7 +219,7 @@ export const PrimaryToothChart: React.FC<ToothChartProps> = ({
               key={`upper-${num}`}
               toothNumber={label}
               onClick={() => onToothClick(label)}
-              assignedTreatments={assignedTreatmentsByTooth?.get(label)}
+              toothExaminations={toothExaminationsByTooth?.get(label)}
               color={getToothColor(label)}
               isUpper={true}
               transform={`translate(${180 - i * 32}, 5)`}
@@ -229,7 +231,7 @@ export const PrimaryToothChart: React.FC<ToothChartProps> = ({
               key={`upper-${num}`}
               toothNumber={label}
               onClick={() => onToothClick(label)}
-              assignedTreatments={assignedTreatmentsByTooth?.get(label)}
+              toothExaminations={toothExaminationsByTooth?.get(label)}
               color={getToothColor(label)}
               isUpper={true}
               transform={`translate(${215 + i * 32}, 5)`}
@@ -242,7 +244,7 @@ export const PrimaryToothChart: React.FC<ToothChartProps> = ({
               key={`lower-${num}`}
               toothNumber={label}
               onClick={() => onToothClick(label)}
-              assignedTreatments={assignedTreatmentsByTooth?.get(label)}
+              toothExaminations={toothExaminationsByTooth?.get(label)}
               color={getToothColor(label)}
               isUpper={false}
               transform={`translate(${180 - i * 32}, 75)`}
@@ -254,7 +256,7 @@ export const PrimaryToothChart: React.FC<ToothChartProps> = ({
               key={`lower-${num}`}
               toothNumber={label}
               onClick={() => onToothClick(label)}
-              assignedTreatments={assignedTreatmentsByTooth?.get(label)}
+              toothExaminations={toothExaminationsByTooth?.get(label)}
               color={getToothColor(label)}
               isUpper={false}
               transform={`translate(${215 + i * 32}, 75)`}

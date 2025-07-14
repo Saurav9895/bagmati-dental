@@ -3,13 +3,13 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -285,8 +285,8 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const balanceDue = totalAmount - amountPaid - totalDiscount;
 
     const handleToothExaminationSubmit = async (data: ToothExaminationFormValues) => {
-        if (!data.diagnosisId) {
-            toast({ variant: 'destructive', title: 'Please select a diagnosis.' });
+        if (!data.diagnosisId || !data.dentalExaminationId || !selectedTooth) {
+            toast({ variant: 'destructive', title: 'Please fill all required fields.' });
             return;
         }
 
@@ -301,30 +301,27 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             toast({ variant: 'destructive', title: 'Selected dental examination not found.' });
             return;
         }
-        
-        const investigationNote = data.investigation ? `\nInvestigation: ${data.investigation}` : '';
-        const treatmentDescription = `Dental Examination: ${selectedExamination.name}${investigationNote}`;
 
         setIsSubmitting(true);
         try {
-            const treatmentWithPrice: AssignedTreatment = { 
-                ...selectedTreatment, 
-                amount: 0,
-                description: treatmentDescription,
-                dateAdded: new Date().toISOString(),
+            const toothExam: Omit<ToothExamination, 'id'> = {
+                tooth: selectedTooth,
+                dentalExamination: selectedExamination.name,
+                investigation: data.investigation,
+                diagnosis: selectedTreatment.name,
+                date: new Date().toISOString()
             };
 
-            const result = await addTreatmentToPatient(patient.id, treatmentWithPrice, selectedTooth ?? undefined);
+            const result = await saveToothExamination(patient.id, toothExam);
             
             if (result.success && result.data) {
-                const updatedPatient = { ...patient, ...(result.data as Partial<Patient>) };
-                setPatient(updatedPatient);
-                toast({ title: "Treatment added successfully!" });
+                setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
+                toast({ title: "Examination saved successfully!" });
                 setIsToothExamDialogOpen(false);
                 setSelectedTooth(null);
                 toothExaminationForm.reset();
             } else {
-                toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
+                toast({ variant: 'destructive', title: 'Failed to save examination', description: result.error });
             }
         } catch (error) {
              toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
@@ -364,22 +361,20 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         setIsToothExamDialogOpen(true);
     }
     
-    const assignedTreatmentsByTooth = React.useMemo(() => {
-        const map = new Map<number | string, AssignedTreatment[]>();
-        if (patient.assignedTreatments) {
-            for (const treatment of patient.assignedTreatments) {
-                if (treatment.tooth) {
-                    if (!map.has(treatment.tooth)) {
-                        map.set(treatment.tooth, []);
-                    }
-                    map.get(treatment.tooth)!.push(treatment);
+    const toothExaminationsByTooth = React.useMemo(() => {
+        const map = new Map<string | number, ToothExamination[]>();
+        if (patient.toothExaminations) {
+            patient.toothExaminations.forEach(exam => {
+                if (!map.has(exam.tooth)) {
+                    map.set(exam.tooth, []);
                 }
-            }
+                map.get(exam.tooth)!.push(exam);
+            });
         }
         return map;
-    }, [patient.assignedTreatments]);
+    }, [patient.toothExaminations]);
     
-    const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
+    const treatedTeeth = React.useMemo(() => Array.from(toothExaminationsByTooth.keys()), [toothExaminationsByTooth]);
 
     const handleNewComplaintSubmit = async (complaintName: string) => {
         const result = await addChiefComplaint({ name: complaintName });
@@ -567,9 +562,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                         </CardHeader>
                                         <CardContent>
                                              {showPrimaryTeeth ? (
-                                                <PrimaryToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                                                <PrimaryToothChart onToothClick={onToothClick} toothExaminationsByTooth={toothExaminationsByTooth} />
                                              ) : (
-                                                <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                                                <ToothChart onToothClick={onToothClick} toothExaminationsByTooth={toothExaminationsByTooth} />
                                              )}
                                         </CardContent>
                                     </Card>
@@ -591,12 +586,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                             {patient.assignedTreatments.map((t, index) => (
                                                 <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
                                                     <div className="flex items-center gap-3 flex-1">
-                                                            {t.tooth && (
-                                                            <div
-                                                                className="h-3 w-3 rounded-full shrink-0"
-                                                                style={{ backgroundColor: COLOR_PALETTE[treatedTeeth.indexOf(t.tooth) % COLOR_PALETTE.length] }}
-                                                            />
-                                                        )}
                                                         <div>
                                                             <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
                                                             <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
@@ -833,24 +822,16 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 control={toothExaminationForm.control}
                                 name="dentalExaminationId"
                                 render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Dental Examination</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                        <SelectValue placeholder="Select an examination" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {dentalExaminations.map((exam) => (
-                                        <SelectItem key={exam.id} value={exam.id}>
-                                            {exam.name}
-                                        </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
+                                    <FormItem>
+                                        <FormLabel>Dental Examination</FormLabel>
+                                        <SearchableSelect
+                                            options={dentalExaminations}
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            placeholder="Select an examination"
+                                        />
+                                        <FormMessage />
+                                    </FormItem>
                                 )}
                             />
                              <FormField
@@ -860,7 +841,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 <FormItem>
                                     <FormLabel>Investigation (Optional)</FormLabel>
                                     <FormControl>
-                                        <Textarea placeholder="Enter any investigation notes..." {...field} />
+                                        <Textarea placeholder="Enter any investigation notes..." {...field} value={field.value ?? ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -872,28 +853,20 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Diagnosis (Treatment)</FormLabel>
-                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                        <SelectValue placeholder="Select a diagnosis" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {treatments.map((treatment) => (
-                                        <SelectItem key={treatment.id} value={treatment.id}>
-                                            {treatment.name}
-                                        </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                    </Select>
+                                    <SearchableSelect
+                                        options={treatments}
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        placeholder="Select a diagnosis"
+                                    />
                                     <FormMessage />
                                 </FormItem>
                                 )}
                             />
                             <DialogFooter>
                                 <Button type="submit" disabled={isSubmitting} className="w-full">
-                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                                    Add to Treatment Plan
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                    Save
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -1077,170 +1050,60 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
     );
 }
 
-type MultiSelectSearchBarProps = {
-    options: { id: string, name: string }[];
-    selected: string[];
-    onChange: (selected: string[]) => void;
-    onCreate?: (name: string) => Promise<{ id: string, name: string } | null>;
-    placeholder?: string;
-    className?: string;
-    isMulti?: boolean;
+type SearchableSelectProps = {
+    options: { id: string; name: string }[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
 };
 
-function MultiSelectSearchBar({ options, selected, onChange, onCreate, placeholder, className, isMulti = true }: MultiSelectSearchBarProps) {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-    const [isOpen, setIsOpen] = React.useState(false);
-    const [searchQuery, setSearchQuery] = React.useState('');
-    const [isCreating, setIsCreating] = React.useState(false);
-
-    const handleSelect = (value: string) => {
-        if(isMulti) {
-            onChange(selected.includes(value) ? selected.filter((s) => s !== value) : [...selected, value]);
-        } else {
-            onChange([value]);
-        }
-        setSearchQuery('');
-        inputRef.current?.focus();
-        if (!isMulti) setIsOpen(false);
-    };
-    
-    const handleCreateNew = async () => {
-        if (searchQuery.trim() === '' || isCreating || !onCreate) return;
-        setIsCreating(true);
-        const newComplaint = await onCreate(searchQuery.trim());
-        if (newComplaint) {
-            handleSelect(newComplaint.name);
-        }
-        setIsCreating(false);
-        setSearchQuery('');
-    };
-
-    const filteredOptions = options.filter(option =>
-        option.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const showCreateOption = onCreate && searchQuery && !options.some(o => o.name.toLowerCase() === searchQuery.toLowerCase());
+function SearchableSelect({ options, value, onChange, placeholder }: SearchableSelectProps) {
+    const [open, setOpen] = React.useState(false);
+    const selectedOption = options.find((option) => option.id === value);
 
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
-            <div className={cn("space-y-2", className)}>
-                {isMulti ? (
-                    <div className="w-full p-1 border rounded-md">
-                        <div className="flex gap-1 flex-wrap mb-1">
-                            {selected.map((value) => (
-                                <Badge key={value} variant="secondary">
-                                    {value}
-                                    <button
-                                        type="button"
-                                        className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                        onClick={() => handleSelect(value)}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            handleSelect(value);
-                                        }}
-                                    >
-                                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                    </button>
-                                </Badge>
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between font-normal"
+                >
+                    {selectedOption ? selectedOption.name : placeholder}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                    <CommandInput placeholder="Search..." />
+                    <CommandList>
+                        <CommandEmpty>No option found.</CommandEmpty>
+                        <CommandGroup>
+                            {options.map((option) => (
+                                <CommandItem
+                                    key={option.id}
+                                    value={option.name}
+                                    onSelect={() => {
+                                        onChange(option.id);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            value === option.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {option.name}
+                                </CommandItem>
                             ))}
-                        </div>
-                        <Command className="bg-transparent">
-                             <div className="flex items-center">
-                                <CommandInput
-                                    ref={inputRef}
-                                    placeholder={placeholder}
-                                    value={searchQuery}
-                                    onValueChange={setSearchQuery}
-                                    onBlur={() => setIsOpen(false)}
-                                    onFocus={() => setIsOpen(true)}
-                                    className="border-0 h-9 flex-1"
-                                />
-                            </div>
-                        </Command>
-                    </div>
-                ) : (
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={isOpen}
-                            className="w-full justify-between font-normal"
-                        >
-                            {selected.length > 0 && !isMulti ? selected[0] : placeholder}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </PopoverTrigger>
-                )}
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <Command>
-                         <div className="flex items-center border-b px-3">
-                           <ClipboardPlus className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                            <CommandInput
-                                ref={inputRef}
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onValueChange={setSearchQuery}
-                                className="border-0 h-9"
-                             />
-                        </div>
-                        <CommandList>
-                            <CommandEmpty>
-                                No results found.
-                            </CommandEmpty>
-                            <CommandGroup>
-                                {filteredOptions.map((option) => (
-                                    <CommandItem
-                                        key={option.id}
-                                        value={option.name}
-                                        onSelect={() => handleSelect(option.name)}
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            handleSelect(option.name);
-                                        }}
-                                        className="cursor-pointer"
-                                    >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                selected.includes(option.name) ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        {option.name}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                            {showCreateOption && (
-                                <>
-                                    <Separator />
-                                    <CommandGroup>
-                                        <CommandItem
-                                            onSelect={handleCreateNew}
-                                            onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleCreateNew();
-                                            }}
-                                            className="cursor-pointer"
-                                            disabled={isCreating}
-                                        >
-                                           {isCreating ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                            )}
-                                            Create "{searchQuery}"
-                                        </CommandItem>
-                                    </CommandGroup>
-                                </>
-                            )}
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </div>
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
         </Popover>
     );
 }
-
     
+

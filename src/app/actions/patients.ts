@@ -2,7 +2,7 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription } from '@/lib/types';
+import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
 import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
 
 export async function addTreatmentToPatient(patientId: string, treatment: Treatment, tooth?: number) {
@@ -244,6 +244,75 @@ export async function addPrescriptionToPatient(patientId: string, prescriptionDa
                 id: patientId,
                 ...serializablePatientData,
                 prescriptions: updatedPrescriptions
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+export async function saveToothExamination(patientId: string, examination: Omit<ToothExamination, 'id'>) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+            
+            const newExamination: ToothExamination = {
+                id: crypto.randomUUID(),
+                ...examination
+            };
+
+            const currentExaminations = patientData.toothExaminations || [];
+            const updatedExaminations = [...currentExaminations, newExamination];
+
+            transaction.update(patientRef, {
+                toothExaminations: updatedExaminations
+            });
+            
+            const { createdAt, ...serializablePatientData } = patientData;
+
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                toothExaminations: updatedExaminations
+            };
+        });
+        return { success: true, data: updatedPatientData };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+export async function removeToothExamination(patientId: string, examinationId: string) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+
+            const patientData = patientDoc.data() as Patient;
+            const currentExaminations = patientData.toothExaminations || [];
+            
+            const updatedExaminations = currentExaminations.filter(exam => exam.id !== examinationId);
+
+            transaction.update(patientRef, { toothExaminations: updatedExaminations });
+
+            const { createdAt, ...serializablePatientData } = patientData;
+            
+            return {
+                id: patientId,
+                ...serializablePatientData,
+                toothExaminations: updatedExaminations
             };
         });
         return { success: true, data: updatedPatientData };

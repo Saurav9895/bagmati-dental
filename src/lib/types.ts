@@ -25,6 +25,15 @@ export type Prescription = {
   dateAdded: string;
 };
 
+export type ToothExamination = {
+  id: string;
+  tooth: number | string;
+  date: string;
+  dentalExamination: string;
+  investigation?: string;
+  diagnosis: string;
+}
+
 export type Patient = {
   id: string;
   name: string;
@@ -42,6 +51,7 @@ export type Patient = {
   discounts?: Discount[];
   prescriptions?: Prescription[];
   clinicalExaminations?: ClinicalExamination[];
+  toothExaminations?: ToothExamination[];
   createdAt?: any;
 };
 
@@ -61,7 +71,6 @@ export type Appointment = {
 export type Treatment = {
   id:string;
   name: string;
-  description: string;
   createdAt?: any;
 };
 
