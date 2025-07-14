@@ -1020,18 +1020,14 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
     const showCreateOption = query !== '' && !filteredOptions.some(opt => opt.name.toLowerCase() === query.toLowerCase());
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <div
-                    role="combobox"
-                    aria-expanded={open}
-                    className={cn(
-                        "flex flex-wrap gap-1 items-center w-full min-h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
-                        "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-                        className
-                    )}
-                    onClick={() => inputRef.current?.focus()}
-                >
+        <Command onKeyDown={handleKeyDown} className="overflow-visible bg-transparent">
+            <div
+                className={cn(
+                    "group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                    className
+                )}
+            >
+                <div className="flex flex-wrap gap-1">
                     {selected.map((value) => (
                         <Badge
                             variant="secondary"
@@ -1049,60 +1045,62 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                             </button>
                         </Badge>
                     ))}
-                    <Command onKeyDown={handleKeyDown} className="flex-1">
-                        <CommandInput
-                            ref={inputRef}
-                            value={query}
-                            onValueChange={setQuery}
-                            onBlur={() => setOpen(false)}
-                            onFocus={() => setOpen(true)}
-                            placeholder={placeholder}
-                            className="h-full p-0 border-0 focus:ring-0"
-                        />
-                    </Command>
+                    <CommandInput
+                        ref={inputRef}
+                        value={query}
+                        onValueChange={setQuery}
+                        onBlur={() => setOpen(false)}
+                        onFocus={() => setOpen(true)}
+                        placeholder={placeholder}
+                        className="ml-2 flex-1 bg-transparent p-0 outline-none placeholder:text-muted-foreground"
+                    />
                 </div>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <CommandList>
-                    <CommandEmpty>No results found.</CommandEmpty>
-                    <CommandGroup>
-                        {filteredOptions.map((option) => (
-                            <CommandItem
-                                key={option.id}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                }}
-                                onSelect={() => {
-                                    handleSelect(option.name);
-                                    setQuery('');
-                                }}
-                                className="cursor-pointer"
-                            >
-                                {option.name}
-                            </CommandItem>
-                        ))}
-                        {showCreateOption && (
-                            <CommandItem
-                                onSelect={handleCreate}
-                                disabled={isCreating}
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                }}
-                                className="text-primary focus:text-primary cursor-pointer"
-                            >
-                                {isCreating ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <PlusCircle className="mr-2 h-4 w-4" />
+            </div>
+            <div className="relative mt-2">
+                {open && (
+                    <div className="absolute top-0 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
+                        <CommandList>
+                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandGroup>
+                                {filteredOptions.map((option) => (
+                                    <CommandItem
+                                        key={option.id}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                        onSelect={() => {
+                                            handleSelect(option.name);
+                                            setQuery('');
+                                        }}
+                                        className="cursor-pointer"
+                                    >
+                                        {option.name}
+                                    </CommandItem>
+                                ))}
+                                {showCreateOption && (
+                                    <CommandItem
+                                        onSelect={handleCreate}
+                                        disabled={isCreating}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                        className="text-primary focus:text-primary cursor-pointer"
+                                    >
+                                        {isCreating ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                        )}
+                                        Add "{query}"
+                                    </CommandItem>
                                 )}
-                                Add "{query}"
-                            </CommandItem>
-                        )}
-                    </CommandGroup>
-                </CommandList>
-            </PopoverContent>
-        </Popover>
+                            </CommandGroup>
+                        </CommandList>
+                    </div>
+                )}
+            </div>
+        </Command>
     );
 }
