@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus } from 'lucide-react';
 import Link from 'next/link';
@@ -32,21 +32,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Label } from '@/components/ui/label';
 
-
-const chiefComplaints = [
-    { value: "toothache", label: "Toothache" },
-    { value: "sensitive-teeth", label: "Sensitive Teeth" },
-    { value: "bleeding-gums", label: "Bleeding Gums" },
-    { value: "jaw-pain", label: "Jaw Pain" },
-    { value: "broken-tooth", label: "Broken or Chipped Tooth" },
-    { value: "bad-breath", label: "Bad Breath (Halitosis)" },
-    { value: "crooked-teeth", label: "Crooked Teeth / Bite Issues" },
-    { value: "cosmetic", label: "Cosmetic Concerns" },
-    { value: "check-up", label: "Routine Check-up" },
-    { value: "other", label: "Other" },
-];
-
-
 const appointmentSchema = z.object({
     procedure: z.string().min(2, "Procedure must be at least 2 characters."),
     date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
@@ -73,7 +58,14 @@ const formatTime12h = (time24h: string): string => {
     return `${hour12}:${String(m).padStart(2, '0')} ${ampm}`;
 };
 
-export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments }: { initialPatient: Patient, treatments: Treatment[], appointments: Appointment[] }) {
+interface PatientDetailClientProps {
+    initialPatient: Patient;
+    treatments: Treatment[];
+    appointments: Appointment[];
+    chiefComplaints: ChiefComplaint[];
+}
+
+export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments, chiefComplaints }: PatientDetailClientProps) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
     
@@ -96,7 +88,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
     const [isExaminationMode, setIsExaminationMode] = React.useState(false);
     const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
-    const [chiefComplaint, setChiefComplaint] = React.useState('');
+    const [selectedComplaintId, setSelectedComplaintId] = React.useState('');
     const [isComplaintPopoverOpen, setIsComplaintPopoverOpen] = React.useState(false);
 
     const { toast } = useToast();
@@ -231,21 +223,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
         setIsSubmitting(true);
         try {
-            // Determine the correct price
-            const toothSpecificPrice = selectedTooth ? selectedTreatment.prices?.[selectedTooth] : undefined;
-            const priceToApply = toothSpecificPrice ?? selectedTreatment.defaultAmount;
-
-            if (typeof priceToApply !== 'number') {
-                toast({
-                    variant: 'destructive',
-                    title: 'Price not set',
-                    description: 'This treatment does not have a price for this tooth or a default price. Please set one in the treatments section.'
-                });
-                setIsSubmitting(false);
-                return;
-            }
-
-            const treatmentWithPrice = { ...selectedTreatment, amount: priceToApply };
+            // Since we removed pricing from the treatment itself, we need a default amount.
+            // For now, let's assume a default of 0 if not present.
+            const treatmentWithPrice = { ...selectedTreatment, amount: selectedTreatment.defaultAmount || 0 };
 
             const result = await addTreatmentToPatient(patient.id, treatmentWithPrice, selectedTooth ?? undefined);
             
@@ -314,7 +294,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
 
-
     return (
         <>
             <div className="space-y-6">
@@ -377,11 +356,53 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 </label>
                             </div>
                             {isExaminationMode && (
-                                <div className="pl-6 pt-2 border-l-2">
-                                     <Button onClick={() => setIsExaminationDialogOpen(true)}>
-                                        <ClipboardPlus className="mr-2 h-4 w-4" />
-                                        Add Examination
-                                    </Button>
+                                <div className="pl-6 pt-4 border-l-2 space-y-4">
+                                     <div className="space-y-2">
+                                        <Label>Chief Complaint</Label>
+                                         <Popover open={isComplaintPopoverOpen} onOpenChange={setIsComplaintPopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={isComplaintPopoverOpen}
+                                                    className="w-full max-w-sm justify-between"
+                                                >
+                                                    {selectedComplaintId
+                                                    ? chiefComplaints.find((c) => c.id === selectedComplaintId)?.name
+                                                    : "Select chief complaint..."}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                <Command>
+                                                <CommandInput placeholder="Search complaints..." />
+                                                <CommandEmpty>No complaint found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandList>
+                                                        {chiefComplaints.map((c) => (
+                                                        <CommandItem
+                                                            key={c.id}
+                                                            value={c.name}
+                                                            onSelect={() => {
+                                                                setSelectedComplaintId(c.id === selectedComplaintId ? "" : c.id);
+                                                                setIsComplaintPopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            <Check
+                                                            className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                selectedComplaintId === c.id ? "opacity-100" : "opacity-0"
+                                                            )}
+                                                            />
+                                                            {c.name}
+                                                        </CommandItem>
+                                                        ))}
+                                                    </CommandList>
+                                                </CommandGroup>
+                                                </Command>
+                                            </PopoverContent>
+                                            </Popover>
+                                     </div>
                                 </div>
                             )}
                         </div>
@@ -808,65 +829,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            <Dialog open={isExaminationDialogOpen} onOpenChange={setIsExaminationDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add Examination</DialogTitle>
-                        <DialogDescription>
-                            Select the chief complaint for {patient.name}.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <Label>Chief Complaint</Label>
-                        <Popover open={isComplaintPopoverOpen} onOpenChange={setIsComplaintPopoverOpen}>
-                          <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={isComplaintPopoverOpen}
-                                className="w-full justify-between"
-                              >
-                                {chiefComplaint
-                                  ? chiefComplaints.find((c) => c.value === chiefComplaint)?.label
-                                  : "Select chief complaint..."}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command>
-                              <CommandInput placeholder="Search complaints..." />
-                              <CommandEmpty>No complaint found.</CommandEmpty>
-                              <CommandGroup>
-                                <CommandList>
-                                    {chiefComplaints.map((c) => (
-                                    <CommandItem
-                                        key={c.value}
-                                        value={c.value}
-                                        onSelect={(currentValue) => {
-                                        setChiefComplaint(currentValue === chiefComplaint ? "" : currentValue)
-                                        setIsComplaintPopoverOpen(false)
-                                        }}
-                                    >
-                                        <Check
-                                        className={cn(
-                                            "mr-2 h-4 w-4",
-                                            chiefComplaint === c.value ? "opacity-100" : "opacity-0"
-                                        )}
-                                        />
-                                        {c.label}
-                                    </CommandItem>
-                                    ))}
-                                </CommandList>
-                              </CommandGroup>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setIsExaminationDialogOpen(false)}>Save Examination</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </>
     );
 }

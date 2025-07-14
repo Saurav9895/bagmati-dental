@@ -1,11 +1,12 @@
 import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Patient, Treatment, Appointment } from '@/lib/types';
+import type { Patient, Treatment, Appointment, ChiefComplaint } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PatientDetailClient } from '@/components/dashboard/patient-detail-client';
 import { getTreatments as fetchAllTreatments } from '@/app/actions/treatments';
+import { getChiefComplaints } from '@/app/actions/examinations';
 
 async function getPatient(id: string): Promise<Patient | null> {
   const docRef = doc(db, 'patients', id);
@@ -44,6 +45,7 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
   const patient = await getPatient(resolvedParams.id);
   const treatments = await fetchAllTreatments();
   const appointments = await getAppointmentsForPatient(resolvedParams.id);
+  const chiefComplaints = await getChiefComplaints();
 
   if (!patient) {
     return (
@@ -63,5 +65,5 @@ export default async function PatientDetailPage({ params }: { params: { id: stri
     );
   }
 
-  return <PatientDetailClient initialPatient={patient} treatments={treatments} appointments={appointments} />;
+  return <PatientDetailClient initialPatient={patient} treatments={treatments} appointments={appointments} chiefComplaints={chiefComplaints} />;
 }

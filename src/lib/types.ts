@@ -3,6 +3,7 @@
 
 
 
+
 export type AssignedTreatment = {
   id: string;
   name: string;
@@ -55,7 +56,7 @@ export type Treatment = {
   id:string;
   name: string;
   description: string;
-  prices?: { [toothNumber: number]: number };
+  defaultAmount?: number;
   createdAt?: any;
 };
 
