@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -120,7 +121,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
         return;
       }
     } else {
-      const payload: Omit<Treatment, 'id'> = { ...data, description: '' };
+      const payload: Omit<Treatment, 'id'> = { ...data };
       const result = await addTreatment(payload);
       if (result.success && result.data) {
         setTreatments([result.data, ...treatments]);

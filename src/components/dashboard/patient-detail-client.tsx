@@ -28,12 +28,11 @@ import { ToothChart, COLOR_PALETTE, PrimaryToothChart } from './tooth-chart';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '../ui/checkbox';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Label } from '@/components/ui/label';
-import { addChiefComplaint, updateChiefComplaint, deleteChiefComplaint } from '@/app/actions/examinations';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { addChiefComplaint } from '@/app/actions/examinations';
+import { addDentalExamination } from '@/app/actions/examinations';
+import { addTreatment } from '@/app/actions/treatments';
 
 
 const appointmentSchema = z.object({
@@ -90,10 +89,12 @@ interface PatientDetailClientProps {
     dentalExaminations: DentalExamination[];
 }
 
-export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints, dentalExaminations }: PatientDetailClientProps) {
+export function PatientDetailClient({ initialPatient, treatments: initialTreatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints, dentalExaminations: initialDentalExaminations }: PatientDetailClientProps) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
+    const [treatments, setTreatments] = React.useState<Treatment[]>(initialTreatments);
     const [chiefComplaints, setChiefComplaints] = React.useState<ChiefComplaint[]>(initialChiefComplaints);
+    const [dentalExaminations, setDentalExaminations] = React.useState<DentalExamination[]>(initialDentalExaminations);
     
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
@@ -386,6 +387,32 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             return newComplaint;
         } else {
             toast({ variant: 'destructive', title: 'Failed to add complaint', description: result.error });
+            return null;
+        }
+    };
+
+    const handleNewDentalExaminationSubmit = async (examName: string) => {
+        const result = await addDentalExamination({ name: examName });
+        if (result.success && result.data) {
+            const newExam = result.data;
+            setDentalExaminations(prev => [...prev, newExam].sort((a,b) => a.name.localeCompare(b.name)));
+            toast({ title: 'New dental examination added!' });
+            return newExam;
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to add examination', description: result.error });
+            return null;
+        }
+    };
+    
+    const handleNewTreatmentSubmit = async (treatmentName: string) => {
+        const result = await addTreatment({ name: treatmentName, amount: 0 });
+        if (result.success && result.data) {
+            const newTreatment = result.data;
+            setTreatments(prev => [...prev, newTreatment].sort((a, b) => a.name.localeCompare(b.name)));
+            toast({ title: 'New treatment added!' });
+            return newTreatment;
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
             return null;
         }
     };
@@ -824,10 +851,11 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Dental Examination</FormLabel>
-                                        <SearchableSelect
+                                        <SingleSelectDropdown
                                             options={dentalExaminations}
-                                            value={field.value}
+                                            selected={field.value}
                                             onChange={field.onChange}
+                                            onCreate={handleNewDentalExaminationSubmit}
                                             placeholder="Select an examination"
                                         />
                                         <FormMessage />
@@ -853,10 +881,11 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Diagnosis (Treatment)</FormLabel>
-                                    <SearchableSelect
+                                    <SingleSelectDropdown
                                         options={treatments}
-                                        value={field.value}
+                                        selected={field.value}
                                         onChange={field.onChange}
+                                        onCreate={handleNewTreatmentSubmit}
                                         placeholder="Select a diagnosis"
                                     />
                                     <FormMessage />
@@ -951,7 +980,7 @@ type MultiSelectDropdownProps = {
     options: { id: string, name: string }[];
     selected: string[];
     onChange: (selected: string[]) => void;
-    onCreate?: (name: string) => Promise<ChiefComplaint | null>;
+    onCreate?: (name: string) => Promise<{id: string, name: string} | null>;
     placeholder?: string;
     className?: string;
 };
@@ -964,9 +993,9 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
     const handleCreateNew = async () => {
         if (searchQuery.trim() === '' || isCreating || !onCreate) return;
         setIsCreating(true);
-        const newComplaint = await onCreate(searchQuery.trim());
-        if (newComplaint) {
-            onChange([...selected, newComplaint.name]);
+        const newOption = await onCreate(searchQuery.trim());
+        if (newOption) {
+            onChange([...selected, newOption.name]);
         }
         setIsCreating(false);
         setSearchQuery('');
@@ -997,7 +1026,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
                     <div className="flex items-center border-b px-2">
                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                         <Input 
-                            placeholder="Search or add complaint..."
+                            placeholder="Search or add..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border-0 h-9 focus-visible:ring-0 shadow-none px-0"
@@ -1050,61 +1079,98 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
     );
 }
 
-type SearchableSelectProps = {
-    options: { id: string; name: string }[];
-    value: string;
-    onChange: (value: string) => void;
-    placeholder: string;
+
+type SingleSelectDropdownProps = {
+    options: { id: string, name: string }[];
+    selected: string;
+    onChange: (selectedId: string) => void;
+    onCreate?: (name: string) => Promise<{id: string, name: string} | null>;
+    placeholder?: string;
+    className?: string;
 };
 
-function SearchableSelect({ options, value, onChange, placeholder }: SearchableSelectProps) {
+function SingleSelectDropdown({ options, selected, onChange, onCreate, placeholder, className }: SingleSelectDropdownProps) {
     const [open, setOpen] = React.useState(false);
-    const selectedOption = options.find((option) => option.id === value);
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const [isCreating, setIsCreating] = React.useState(false);
+
+    const handleCreateNew = async () => {
+        if (searchQuery.trim() === '' || isCreating || !onCreate) return;
+        setIsCreating(true);
+        const newOption = await onCreate(searchQuery.trim());
+        if (newOption) {
+            onChange(newOption.id);
+        }
+        setIsCreating(false);
+        setOpen(false);
+    };
+
+    const filteredOptions = options.filter(option =>
+        option.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
+    const showCreateOption = onCreate && searchQuery && !options.some(o => o.name.toLowerCase() === searchQuery.toLowerCase());
+
+    const selectedValue = React.useMemo(() => {
+        const selectedOption = options.find(o => o.id === selected);
+        return selectedOption ? selectedOption.name : (placeholder || 'Select...');
+    }, [selected, options, placeholder]);
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between font-normal"
-                >
-                    {selectedOption ? selectedOption.name : placeholder}
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
+                    <span className="truncate">{selectedValue}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
-                    <CommandInput placeholder="Search..." />
-                    <CommandList>
-                        <CommandEmpty>No option found.</CommandEmpty>
-                        <CommandGroup>
-                            {options.map((option) => (
-                                <CommandItem
-                                    key={option.id}
-                                    value={option.name}
-                                    onSelect={() => {
-                                        onChange(option.id);
-                                        setOpen(false);
-                                    }}
-                                >
-                                    <Check
-                                        className={cn(
-                                            "mr-2 h-4 w-4",
-                                            value === option.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                    />
-                                    {option.name}
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]" align="start">
+                <div className="p-2">
+                    <div className="flex items-center border-b px-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input 
+                            placeholder="Search or add..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="border-0 h-9 focus-visible:ring-0 shadow-none px-0"
+                            autoFocus
+                        />
+                    </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                    {showCreateOption && (
+                         <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={handleCreateNew} disabled={isCreating}>
+                                {isCreating ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Create "{searchQuery}"
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                        </>
+                    )}
+                    {filteredOptions.length > 0 ? filteredOptions.map(option => (
+                        <DropdownMenuItem
+                            key={option.id}
+                            onSelect={() => {
+                                onChange(option.id);
+                                setOpen(false);
+                            }}
+                        >
+                             <Check className={cn("mr-2 h-4 w-4", selected === option.id ? "opacity-100" : "opacity-0")} />
+                            {option.name}
+                        </DropdownMenuItem>
+                    )) : !showCreateOption && <p className="p-2 text-center text-sm text-muted-foreground">No results found.</p>}
+                </div>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
+
     
+
 
 
