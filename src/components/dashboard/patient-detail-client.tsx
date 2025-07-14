@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus, History, X } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -971,136 +971,141 @@ type MultiSelectSearchBarProps = {
 };
 
 function MultiSelectSearchBar({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectSearchBarProps) {
-    const inputRef = React.useRef<HTMLInputElement>(null);
-    const [open, setOpen] = React.useState(false);
-    const [query, setQuery] = React.useState('');
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [searchQuery, setSearchQuery] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
     
-    const handleUnselect = (value: string) => {
-        onChange(selected.filter((s) => s !== value));
-    };
-
-    const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-        const input = inputRef.current;
-        if (input) {
-            if (e.key === "Delete" || e.key === "Backspace") {
-                if (input.value === "") {
-                    const newSelected = [...selected];
-                    newSelected.pop();
-                    onChange(newSelected);
-                }
-            }
-            if (e.key === "Escape") {
-                input.blur();
-            }
-        }
-    }, [onChange, selected]);
+    const filteredOptions = options.filter(option => 
+        option.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const handleSelect = (value: string) => {
-        onChange([...selected, value]);
+        if (selected.includes(value)) {
+            onChange(selected.filter(item => item !== value));
+        } else {
+            onChange([...selected, value]);
+        }
     };
-    
-    const handleCreate = async () => {
-        if (query.trim() === '' || options.some(opt => opt.name.toLowerCase() === query.trim().toLowerCase())) return;
+
+    const handleCreateNewComplaint = async () => {
+        if (searchQuery.trim() === '') return;
         setIsCreating(true);
-        const newOption = await onCreate(query.trim());
-        if (newOption) {
-            setQuery('');
+        const newComplaint = await onCreate(searchQuery.trim());
+        if (newComplaint) {
+            onChange([...selected, newComplaint.name]);
+            setSearchQuery('');
         }
         setIsCreating(false);
     };
 
-    const filteredOptions = query === ''
-        ? options.filter(option => !selected.includes(option.name))
-        : options.filter(option =>
-            !selected.includes(option.name) &&
-            option.name.toLowerCase().includes(query.toLowerCase())
-        );
-        
-    const showCreateOption = query !== '' && !filteredOptions.some(opt => opt.name.toLowerCase() === query.toLowerCase());
-
     return (
-        <Command onKeyDown={handleKeyDown} className="overflow-visible bg-transparent">
-            <div
-                className={cn(
-                    "group rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-                    className
-                )}
-            >
-                <div className="flex flex-wrap gap-1">
-                    {selected.map((value) => (
-                        <Badge
-                            variant="secondary"
-                            key={value}
-                            className="mr-1"
-                        >
-                            {value}
-                            <button
-                                className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                onKeyDown={(e) => { if (e.key === "Enter") handleUnselect(value); }}
-                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                onClick={() => handleUnselect(value)}
-                            >
-                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                            </button>
-                        </Badge>
-                    ))}
-                    <CommandInput
-                        ref={inputRef}
-                        value={query}
-                        onValueChange={setQuery}
-                        onBlur={() => setOpen(false)}
-                        onFocus={() => setOpen(true)}
-                        placeholder={placeholder}
-                        className="ml-2 flex-1 bg-transparent p-0 outline-none placeholder:text-muted-foreground"
-                    />
-                </div>
-            </div>
-            <div className="relative mt-2">
-                {open && (
-                    <div className="absolute top-0 z-10 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in">
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <div className={cn("space-y-2", className)}>
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isOpen}
+                        className="w-full justify-between"
+                    >
+                        <div className="flex flex-wrap gap-1">
+                            {selected.length > 0 ? (
+                                selected.map(value => (
+                                    <Badge 
+                                        key={value} 
+                                        variant="secondary"
+                                        className="mr-1"
+                                    >
+                                        {value}
+                                        <button
+                                            type="button"
+                                            className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => handleSelect(value)}
+                                        >
+                                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                        </button>
+                                    </Badge>
+                                ))
+                            ) : (
+                                <span className="text-muted-foreground">
+                                    {placeholder || "Select complaints..."}
+                                </span>
+                            )}
+                        </div>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                </PopoverTrigger>
+                
+                <PopoverContent className="w-full p-0">
+                    <Command>
+                        <div className="px-2 pt-2">
+                            <div className="flex items-center border-b">
+                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                <CommandInput 
+                                    placeholder="Search complaints..."
+                                    value={searchQuery}
+                                    onValueChange={setSearchQuery}
+                                />
+                            </div>
+                        </div>
+                        
                         <CommandList>
-                            <CommandEmpty>No results found.</CommandEmpty>
+                            <CommandEmpty>
+                                {searchQuery ? (
+                                    <div 
+                                        className="p-2 text-sm flex items-center justify-between cursor-pointer hover:bg-accent"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            handleCreateNewComplaint();
+                                        }}
+                                    >
+                                        <span>No complaints found</span>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={isCreating}
+                                            className="pointer-events-none"
+                                        >
+                                            {isCreating ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                            )}
+                                            Add "{searchQuery}"
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    "No complaints available"
+                                )}
+                            </CommandEmpty>
+                            
                             <CommandGroup>
                                 {filteredOptions.map((option) => (
                                     <CommandItem
                                         key={option.id}
+                                        onSelect={() => handleSelect(option.name)}
                                         onMouseDown={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
-                                        }}
-                                        onSelect={() => {
                                             handleSelect(option.name);
-                                            setQuery('');
                                         }}
                                         className="cursor-pointer"
                                     >
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                selected.includes(option.name) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
                                         {option.name}
                                     </CommandItem>
                                 ))}
-                                {showCreateOption && (
-                                    <CommandItem
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            handleCreate();
-                                        }}
-                                        disabled={isCreating}
-                                        className="cursor-pointer"
-                                    >
-                                        {isCreating ? (
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                        )}
-                                        Add "{query}"
-                                    </CommandItem>
-                                )}
                             </CommandGroup>
                         </CommandList>
-                    </div>
-                )}
+                    </Command>
+                </PopoverContent>
             </div>
-        </Command>
+        </Popover>
     );
 }
