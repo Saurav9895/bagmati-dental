@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -101,7 +101,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
 
-    const [isExaminationMode, setIsExaminationMode] = React.useState(false);
     const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
 
@@ -414,67 +413,53 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         <TabsTrigger value="files">Files</TabsTrigger>
                     </TabsList>
                     <TabsContent value="examination" className="mt-6 space-y-6">
-                        <div className="space-y-4 rounded-lg border p-4">
-                            <div className="flex items-center space-x-2">
-                                <Checkbox id="examination-mode" checked={isExaminationMode} onCheckedChange={(checked) => {
-                                    setIsExaminationMode(!!checked);
-                                }} />
-                                <label htmlFor="examination-mode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    Proceed with Examination
-                                </label>
-                            </div>
-                             {isExaminationMode && (
-                                <div className="pl-6 pt-4 border-l-2 space-y-4">
-                                    <Dialog open={isExaminationDialogOpen} onOpenChange={setIsExaminationDialogOpen}>
-                                        <DialogTrigger asChild>
-                                             <Button>
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                                Add Examination
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-2xl">
-                                            <DialogHeader>
-                                                <DialogTitle>Add Clinical Examination</DialogTitle>
-                                                <DialogDescription>
-                                                    Record the details of the clinical examination for {patient.name}.
-                                                </DialogDescription>
-                                            </DialogHeader>
-                                            <Form {...clinicalExaminationForm}>
-                                                <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                                                    <FormField
-                                                        control={clinicalExaminationForm.control}
-                                                        name="chiefComplaint"
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>Chief Complaint(s)</FormLabel>
-                                                                <MultiSelectSearchBar
-                                                                    options={chiefComplaints}
-                                                                    selected={field.value}
-                                                                    onChange={field.onChange}
-                                                                    onCreate={handleNewComplaintSubmit}
-                                                                    placeholder="Select complaints..."
-                                                                />
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
+                         <Dialog open={isExaminationDialogOpen} onOpenChange={setIsExaminationDialogOpen}>
+                            <DialogTrigger asChild>
+                                 <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Examination
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Add Clinical Examination</DialogTitle>
+                                    <DialogDescription>
+                                        Record the details of the clinical examination for {patient.name}.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Form {...clinicalExaminationForm}>
+                                    <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                                        <FormField
+                                            control={clinicalExaminationForm.control}
+                                            name="chiefComplaint"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Chief Complaint(s)</FormLabel>
+                                                    <MultiSelectSearchBar
+                                                        options={chiefComplaints}
+                                                        selected={field.value}
+                                                        onChange={field.onChange}
+                                                        onCreate={handleNewComplaintSubmit}
+                                                        placeholder="Select complaints..."
                                                     />
-                                                    <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                    <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                    <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
-                                                     <DialogFooter className="pt-4 pr-4">
-                                                        <Button type="button" variant="ghost" onClick={() => setIsExaminationDialogOpen(false)}>Cancel</Button>
-                                                        <Button type="submit" disabled={isSubmitting}>
-                                                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                            Save
-                                                        </Button>
-                                                    </DialogFooter>
-                                                </form>
-                                            </Form>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
-                            )}
-                        </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                                            <DialogFooter className="pt-4 pr-4">
+                                            <Button type="button" variant="ghost" onClick={() => setIsExaminationDialogOpen(false)}>Cancel</Button>
+                                            <Button type="submit" disabled={isSubmitting}>
+                                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                Save
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
 
                         <Card>
                             <CardHeader>
