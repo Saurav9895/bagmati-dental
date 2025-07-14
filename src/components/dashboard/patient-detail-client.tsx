@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,6 +26,7 @@ import { format } from 'date-fns';
 import { Badge } from '../ui/badge';
 import { ToothChart, COLOR_PALETTE } from './tooth-chart';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 const appointmentSchema = z.object({
@@ -306,150 +307,160 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     </Button>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    <Card className="lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle>Contact Information</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Contact Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-4">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
+                            <span>{patient.email || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <Phone className="h-5 w-5 text-muted-foreground" />
+                            <span>{patient.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <MapPin className="h-5 w-5 text-muted-foreground" />
+                            <span>{patient.address}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+                            <span>Date of Birth: {patient.dob ? new Date(patient.dob).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <UserIcon className="h-5 w-5 text-muted-foreground" />
+                            <span>Age: {patient.age || 'N/A'}</span>
+                        </div>
                             <div className="flex items-center gap-4">
-                                <Mail className="h-5 w-5 text-muted-foreground" />
-                                <span>{patient.email || 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <Phone className="h-5 w-5 text-muted-foreground" />
-                                <span>{patient.phone}</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <MapPin className="h-5 w-5 text-muted-foreground" />
-                                <span>{patient.address}</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <CalendarIcon className="h-5 w-5 text-muted-foreground" />
-                                <span>Date of Birth: {patient.dob ? new Date(patient.dob).toLocaleDateString() : 'N/A'}</span>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <UserIcon className="h-5 w-5 text-muted-foreground" />
-                                <span>Age: {patient.age || 'N/A'}</span>
-                            </div>
-                             <div className="flex items-center gap-4">
-                                <UserIcon className="h-5 w-5 text-muted-foreground" />
-                                <span>Gender: {patient.gender || 'N/A'}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            <UserIcon className="h-5 w-5 text-muted-foreground" />
+                            <span>Gender: {patient.gender || 'N/A'}</span>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                    <Card className="md:col-span-2 lg:col-span-3">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <ScrollText className="h-5 w-5" />
-                                <CardTitle>Prescriptions</CardTitle>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => setIsPrescriptionDialogOpen(true)}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Prescription
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                             {patient.prescriptions && patient.prescriptions.length > 0 ? (
-                                <div className="space-y-4">
-                                    {patient.prescriptions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p) => (
-                                        <div key={p.id} className="p-3 border rounded-md bg-card shadow-sm">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <p className="font-semibold text-sm">
-                                                    {format(new Date(p.date), 'PPP')}
-                                                </p>
-                                            </div>
-                                             <div className="mt-2 pt-2 border-t">
-                                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                <Tabs defaultValue="examination" className="w-full">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="examination">Examination</TabsTrigger>
+                        <TabsTrigger value="treatment">Treatment</TabsTrigger>
+                        <TabsTrigger value="files">Files</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="examination" className="mt-6 space-y-6">
+                         <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Heart className="h-5 w-5" />
+                                    Dental Chart
+                                </CardTitle>
+                                <CardDescription>Click on a tooth to assign a treatment.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <ScrollText className="h-5 w-5" />
+                                    <CardTitle>Prescriptions</CardTitle>
                                 </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">No prescriptions found for this patient.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-                    
-                    <Card className="md:col-span-2 lg:col-span-3">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <CalendarIcon className="h-5 w-5" />
-                                <CardTitle>Appointment History</CardTitle>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={handleNewAppointmentClick}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                New Appointment
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            {appointments && appointments.length > 0 ? (
-                                <div className="space-y-4">
-                                    {appointments.map((appt) => (
-                                        <div key={appt.id} className="p-3 border rounded-md bg-card shadow-sm">
-                                            <div className="flex justify-between items-start gap-4">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <p className="font-semibold">{appt.procedure}</p>
-                                                        {appt.status === 'Completed' ? (
-                                                            <Badge variant="secondary">Completed</Badge>
-                                                        ) : (
-                                                            <Badge variant="outline">Scheduled</Badge>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
+                                <Button variant="outline" size="sm" onClick={() => setIsPrescriptionDialogOpen(true)}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Prescription
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                {patient.prescriptions && patient.prescriptions.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {patient.prescriptions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p) => (
+                                            <div key={p.id} className="p-3 border rounded-md bg-card shadow-sm">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <p className="font-semibold text-sm">
+                                                        {format(new Date(p.date), 'PPP')}
                                                     </p>
                                                 </div>
-                                                <div className="flex items-center">
-                                                    <p className="text-sm font-medium text-muted-foreground shrink-0 pr-2">{formatTime12h(appt.time)}</p>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditAppointmentClick(appt)}>
-                                                        <Edit className="h-4 w-4" />
-                                                        <span className="sr-only">Edit appointment</span>
-                                                    </Button>
+                                                <div className="mt-2 pt-2 border-t">
+                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
                                                 </div>
                                             </div>
-                                            {appt.description && (
-                                                <div className="mt-3 pt-3 border-t">
-                                                    <p className="text-sm font-semibold mb-1">Notes / Prescription:</p>
-                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{appt.description}</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No prescriptions found for this patient.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <CalendarIcon className="h-5 w-5" />
+                                    <CardTitle>Appointment History</CardTitle>
                                 </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground text-center py-4">No appointment history found.</p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card className="md:col-span-2 lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Heart className="h-5 w-5" />
-                                Treatment Plan
-                            </CardTitle>
-                            {patient.registrationNumber && (
-                              <CardDescription>Registration Number: <span className="font-semibold text-primary">{patient.registrationNumber}</span></CardDescription>
-                            )}
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                             <div>
-                                <h4 className="font-semibold mb-2 text-base">Dental Chart</h4>
-                                <CardDescription className="mb-4">Click on a tooth to assign a treatment.</CardDescription>
-                                <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
-                            </div>
-
-                            <div>
-                                <h4 className="font-semibold mb-2 text-base">Assigned Treatments</h4>
+                                <Button variant="outline" size="sm" onClick={handleNewAppointmentClick}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    New Appointment
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                {appointments && appointments.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {appointments.map((appt) => (
+                                            <div key={appt.id} className="p-3 border rounded-md bg-card shadow-sm">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="font-semibold">{appt.procedure}</p>
+                                                            {appt.status === 'Completed' ? (
+                                                                <Badge variant="secondary">Completed</Badge>
+                                                            ) : (
+                                                                <Badge variant="outline">Scheduled</Badge>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center">
+                                                        <p className="text-sm font-medium text-muted-foreground shrink-0 pr-2">{formatTime12h(appt.time)}</p>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditAppointmentClick(appt)}>
+                                                            <Edit className="h-4 w-4" />
+                                                            <span className="sr-only">Edit appointment</span>
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                {appt.description && (
+                                                    <div className="mt-3 pt-3 border-t">
+                                                        <p className="text-sm font-semibold mb-1">Notes / Prescription:</p>
+                                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{appt.description}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No appointment history found.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="treatment" className="mt-6 space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Heart className="h-5 w-5" />
+                                    Treatment Plan
+                                </CardTitle>
+                                <CardDescription>A list of all treatments assigned to this patient.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
                                 {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
                                     <ul className="space-y-2">
                                         {patient.assignedTreatments.map((t, index) => (
                                             <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
                                                 <div className="flex items-center gap-3 flex-1">
-                                                     {t.tooth && (
+                                                        {t.tooth && (
                                                         <div
                                                             className="h-3 w-3 rounded-full shrink-0"
                                                             style={{ backgroundColor: COLOR_PALETTE[treatedTeeth.indexOf(t.tooth) % COLOR_PALETTE.length] }}
@@ -473,134 +484,150 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 ) : (
                                     <p className="text-sm text-muted-foreground text-center py-4">No treatments assigned yet.</p>
                                 )}
-                            </div>
-                        </CardContent>
-                    </Card>
-                    
-                    <Card className="md:col-span-2 lg:col-span-3">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <CreditCard className="h-5 w-5" />
-                                Billing Summary
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                             <div>
-                                <h4 className="font-semibold mb-2 text-base">Itemized Bill</h4>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Treatment</TableHead>
-                                            <TableHead>Tooth #</TableHead>
-                                            <TableHead>Date Added</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
-                                            patient.assignedTreatments.map(treatment => (
-                                                <TableRow key={treatment.dateAdded}>
-                                                    <TableCell className="font-medium">{treatment.name}</TableCell>
-                                                    <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                                    <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                                    <TableCell className="text-right">Rs. {(treatment.amount || 0).toFixed(2)}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
+                            </CardContent>
+                        </Card>
+                        
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <CreditCard className="h-5 w-5" />
+                                    Billing Summary
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-base">Itemized Bill</h4>
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center h-24">No treatments assigned.</TableCell>
+                                                <TableHead>Treatment</TableHead>
+                                                <TableHead>Tooth #</TableHead>
+                                                <TableHead>Date Added</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
                                             </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                            <Separator />
-                            <div className="space-y-2 text-right font-medium">
-                                <div className="flex justify-end items-center text-md">
-                                    <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
-                                    <span>Rs. {totalAmount.toFixed(2)}</span>
-                                </div>
-                                 <div className="flex justify-end items-center text-md">
-                                    <span className="text-muted-foreground mr-4">Total Discount:</span>
-                                    <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-end items-center text-md">
-                                    <span className="text-muted-foreground mr-4">Total Paid:</span>
-                                    <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
-                                </div>
-                                <Separator className="my-2" />
-                                <div className="flex justify-end items-center text-lg font-bold">
-                                    <span className="text-muted-foreground mr-4">Balance Due:</span>
-                                     {balanceDue <= 0 && totalAmount > 0 ? (
-                                        <span className="text-green-600">Fully Paid</span>
-                                    ) : (
-                                        <span>Rs. {balanceDue.toFixed(2)}</span>
-                                    )}
-                                </div>
-                            </div>
-                            
-                            <Separator />
-                             <div>
-                                <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Reason</TableHead>
-                                            <TableHead>Date Added</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {patient.discounts && patient.discounts.length > 0 ? (
-                                            patient.discounts.map(discount => (
-                                                <TableRow key={discount.dateAdded}>
-                                                    <TableCell className="font-medium">{discount.reason}</TableCell>
-                                                    <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
-                                                    <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
+                                                patient.assignedTreatments.map(treatment => (
+                                                    <TableRow key={treatment.dateAdded}>
+                                                        <TableCell className="font-medium">{treatment.name}</TableCell>
+                                                        <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                                        <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
+                                                        <TableCell className="text-right">Rs. {(treatment.amount || 0).toFixed(2)}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="text-center h-24">No treatments assigned.</TableCell>
                                                 </TableRow>
-                                            ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                                <Separator />
+                                <div className="space-y-2 text-right font-medium">
+                                    <div className="flex justify-end items-center text-md">
+                                        <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                                        <span>Rs. {totalAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-end items-center text-md">
+                                        <span className="text-muted-foreground mr-4">Total Discount:</span>
+                                        <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-end items-center text-md">
+                                        <span className="text-muted-foreground mr-4">Total Paid:</span>
+                                        <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
+                                    </div>
+                                    <Separator className="my-2" />
+                                    <div className="flex justify-end items-center text-lg font-bold">
+                                        <span className="text-muted-foreground mr-4">Balance Due:</span>
+                                        {balanceDue <= 0 && totalAmount > 0 ? (
+                                            <span className="text-green-600">Fully Paid</span>
                                         ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={3} className="text-center h-24">No discounts applied.</TableCell>
-                                            </TableRow>
+                                            <span>Rs. {balanceDue.toFixed(2)}</span>
                                         )}
-                                    </TableBody>
-                                </Table>
-                            </div>
+                                    </div>
+                                </div>
+                                
+                                <Separator />
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Reason</TableHead>
+                                                <TableHead>Date Added</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {patient.discounts && patient.discounts.length > 0 ? (
+                                                patient.discounts.map(discount => (
+                                                    <TableRow key={discount.dateAdded}>
+                                                        <TableCell className="font-medium">{discount.reason}</TableCell>
+                                                        <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
+                                                        <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={3} className="text-center h-24">No discounts applied.</TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
 
-                            <Separator />
-                            
-                            <div>
-                                <h4 className="font-semibold mb-2 text-base">Payment History</h4>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>Method</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {patient.payments && patient.payments.length > 0 ? (
-                                            patient.payments.map(payment => (
-                                                <TableRow key={payment.dateAdded}>
-                                                    <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                                                    <TableCell>{payment.method}</TableCell>
-                                                    <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
+                                <Separator />
+                                
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-base">Payment History</h4>
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell colSpan={3} className="text-center h-24">No payments recorded yet.</TableCell>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Method</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
                                             </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                </div>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {patient.payments && patient.payments.length > 0 ? (
+                                                patient.payments.map(payment => (
+                                                    <TableRow key={payment.dateAdded}>
+                                                        <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                                                        <TableCell>{payment.method}</TableCell>
+                                                        <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={3} className="text-center h-24">No payments recorded yet.</TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="files" className="mt-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Patient Files</CardTitle>
+                                <CardDescription>Manage patient documents, X-rays, and other files.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex h-48 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-8 text-center">
+                                    <Upload className="h-8 w-8 text-muted-foreground" />
+                                    <p className="mt-4 text-muted-foreground">
+                                        File management is coming soon.
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">You will be able to upload and view documents here.</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
              <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
                 <DialogContent className="sm:max-w-2xl">
