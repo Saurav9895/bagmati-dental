@@ -10,6 +10,8 @@ export async function addClinicalExaminationToPatient(
   examinationData: Omit<ClinicalExamination, 'id'>
 ) {
   const patientRef = doc(db, 'patients', patientId);
+  const counterRef = doc(db, 'counters', 'patientRegistration');
+
   try {
     const updatedPatientData = await runTransaction(db, async (transaction) => {
       const patientDoc = await transaction.get(patientRef);
@@ -18,6 +20,22 @@ export async function addClinicalExaminationToPatient(
       }
 
       const patientData = patientDoc.data() as Patient;
+      let newRegistrationNumber = patientData.registrationNumber;
+
+      // If patient doesn't have a registration number, generate one.
+      if (!newRegistrationNumber) {
+        const counterDoc = await transaction.get(counterRef);
+        let lastNumber = 0;
+        if (counterDoc.exists()) {
+          lastNumber = counterDoc.data().lastNumber || 0;
+        }
+        const newNumber = lastNumber + 1;
+        newRegistrationNumber = String(newNumber).padStart(3, '0');
+        
+        // Update the counter
+        transaction.set(counterRef, { lastNumber: newNumber }, { merge: true });
+      }
+
       const newExamination: ClinicalExamination = {
         id: crypto.randomUUID(),
         ...examinationData,
@@ -29,6 +47,7 @@ export async function addClinicalExaminationToPatient(
       updatedExaminations.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       transaction.update(patientRef, {
+        registrationNumber: newRegistrationNumber,
         clinicalExaminations: updatedExaminations,
       });
 
@@ -37,6 +56,7 @@ export async function addClinicalExaminationToPatient(
       return {
         id: patientId,
         ...serializablePatientData,
+        registrationNumber: newRegistrationNumber,
         clinicalExaminations: updatedExaminations,
       };
     });

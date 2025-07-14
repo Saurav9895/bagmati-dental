@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown, Search } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -995,7 +995,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
                     <span className="truncate">{selectedValue}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]" align="start" onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -1007,6 +1007,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border-0 h-9 focus-visible:ring-0 shadow-none px-0"
+                            autoFocus
                         />
                     </div>
                 </div>
@@ -1101,8 +1102,8 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                             aria-expanded={isOpen}
                             className="w-full justify-between font-normal"
                         >
-                            {selected.length > 0 ? selected[0] : placeholder}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            {selected.length > 0 && !isMulti ? selected[0] : placeholder}
+                            <PlusCircle className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
                 )}
