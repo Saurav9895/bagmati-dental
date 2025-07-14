@@ -5,7 +5,7 @@ import * as React from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Search, ClipboardList, Stethoscope } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Edit, Trash2, Loader2, Search, ClipboardList, Stethoscope, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
@@ -21,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
+  defaultAmount: z.coerce.number().min(0, "Price must be a positive number.").optional(),
 });
 type TreatmentFormValues = z.infer<typeof treatmentSchema>;
 
@@ -63,7 +64,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   const { toast } = useToast();
 
-  const treatmentForm = useForm<TreatmentFormValues>({ resolver: zodResolver(treatmentSchema), defaultValues: { name: "" } });
+  const treatmentForm = useForm<TreatmentFormValues>({ resolver: zodResolver(treatmentSchema), defaultValues: { name: "", defaultAmount: 0 } });
   const complaintForm = useForm<ComplaintFormValues>({ resolver: zodResolver(complaintSchema), defaultValues: { name: "" } });
   const examinationForm = useForm<ExaminationFormValues>({ resolver: zodResolver(examinationSchema), defaultValues: { name: "", defaultAmount: 0 } });
 
@@ -75,9 +76,9 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   React.useEffect(() => {
     if (isTreatmentFormOpen && editingTreatment) {
-      treatmentForm.reset({ name: editingTreatment.name });
+      treatmentForm.reset({ name: editingTreatment.name, defaultAmount: editingTreatment.defaultAmount || 0 });
     } else {
-      treatmentForm.reset({ name: "" });
+      treatmentForm.reset({ name: "", defaultAmount: 0 });
     }
   }, [isTreatmentFormOpen, editingTreatment, treatmentForm]);
   
@@ -370,7 +371,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
             <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
                 <div>
                     <CardTitle>Treatments</CardTitle>
-                    <CardDescription>Manage services offered at the clinic.</CardDescription>
+                    <CardDescription>Manage services and their default prices offered at the clinic.</CardDescription>
                 </div>
                 <div className="flex w-full sm:w-auto gap-2">
                     <div className="relative flex-1 sm:flex-initial">
@@ -405,6 +406,13 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                 <FormMessage />
                                 </FormItem>
                             )} />
+                            <FormField control={treatmentForm.control} name="defaultAmount" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Default Price</FormLabel>
+                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
                             <DialogFooter>
                                 <Button type="submit" className="w-full" disabled={treatmentForm.formState.isSubmitting}>
                                     {treatmentForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Treatment'}
@@ -423,6 +431,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Treatment Name</TableHead>
+                                <TableHead>Default Price</TableHead>
                                 <TableHead className="w-[80px] text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -431,6 +440,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             filteredTreatments.map(treatment => (
                                 <TableRow key={treatment.id}>
                                     <TableCell className="font-medium">{treatment.name}</TableCell>
+                                    <TableCell>Rs. {(treatment.defaultAmount || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -453,7 +463,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={2} className="h-24 text-center">
+                                <TableCell colSpan={3} className="h-24 text-center">
                                     {searchQuery ? "No treatments found." : "No treatments created yet."}
                                 </TableCell>
                             </TableRow>

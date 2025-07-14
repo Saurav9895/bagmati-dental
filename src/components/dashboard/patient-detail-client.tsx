@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
@@ -103,9 +102,8 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
 
     const [isExaminationMode, setIsExaminationMode] = React.useState(false);
-    const [isExaminationFormVisible, setIsExaminationFormVisible] = React.useState(false);
+    const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
-    const [isNewComplaintDialogOpen, setIsNewComplaintDialogOpen] = React.useState(false);
 
     const { toast } = useToast();
 
@@ -137,11 +135,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             observationNotes: '',
         },
     });
-
-    const newComplaintForm = useForm<NewComplaintFormValues>({
-        resolver: zodResolver(newComplaintSchema),
-        defaultValues: { name: '' },
-    });
     
     const handleClinicalExaminationSubmit = async (data: ClinicalExaminationFormValues) => {
         setIsSubmitting(true);
@@ -151,7 +144,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         if (result.success && result.data) {
             setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
             toast({ title: 'Examination record saved successfully!' });
-            setIsExaminationFormVisible(false);
+            setIsExaminationDialogOpen(false);
             clinicalExaminationForm.reset({ chiefComplaint: [], medicalHistory: '', dentalHistory: '', observationNotes: '' });
         } else {
             toast({ variant: 'destructive', title: 'Failed to save examination', description: result.error });
@@ -359,9 +352,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             const newComplaint = result.data;
             setChiefComplaints(prev => [...prev, newComplaint].sort((a, b) => a.name.localeCompare(b.name)));
             
-            const currentComplaints = clinicalExaminationForm.getValues('chiefComplaint');
-            clinicalExaminationForm.setValue('chiefComplaint', [...currentComplaints, newComplaint.name]);
-            
             toast({ title: 'New complaint added!' });
             return newComplaint;
         } else {
@@ -428,7 +418,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             <div className="flex items-center space-x-2">
                                 <Checkbox id="examination-mode" checked={isExaminationMode} onCheckedChange={(checked) => {
                                     setIsExaminationMode(!!checked);
-                                    if (!checked) setIsExaminationFormVisible(false);
                                 }} />
                                 <label htmlFor="examination-mode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                     Proceed with Examination
@@ -436,46 +425,53 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                             </div>
                              {isExaminationMode && (
                                 <div className="pl-6 pt-4 border-l-2 space-y-4">
-                                    {!isExaminationFormVisible && (
-                                        <Button onClick={() => setIsExaminationFormVisible(true)}>
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Add Examination
-                                        </Button>
-                                    )}
-
-                                    {isExaminationFormVisible && (
-                                        <Form {...clinicalExaminationForm}>
-                                            <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4">
-                                                <FormField
-                                                    control={clinicalExaminationForm.control}
-                                                    name="chiefComplaint"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Chief Complaint(s)</FormLabel>
-                                                            <MultiSelectSearchBar
-                                                                options={chiefComplaints}
-                                                                selected={field.value}
-                                                                onChange={field.onChange}
-                                                                onCreate={handleNewComplaintSubmit}
-                                                                placeholder="Select complaints..."
-                                                            />
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
-                                                <div className="flex justify-end gap-2">
-                                                    <Button type="button" variant="ghost" onClick={() => { setIsExaminationFormVisible(false); clinicalExaminationForm.reset({ chiefComplaint: [], medicalHistory: '', dentalHistory: '', observationNotes: '' }); }}>Cancel</Button>
-                                                    <Button type="submit" disabled={isSubmitting}>
-                                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                        Save
-                                                    </Button>
-                                                </div>
-                                            </form>
-                                        </Form>
-                                    )}
+                                    <Dialog open={isExaminationDialogOpen} onOpenChange={setIsExaminationDialogOpen}>
+                                        <DialogTrigger asChild>
+                                             <Button>
+                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                                Add Examination
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-2xl">
+                                            <DialogHeader>
+                                                <DialogTitle>Add Clinical Examination</DialogTitle>
+                                                <DialogDescription>
+                                                    Record the details of the clinical examination for {patient.name}.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <Form {...clinicalExaminationForm}>
+                                                <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                                                    <FormField
+                                                        control={clinicalExaminationForm.control}
+                                                        name="chiefComplaint"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Chief Complaint(s)</FormLabel>
+                                                                <MultiSelectSearchBar
+                                                                    options={chiefComplaints}
+                                                                    selected={field.value}
+                                                                    onChange={field.onChange}
+                                                                    onCreate={handleNewComplaintSubmit}
+                                                                    placeholder="Select complaints..."
+                                                                />
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                    <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                    <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                                                     <DialogFooter className="pt-4 pr-4">
+                                                        <Button type="button" variant="ghost" onClick={() => setIsExaminationDialogOpen(false)}>Cancel</Button>
+                                                        <Button type="submit" disabled={isSubmitting}>
+                                                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                            Save
+                                                        </Button>
+                                                    </DialogFooter>
+                                                </form>
+                                            </Form>
+                                        </DialogContent>
+                                    </Dialog>
                                 </div>
                             )}
                         </div>
@@ -869,16 +865,22 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         <DialogDescription>Select a treatment to assign to this tooth.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                         <Select onValueChange={setSelectedTreatmentId} value={selectedTreatmentId}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a treatment to add" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {treatments.map(t => (
-                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                         <MultiSelectSearchBar
+                            options={treatments}
+                            selected={selectedTreatmentId ? [treatments.find(t=>t.id === selectedTreatmentId)!.name] : []}
+                            onChange={(selectedNames) => {
+                                if(selectedNames.length > 0) {
+                                    const lastSelectedName = selectedNames[selectedNames.length - 1];
+                                    const selected = treatments.find(t=> t.name === lastSelectedName);
+                                    setSelectedTreatmentId(selected?.id);
+                                } else {
+                                    setSelectedTreatmentId(undefined);
+                                }
+                            }}
+                            placeholder="Select a treatment"
+                            isMulti={false}
+                         />
+
                         <Button onClick={handleAddTreatment} disabled={isSubmitting || !selectedTreatmentId} className="w-full">
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                             Assign Treatment
@@ -964,98 +966,114 @@ type MultiSelectSearchBarProps = {
     options: { id: string, name: string }[];
     selected: string[];
     onChange: (selected: string[]) => void;
-    onCreate: (name: string) => Promise<ChiefComplaint | null>;
+    onCreate?: (name: string) => Promise<ChiefComplaint | null>;
     placeholder?: string;
     className?: string;
+    isMulti?: boolean;
 };
 
-function MultiSelectSearchBar({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectSearchBarProps) {
+function MultiSelectSearchBar({ options, selected, onChange, onCreate, placeholder, className, isMulti = true }: MultiSelectSearchBarProps) {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [isOpen, setIsOpen] = React.useState(false);
-    const [inputValue, setInputValue] = React.useState('');
+    const [searchQuery, setSearchQuery] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
 
     const handleSelect = (value: string) => {
-        if (selected.includes(value)) {
-            onChange(selected.filter((item) => item !== value));
-        } else {
+        if(isMulti) {
             onChange([...selected, value]);
+        } else {
+            onChange([value]);
         }
-        setInputValue('');
+        setSearchQuery('');
+        setIsOpen(false);
     };
-
+    
     const handleRemove = (value: string) => {
-        onChange(selected.filter((item) => item !== value));
+        onChange(selected.filter((s) => s !== value));
     };
 
     const handleCreateNew = async () => {
-        if (inputValue.trim() === '' || isCreating) return;
+        if (searchQuery.trim() === '' || isCreating || !onCreate) return;
         setIsCreating(true);
-        const newComplaint = await onCreate(inputValue.trim());
+        const newComplaint = await onCreate(searchQuery.trim());
         if (newComplaint) {
             handleSelect(newComplaint.name);
         }
         setIsCreating(false);
-        setInputValue('');
+        setSearchQuery('');
     };
 
     const filteredOptions = options.filter(option =>
-        option.name.toLowerCase().includes(inputValue.toLowerCase()) && !selected.includes(option.name)
+        option.name.toLowerCase().includes(searchQuery.toLowerCase()) && !selected.includes(option.name)
     );
 
-    const showCreateOption = inputValue && !options.some(o => o.name.toLowerCase() === inputValue.toLowerCase());
+    const showCreateOption = onCreate && searchQuery && !options.some(o => o.name.toLowerCase() === searchQuery.toLowerCase());
 
     return (
-        <div className={cn("space-y-2", className)}>
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                    {selected.map(value => (
-                        <Badge key={value} variant="secondary">
-                            {value}
-                            <button
-                                type="button"
-                                className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                onClick={() => handleRemove(value)}
-                            >
-                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                            </button>
-                        </Badge>
-                    ))}
-                </div>
-            )}
-            <Popover open={isOpen} onOpenChange={setIsOpen}>
-                <PopoverTrigger asChild>
-                    <div className="relative">
-                        <Input
-                            ref={inputRef}
-                            type="text"
-                            placeholder={placeholder}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onFocus={() => setIsOpen(true)}
-                            className="w-full"
-                        />
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <div className={cn("space-y-2", className)}>
+                {selected.length > 0 && isMulti && (
+                    <div className="flex flex-wrap gap-1">
+                        {selected.map(value => (
+                            <Badge key={value} variant="secondary" className="gap-1">
+                                {value}
+                                <button
+                                    type="button"
+                                    className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onClick={() => handleRemove(value)}
+                                >
+                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                </button>
+                            </Badge>
+                        ))}
                     </div>
+                )}
+                <PopoverTrigger asChild>
+                    <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isOpen}
+                        className="w-full justify-between font-normal"
+                        onClick={() => setIsOpen(!isOpen)}
+                    >
+                        {selected.length > 0 && !isMulti ? selected[0] : placeholder}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                     <Command>
+                        <div className="flex items-center border-b px-3">
+                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                            <CommandInput
+                                ref={inputRef}
+                                placeholder={placeholder}
+                                value={searchQuery}
+                                onValueChange={setSearchQuery}
+                                className="border-0"
+                             />
+                        </div>
                         <CommandList>
-                            {filteredOptions.length === 0 && !showCreateOption && (
-                                <CommandEmpty>No results found.</CommandEmpty>
-                            )}
+                            <CommandEmpty>
+                                {showCreateOption ? 'No results found.' : ''}
+                            </CommandEmpty>
                             <CommandGroup>
                                 {filteredOptions.map((option) => (
                                     <CommandItem
                                         key={option.id}
+                                        value={option.name}
                                         onSelect={() => handleSelect(option.name)}
                                         onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            handleSelect(option.name);
-                                            inputRef.current?.focus();
+                                          e.preventDefault();
+                                          e.stopPropagation();
                                         }}
                                         className="cursor-pointer"
                                     >
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                selected.includes(option.name) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
                                         {option.name}
                                     </CommandItem>
                                 ))}
@@ -1067,14 +1085,19 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                         <CommandItem
                                             onSelect={handleCreateNew}
                                             onMouseDown={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleCreateNew();
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              handleCreateNew();
                                             }}
                                             className="cursor-pointer"
+                                            disabled={isCreating}
                                         >
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Create "{inputValue}"
+                                           {isCreating ? (
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                            )}
+                                            Create "{searchQuery}"
                                         </CommandItem>
                                     </CommandGroup>
                                 </>
@@ -1082,7 +1105,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                         </CommandList>
                     </Command>
                 </PopoverContent>
-            </Popover>
-        </div>
+            </div>
+        </Popover>
     );
 }
