@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/firebase';
 import type { ChiefComplaint, DentalExamination } from '@/lib/types';
-import { collection, addDoc, getDocs, deleteDoc, serverTimestamp, query, orderBy, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, serverTimestamp, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 
 // Chief Complaints
 export async function addChiefComplaint(data: { name: string }): Promise<{ success: boolean; data?: ChiefComplaint; error?: string }> {
@@ -23,6 +23,15 @@ export async function getChiefComplaints(): Promise<ChiefComplaint[]> {
       const { createdAt, ...rest } = data;
       return { id: doc.id, ...rest } as ChiefComplaint;
     });
+}
+
+export async function updateChiefComplaint(id: string, data: { name: string }): Promise<{ success: boolean; error?: string }> {
+    try {
+        await updateDoc(doc(db, "chiefComplaints", id), data);
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: (e as Error).message };
+    }
 }
 
 export async function deleteChiefComplaint(id: string): Promise<{ success: boolean; error?: string }> {
@@ -53,6 +62,15 @@ export async function getDentalExaminations(): Promise<DentalExamination[]> {
       const { createdAt, ...rest } = data;
       return { id: doc.id, ...rest } as DentalExamination;
     });
+}
+
+export async function updateDentalExamination(id: string, data: { name: string }): Promise<{ success: boolean; error?: string }> {
+    try {
+        await updateDoc(doc(db, "dentalExaminations", id), data);
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: (e as Error).message };
+    }
 }
 
 export async function deleteDentalExamination(id: string): Promise<{ success: boolean; error?: string }> {

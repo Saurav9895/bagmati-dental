@@ -15,8 +15,7 @@ import type { Treatment, ChiefComplaint, DentalExamination } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { addTreatment, updateTreatment, deleteTreatment } from '@/app/actions/treatments';
-import { addChiefComplaint, deleteChiefComplaint, addDentalExamination, deleteDentalExamination } from '@/app/actions/examinations';
-import { ScrollArea } from '../ui/scroll-area';
+import { addChiefComplaint, deleteChiefComplaint, addDentalExamination, deleteDentalExamination, updateChiefComplaint, updateDentalExamination } from '@/app/actions/examinations';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -49,16 +48,17 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
   
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isTreatmentFormOpen, setIsTreatmentFormOpen] = React.useState(false);
   const [editingTreatment, setEditingTreatment] = React.useState<Treatment | null>(null);
-  
-  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
   const [deletingTreatment, setDeletingTreatment] = React.useState<Treatment | null>(null);
 
-  const [isComplaintDialogOpen, setIsComplaintDialogOpen] = React.useState(false);
-  const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
+  const [isComplaintFormOpen, setIsComplaintFormOpen] = React.useState(false);
+  const [editingComplaint, setEditingComplaint] = React.useState<ChiefComplaint | null>(null);
+  const [deletingComplaint, setDeletingComplaint] = React.useState<ChiefComplaint | null>(null);
 
-  const [itemToDelete, setItemToDelete] = React.useState<{id: string, name: string, type: 'complaint' | 'examination'} | null>(null);
+  const [isExaminationFormOpen, setIsExaminationFormOpen] = React.useState(false);
+  const [editingExamination, setEditingExamination] = React.useState<DentalExamination | null>(null);
+  const [deletingExamination, setDeletingExamination] = React.useState<DentalExamination | null>(null);
 
   const { toast } = useToast();
 
@@ -73,63 +73,54 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
   }, [searchQuery, treatments]);
 
   React.useEffect(() => {
-    if (isFormOpen && editingTreatment) {
+    if (isTreatmentFormOpen && editingTreatment) {
       treatmentForm.reset({ name: editingTreatment.name });
-    } else if (!isFormOpen) {
+    } else {
       treatmentForm.reset({ name: "" });
     }
-  }, [isFormOpen, editingTreatment, treatmentForm]);
+  }, [isTreatmentFormOpen, editingTreatment, treatmentForm]);
   
-  const handleDialogOpenChange = (open: boolean) => {
-    setIsFormOpen(open);
+  React.useEffect(() => {
+    if (isComplaintFormOpen && editingComplaint) {
+      complaintForm.reset({ name: editingComplaint.name });
+    } else {
+      complaintForm.reset({ name: "" });
+    }
+  }, [isComplaintFormOpen, editingComplaint, complaintForm]);
+
+  React.useEffect(() => {
+    if (isExaminationFormOpen && editingExamination) {
+      examinationForm.reset({ name: editingExamination.name });
+    } else {
+      examinationForm.reset({ name: "" });
+    }
+  }, [isExaminationFormOpen, editingExamination, examinationForm]);
+  
+  const handleTreatmentDialogChange = (open: boolean) => {
+    setIsTreatmentFormOpen(open);
     if (!open) setEditingTreatment(null);
   }
   const handleComplaintDialogChange = (open: boolean) => {
-    setIsComplaintDialogOpen(open);
-    if (!open) complaintForm.reset();
+    setIsComplaintFormOpen(open);
+    if (!open) setEditingComplaint(null);
   }
   const handleExaminationDialogChange = (open: boolean) => {
-    setIsExaminationDialogOpen(open);
-    if (!open) examinationForm.reset();
-  }
-
-  const handleEditClick = (treatment: Treatment) => {
-    setEditingTreatment(treatment);
-    setIsFormOpen(true);
-  };
-
-  const handleDeleteClick = (treatment: Treatment) => {
-    setDeletingTreatment(treatment);
-    setIsAlertOpen(true);
-  };
-  
-  const confirmDelete = async () => {
-    if (!deletingTreatment) return;
-    const result = await deleteTreatment(deletingTreatment.id);
-    if (result.success) {
-      const newTreatments = treatments.filter(t => t.id !== deletingTreatment.id)
-      setTreatments(newTreatments);
-      toast({ title: "Treatment Deleted" });
-    } else {
-      toast({ variant: "destructive", title: "Failed to delete treatment", description: result.error });
-    }
-    setIsAlertOpen(false);
-    setDeletingTreatment(null);
+    setIsExaminationFormOpen(open);
+    if (!open) setEditingExamination(null);
   }
 
   const onTreatmentSubmit = async (data: TreatmentFormValues) => {
     if (editingTreatment) {
-      const updatedData: Partial<Treatment> = { name: data.name };
-      const result = await updateTreatment(editingTreatment.id, updatedData);
+      const result = await updateTreatment(editingTreatment.id, data);
       if (result.success) {
-        setTreatments(treatments.map(t => t.id === editingTreatment.id ? { ...t, ...updatedData } : t));
+        setTreatments(treatments.map(t => t.id === editingTreatment.id ? { ...t, ...data } : t));
         toast({ title: "Treatment Updated" });
       } else {
         toast({ variant: "destructive", title: "Failed to update treatment", description: result.error });
         return;
       }
     } else {
-      const payload: Omit<Treatment, 'id'> = { ...data, description: '', prices: {} };
+      const payload: Omit<Treatment, 'id'> = { ...data, description: '' };
       const result = await addTreatment(payload);
       if (result.success && result.data) {
         setTreatments([result.data, ...treatments]);
@@ -140,53 +131,85 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
       }
     }
     treatmentForm.reset();
-    handleDialogOpenChange(false);
+    handleTreatmentDialogChange(false);
   };
 
   const onComplaintSubmit = async (data: ComplaintFormValues) => {
-    const result = await addChiefComplaint(data);
-    if (result.success && result.data) {
-        setChiefComplaints([result.data, ...chiefComplaints].sort((a,b) => a.name.localeCompare(b.name)));
-        toast({ title: "Chief Complaint Added" });
+    if (editingComplaint) {
+        const result = await updateChiefComplaint(editingComplaint.id, data);
+        if (result.success) {
+            setChiefComplaints(chiefComplaints.map(c => c.id === editingComplaint.id ? { ...c, ...data } : c).sort((a,b) => a.name.localeCompare(b.name)));
+            toast({ title: "Chief Complaint Updated" });
+        } else {
+            toast({ variant: "destructive", title: "Failed to update complaint", description: result.error });
+        }
     } else {
-        toast({ variant: "destructive", title: "Failed to add complaint", description: result.error });
+        const result = await addChiefComplaint(data);
+        if (result.success && result.data) {
+            setChiefComplaints([result.data, ...chiefComplaints].sort((a,b) => a.name.localeCompare(b.name)));
+            toast({ title: "Chief Complaint Added" });
+        } else {
+            toast({ variant: "destructive", title: "Failed to add complaint", description: result.error });
+        }
     }
     handleComplaintDialogChange(false);
   };
 
   const onExaminationSubmit = async (data: ExaminationFormValues) => {
-    const result = await addDentalExamination(data);
-    if (result.success && result.data) {
-        setDentalExaminations([result.data, ...dentalExaminations].sort((a,b) => a.name.localeCompare(b.name)));
-        toast({ title: "Dental Examination Added" });
+     if (editingExamination) {
+        const result = await updateDentalExamination(editingExamination.id, data);
+        if (result.success) {
+            setDentalExaminations(dentalExaminations.map(e => e.id === editingExamination.id ? { ...e, ...data } : e).sort((a,b) => a.name.localeCompare(b.name)));
+            toast({ title: "Dental Examination Updated" });
+        } else {
+            toast({ variant: "destructive", title: "Failed to update examination", description: result.error });
+        }
     } else {
-        toast({ variant: "destructive", title: "Failed to add examination", description: result.error });
+        const result = await addDentalExamination(data);
+        if (result.success && result.data) {
+            setDentalExaminations([result.data, ...dentalExaminations].sort((a,b) => a.name.localeCompare(b.name)));
+            toast({ title: "Dental Examination Added" });
+        } else {
+            toast({ variant: "destructive", title: "Failed to add examination", description: result.error });
+        }
     }
     handleExaminationDialogChange(false);
   };
 
-  const handleDeleteItem = (id: string, name: string, type: 'complaint' | 'examination') => {
-    setItemToDelete({ id, name, type });
-  };
-
-  const confirmDeleteItem = async () => {
-    if (!itemToDelete) return;
-    const { id, type } = itemToDelete;
-    let result;
-    if (type === 'complaint') {
-        result = await deleteChiefComplaint(id);
-        if (result.success) setChiefComplaints(chiefComplaints.filter(c => c.id !== id));
-    } else {
-        result = await deleteDentalExamination(id);
-        if (result.success) setDentalExaminations(dentalExaminations.filter(e => e.id !== id));
-    }
-
+  const confirmDeleteTreatment = async () => {
+    if (!deletingTreatment) return;
+    const result = await deleteTreatment(deletingTreatment.id);
     if (result.success) {
+      setTreatments(treatments.filter(t => t.id !== deletingTreatment.id));
+      toast({ title: "Treatment Deleted" });
+    } else {
+      toast({ variant: "destructive", title: "Failed to delete treatment", description: result.error });
+    }
+    setDeletingTreatment(null);
+  }
+
+  const confirmDeleteComplaint = async () => {
+    if (!deletingComplaint) return;
+    const result = await deleteChiefComplaint(deletingComplaint.id);
+    if (result.success) {
+        setChiefComplaints(chiefComplaints.filter(c => c.id !== deletingComplaint.id));
         toast({ title: `Item Deleted` });
     } else {
         toast({ variant: "destructive", title: "Failed to delete item", description: result.error });
     }
-    setItemToDelete(null);
+    setDeletingComplaint(null);
+  };
+  
+  const confirmDeleteExamination = async () => {
+    if (!deletingExamination) return;
+    const result = await deleteDentalExamination(deletingExamination.id);
+    if (result.success) {
+        setDentalExaminations(dentalExaminations.filter(e => e.id !== deletingExamination.id));
+        toast({ title: `Item Deleted` });
+    } else {
+        toast({ variant: "destructive", title: "Failed to delete item", description: result.error });
+    }
+    setDeletingExamination(null);
   };
   
   return (
@@ -199,18 +222,18 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between pb-4">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                             <ClipboardList className="h-5 w-5" />
                             Chief Complaints
                         </CardTitle>
-                        <Dialog open={isComplaintDialogOpen} onOpenChange={handleComplaintDialogChange}>
+                        <Dialog open={isComplaintFormOpen} onOpenChange={handleComplaintDialogChange}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
+                                <Button variant="outline" size="sm" onClick={() => setEditingComplaint(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
-                                    <DialogTitle>Add New Chief Complaint</DialogTitle>
+                                    <DialogTitle>{editingComplaint ? 'Edit' : 'Add New'} Chief Complaint</DialogTitle>
                                 </DialogHeader>
                                 <Form {...complaintForm}>
                                     <form onSubmit={complaintForm.handleSubmit(onComplaintSubmit)} className="space-y-4 py-4">
@@ -232,35 +255,49 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         </Dialog>
                     </CardHeader>
                     <CardContent>
-                        {chiefComplaints.length > 0 ? (
-                            <ScrollArea className="h-48">
-                                <ul className="space-y-2 pr-4">
-                                    {chiefComplaints.map(complaint => (
-                                        <li key={complaint.id} className="flex items-center justify-between text-sm p-2 rounded-md hover:bg-muted">
-                                            <span>{complaint.name}</span>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(complaint.id, complaint.name, 'complaint')}><Trash2 className="h-4 w-4" /></Button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </ScrollArea>
-                        ) : (
-                            <p className="text-sm text-muted-foreground text-center py-8">No chief complaints defined yet.</p>
-                        )}
+                        <div className="border rounded-md">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="w-[80px] text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {chiefComplaints.length > 0 ? chiefComplaints.map(complaint => (
+                                        <TableRow key={complaint.id}>
+                                            <TableCell>{complaint.name}</TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onSelect={() => {setEditingComplaint(complaint); setIsComplaintFormOpen(true);}}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => setDeletingComplaint(complaint)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">No chief complaints defined.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardHeader className="flex flex-row items-center justify-between pb-4">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                             <Stethoscope className="h-5 w-5" />
                             Dental Examinations
                         </CardTitle>
-                        <Dialog open={isExaminationDialogOpen} onOpenChange={handleExaminationDialogChange}>
+                        <Dialog open={isExaminationFormOpen} onOpenChange={handleExaminationDialogChange}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add</Button>
+                                <Button variant="outline" size="sm" onClick={() => setEditingExamination(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
                             </DialogTrigger>
                              <DialogContent>
                                 <DialogHeader>
-                                    <DialogTitle>Add New Dental Examination</DialogTitle>
+                                    <DialogTitle>{editingExamination ? 'Edit' : 'Add New'} Dental Examination</DialogTitle>
                                 </DialogHeader>
                                 <Form {...examinationForm}>
                                     <form onSubmit={examinationForm.handleSubmit(onExaminationSubmit)} className="space-y-4 py-4">
@@ -282,20 +319,34 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         </Dialog>
                     </CardHeader>
                     <CardContent>
-                        {dentalExaminations.length > 0 ? (
-                             <ScrollArea className="h-48">
-                                <ul className="space-y-2 pr-4">
-                                    {dentalExaminations.map(exam => (
-                                        <li key={exam.id} className="flex items-center justify-between text-sm p-2 rounded-md hover:bg-muted">
-                                            <span>{exam.name}</span>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteItem(exam.id, exam.name, 'examination')}><Trash2 className="h-4 w-4" /></Button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </ScrollArea>
-                        ) : (
-                            <p className="text-sm text-muted-foreground text-center py-8">No examination templates defined yet.</p>
-                        )}
+                       <div className="border rounded-md">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead className="w-[80px] text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {dentalExaminations.length > 0 ? dentalExaminations.map(exam => (
+                                        <TableRow key={exam.id}>
+                                            <TableCell>{exam.name}</TableCell>
+                                            <TableCell className="text-right">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onSelect={() => {setEditingExamination(exam); setIsExaminationFormOpen(true);}}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => setDeletingExamination(exam)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">No examination templates defined.</TableCell></TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                       </div>
                     </CardContent>
                 </Card>
             </CardContent>
@@ -318,7 +369,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                     <Dialog open={isFormOpen} onOpenChange={handleDialogOpenChange}>
+                     <Dialog open={isTreatmentFormOpen} onOpenChange={handleTreatmentDialogChange}>
                         <DialogTrigger asChild>
                         <Button size="sm" onClick={() => setEditingTreatment(null)}>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -379,7 +430,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                                 <DropdownMenuItem onSelect={() => handleEditClick(treatment)}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onSelect={() => handleDeleteClick(treatment)} className="text-destructive">
+                                                <DropdownMenuItem onSelect={() => setDeletingTreatment(treatment)} className="text-destructive">
                                                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -401,36 +452,49 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
         </Card>
       </div>
       
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+      <AlertDialog open={!!deletingTreatment} onOpenChange={(open) => !open && setDeletingTreatment(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the treatment <span className="font-bold">{deletingTreatment?.name}</span> and all its associated pricing.
+                    This action cannot be undone. This will permanently delete the treatment <span className="font-bold">{deletingTreatment?.name}</span>.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setDeletingTreatment(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete}>
+                <AlertDialogAction onClick={confirmDeleteTreatment}>
                     Continue
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
-      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+
+       <AlertDialog open={!!deletingComplaint} onOpenChange={(open) => !open && setDeletingComplaint(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the template: <span className="font-bold">{itemToDelete?.name}</span>.
+                    This will permanently delete the complaint: <span className="font-bold">{deletingComplaint?.name}</span>.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDeleteItem}>
-                    Continue
-                </AlertDialogAction>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteComplaint}>Continue</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={!!deletingExamination} onOpenChange={(open) => !open && setDeletingExamination(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete the examination: <span className="font-bold">{deletingExamination?.name}</span>.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteExamination}>Continue</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
