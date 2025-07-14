@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -409,392 +409,394 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 </Card>
 
                 <Tabs defaultValue="examination" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="examination">Examination</TabsTrigger>
-                        <TabsTrigger value="treatment">Treatment</TabsTrigger>
-                        <TabsTrigger value="files">Files</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 border-b-0 p-0 h-auto bg-transparent rounded-none">
+                        <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
+                        <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
+                        <TabsTrigger value="files" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Files</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="examination" className="mt-6">
-                        <Tabs defaultValue="examination-details" className="w-full">
-                            <TabsList>
-                                <TabsTrigger value="examination-details">Examination</TabsTrigger>
-                                <TabsTrigger value="dental-chart">Dental Chart</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="examination-details" className="mt-6 space-y-6">
-                                <Dialog open={isExaminationDialogOpen} onOpenChange={(open) => {
-                                    if (!open) {
-                                        clinicalExaminationForm.reset();
-                                    }
-                                    setIsExaminationDialogOpen(open);
-                                }}>
-                                    <DialogTrigger asChild>
-                                        <Button>
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            Add Examination
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="sm:max-w-2xl">
-                                        <DialogHeader>
-                                            <DialogTitle>Add Clinical Examination</DialogTitle>
-                                            <DialogDescription>
-                                                Record the details of the clinical examination for {patient.name}.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <Form {...clinicalExaminationForm}>
-                                            <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
-                                                <FormField
-                                                    control={clinicalExaminationForm.control}
-                                                    name="chiefComplaint"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Chief Complaint</FormLabel>
-                                                            <MultiSelectDropdown
-                                                                options={chiefComplaints}
-                                                                selected={field.value}
-                                                                onChange={field.onChange}
-                                                                onCreate={handleNewComplaintSubmit}
-                                                                placeholder="Select complaints..."
-                                                            />
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                                <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
-                                                    <DialogFooter className="pt-4 pr-4">
-                                                    <Button type="button" variant="ghost" onClick={() => setIsExaminationDialogOpen(false)}>Cancel</Button>
-                                                    <Button type="submit" disabled={isSubmitting}>
-                                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                        Save
-                                                    </Button>
-                                                </DialogFooter>
-                                            </form>
-                                        </Form>
-                                    </DialogContent>
-                                </Dialog>
+                    <div className="border-t -mt-px">
+                        <TabsContent value="examination" className="mt-6">
+                            <Tabs defaultValue="examination-details" className="w-full">
+                                <TabsList>
+                                    <TabsTrigger value="examination-details">Examination</TabsTrigger>
+                                    <TabsTrigger value="dental-chart">Dental Chart</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="examination-details" className="mt-6 space-y-6">
+                                    <Dialog open={isExaminationDialogOpen} onOpenChange={(open) => {
+                                        if (!open) {
+                                            clinicalExaminationForm.reset();
+                                        }
+                                        setIsExaminationDialogOpen(open);
+                                    }}>
+                                        <DialogTrigger asChild>
+                                            <Button>
+                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                                Add Examination
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="sm:max-w-2xl">
+                                            <DialogHeader>
+                                                <DialogTitle>Add Clinical Examination</DialogTitle>
+                                                <DialogDescription>
+                                                    Record the details of the clinical examination for {patient.name}.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <Form {...clinicalExaminationForm}>
+                                                <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+                                                    <FormField
+                                                        control={clinicalExaminationForm.control}
+                                                        name="chiefComplaint"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Chief Complaint</FormLabel>
+                                                                <MultiSelectDropdown
+                                                                    options={chiefComplaints}
+                                                                    selected={field.value}
+                                                                    onChange={field.onChange}
+                                                                    onCreate={handleNewComplaintSubmit}
+                                                                    placeholder="Select complaints..."
+                                                                />
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                    <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                    <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
+                                                        <DialogFooter className="pt-4 pr-4">
+                                                        <Button type="button" variant="ghost" onClick={() => setIsExaminationDialogOpen(false)}>Cancel</Button>
+                                                        <Button type="submit" disabled={isSubmitting}>
+                                                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                            Save
+                                                        </Button>
+                                                    </DialogFooter>
+                                                </form>
+                                            </Form>
+                                        </DialogContent>
+                                    </Dialog>
 
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <History className="h-5 w-5" />
-                                            Examination History
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        {patient.clinicalExaminations && patient.clinicalExaminations.length > 0 ? (
-                                            <div className="space-y-4">
-                                                {patient.clinicalExaminations.map((exam) => (
-                                                    <div key={exam.id} className="p-4 border rounded-md bg-card shadow-sm">
-                                                        <div className="flex justify-between items-start gap-4">
-                                                            <div>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {exam.chiefComplaint.map(complaint => <Badge key={complaint}>{complaint}</Badge>)}
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <History className="h-5 w-5" />
+                                                Examination History
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {patient.clinicalExaminations && patient.clinicalExaminations.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {patient.clinicalExaminations.map((exam) => (
+                                                        <div key={exam.id} className="p-4 border rounded-md bg-card shadow-sm">
+                                                            <div className="flex justify-between items-start gap-4">
+                                                                <div>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {exam.chiefComplaint.map(complaint => <Badge key={complaint}>{complaint}</Badge>)}
+                                                                    </div>
+                                                                    <p className="text-sm text-muted-foreground mt-2">{format(new Date(exam.date), 'PPP')}</p>
                                                                 </div>
-                                                                <p className="text-sm text-muted-foreground mt-2">{format(new Date(exam.date), 'PPP')}</p>
+                                                                <Button variant="ghost" size="icon" onClick={() => setExaminationToDelete(exam)}>
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
                                                             </div>
-                                                            <Button variant="ghost" size="icon" onClick={() => setExaminationToDelete(exam)}>
-                                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                                            </Button>
+                                                            <div className="mt-4 space-y-4">
+                                                                {exam.medicalHistory && <div><Label className="font-semibold">Medical History</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.medicalHistory}</p></div>}
+                                                                {exam.dentalHistory && <div><Label className="font-semibold">Dental History</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.dentalHistory}</p></div>}
+                                                                {exam.observationNotes && <div><Label className="font-semibold">Observation Notes</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.observationNotes}</p></div>}
+                                                            </div>
                                                         </div>
-                                                        <div className="mt-4 space-y-4">
-                                                            {exam.medicalHistory && <div><Label className="font-semibold">Medical History</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.medicalHistory}</p></div>}
-                                                            {exam.dentalHistory && <div><Label className="font-semibold">Dental History</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.dentalHistory}</p></div>}
-                                                            {exam.observationNotes && <div><Label className="font-semibold">Observation Notes</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.observationNotes}</p></div>}
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground text-center py-4">No examination records for this patient.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                                <TabsContent value="dental-chart" className="mt-6">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <Heart className="h-5 w-5" />
+                                                Dental Chart
+                                            </CardTitle>
+                                            <CardDescription>Click on a tooth to assign a treatment.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                            </Tabs>
+                        </TabsContent>
+                        <TabsContent value="treatment" className="mt-6 space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Heart className="h-5 w-5" />
+                                        Treatment Plan
+                                    </CardTitle>
+                                    <CardDescription>A list of all treatments assigned to this patient.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
+                                        <ul className="space-y-2">
+                                            {patient.assignedTreatments.map((t, index) => (
+                                                <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
+                                                    <div className="flex items-center gap-3 flex-1">
+                                                            {t.tooth && (
+                                                            <div
+                                                                className="h-3 w-3 rounded-full shrink-0"
+                                                                style={{ backgroundColor: COLOR_PALETTE[treatedTeeth.indexOf(t.tooth) % COLOR_PALETTE.length] }}
+                                                            />
+                                                        )}
+                                                        <div>
+                                                            <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
+                                                            <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground text-center py-4">No examination records for this patient.</p>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                             <TabsContent value="dental-chart" className="mt-6">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Heart className="h-5 w-5" />
-                                            Dental Chart
-                                        </CardTitle>
-                                        <CardDescription>Click on a tooth to assign a treatment.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                        </Tabs>
-                    </TabsContent>
-                    <TabsContent value="treatment" className="mt-6 space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Heart className="h-5 w-5" />
-                                    Treatment Plan
-                                </CardTitle>
-                                <CardDescription>A list of all treatments assigned to this patient.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
-                                    <ul className="space-y-2">
-                                        {patient.assignedTreatments.map((t, index) => (
-                                            <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                        {t.tooth && (
-                                                        <div
-                                                            className="h-3 w-3 rounded-full shrink-0"
-                                                            style={{ backgroundColor: COLOR_PALETTE[treatedTeeth.indexOf(t.tooth) % COLOR_PALETTE.length] }}
-                                                        />
-                                                    )}
-                                                    <div>
-                                                        <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
-                                                        <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <span className="font-semibold text-primary">Rs. {(t.amount || 0).toFixed(2)}</span>
-                                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                        <span className="sr-only">Remove treatment</span>
-                                                    </Button>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground text-center py-4">No treatments assigned yet.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <ScrollText className="h-5 w-5" />
-                                    <CardTitle>Prescriptions</CardTitle>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={() => setIsPrescriptionDialogOpen(true)}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Add Prescription
-                                </Button>
-                            </CardHeader>
-                            <CardContent>
-                                {patient.prescriptions && patient.prescriptions.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {patient.prescriptions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p) => (
-                                            <div key={p.id} className="p-3 border rounded-md bg-card shadow-sm">
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <p className="font-semibold text-sm">
-                                                        {format(new Date(p.date), 'PPP')}
-                                                    </p>
-                                                </div>
-                                                <div className="mt-2 pt-2 border-t">
-                                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground text-center py-4">No prescriptions found for this patient.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                        
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <CreditCard className="h-5 w-5" />
-                                    Billing Summary
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div>
-                                    <h4 className="font-semibold mb-2 text-base">Itemized Bill</h4>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Treatment</TableHead>
-                                                <TableHead>Tooth #</TableHead>
-                                                <TableHead>Date Added</TableHead>
-                                                <TableHead className="text-right">Amount</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
-                                                patient.assignedTreatments.map(treatment => (
-                                                    <TableRow key={treatment.dateAdded}>
-                                                        <TableCell className="font-medium">{treatment.name}</TableCell>
-                                                        <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                                        <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                                        <TableCell className="text-right">Rs. {(treatment.amount || 0).toFixed(2)}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={4} className="text-center h-24">No treatments assigned.</TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                                <Separator className="my-4" />
-                                <div className="space-y-2 text-right font-medium">
-                                    <div className="flex justify-end items-center text-md">
-                                        <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
-                                        <span>Rs. {totalAmount.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-end items-center text-md">
-                                        <span className="text-muted-foreground mr-4">Total Discount:</span>
-                                        <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-end items-center text-md">
-                                        <span className="text-muted-foreground mr-4">Total Paid:</span>
-                                        <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
-                                    </div>
-                                    <Separator className="my-2" />
-                                    <div className="flex justify-end items-center text-lg font-bold">
-                                        <span className="text-muted-foreground mr-4">Balance Due:</span>
-                                        {balanceDue <= 0 && totalAmount > 0 ? (
-                                            <span className="text-green-600">Fully Paid</span>
-                                        ) : (
-                                            <span>Rs. {balanceDue.toFixed(2)}</span>
-                                        )}
-                                    </div>
-                                </div>
-                                
-                                <Separator className="my-4" />
-                                <div>
-                                    <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Reason</TableHead>
-                                                <TableHead>Date Added</TableHead>
-                                                <TableHead className="text-right">Amount</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {patient.discounts && patient.discounts.length > 0 ? (
-                                                patient.discounts.map(discount => (
-                                                    <TableRow key={discount.dateAdded}>
-                                                        <TableCell className="font-medium">{discount.reason}</TableCell>
-                                                        <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
-                                                        <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={3} className="text-center h-24">No discounts applied.</TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-
-                                <Separator />
-                                
-                                <div>
-                                    <h4 className="font-semibold mb-2 text-base">Payment History</h4>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead>Method</TableHead>
-                                                <TableHead className="text-right">Amount</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {patient.payments && patient.payments.length > 0 ? (
-                                                patient.payments.map(payment => (
-                                                    <TableRow key={payment.dateAdded}>
-                                                        <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                                                        <TableCell>{payment.method}</TableCell>
-                                                        <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={3} className="text-center h-24">No payments recorded yet.</TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <CalendarIcon className="h-5 w-5" />
-                                    <CardTitle>Appointment History</CardTitle>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={handleNewAppointmentClick}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    New Appointment
-                                </Button>
-                            </CardHeader>
-                            <CardContent>
-                                {appointments && appointments.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {appointments.map((appt) => (
-                                            <div key={appt.id} className="p-3 border rounded-md bg-card shadow-sm">
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <p className="font-semibold">{appt.procedure}</p>
-                                                            {appt.status === 'Completed' ? (
-                                                                <Badge variant="secondary">Completed</Badge>
-                                                            ) : (
-                                                                <Badge variant="outline">Scheduled</Badge>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <p className="text-sm font-medium text-muted-foreground shrink-0 pr-2">{formatTime12h(appt.time)}</p>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditAppointmentClick(appt)}>
-                                                            <Edit className="h-4 w-4" />
-                                                            <span className="sr-only">Edit appointment</span>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="font-semibold text-primary">Rs. {(t.amount || 0).toFixed(2)}</span>
+                                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                                            <span className="sr-only">Remove treatment</span>
                                                         </Button>
                                                     </div>
-                                                </div>
-                                                {appt.description && (
-                                                    <div className="mt-3 pt-3 border-t">
-                                                        <p className="text-sm font-semibold mb-1">Notes / Prescription:</p>
-                                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{appt.description}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No treatments assigned yet.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <ScrollText className="h-5 w-5" />
+                                        <CardTitle>Prescriptions</CardTitle>
                                     </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground text-center py-4">No appointment history found.</p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="files" className="mt-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Patient Files</CardTitle>
-                                <CardDescription>Manage patient documents, X-rays, and other files.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex h-48 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-8 text-center">
-                                    <Upload className="h-8 w-8 text-muted-foreground" />
-                                    <p className="mt-4 text-muted-foreground">
-                                        File management is coming soon.
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">You will be able to upload and view documents here.</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
+                                    <Button variant="outline" size="sm" onClick={() => setIsPrescriptionDialogOpen(true)}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Add Prescription
+                                    </Button>
+                                </CardHeader>
+                                <CardContent>
+                                    {patient.prescriptions && patient.prescriptions.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {patient.prescriptions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p) => (
+                                                <div key={p.id} className="p-3 border rounded-md bg-card shadow-sm">
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <p className="font-semibold text-sm">
+                                                            {format(new Date(p.date), 'PPP')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="mt-2 pt-2 border-t">
+                                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{p.notes}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No prescriptions found for this patient.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                            
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <CreditCard className="h-5 w-5" />
+                                        Billing Summary
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div>
+                                        <h4 className="font-semibold mb-2 text-base">Itemized Bill</h4>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Treatment</TableHead>
+                                                    <TableHead>Tooth #</TableHead>
+                                                    <TableHead>Date Added</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
+                                                    patient.assignedTreatments.map(treatment => (
+                                                        <TableRow key={treatment.dateAdded}>
+                                                            <TableCell className="font-medium">{treatment.name}</TableCell>
+                                                            <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                                            <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
+                                                            <TableCell className="text-right">Rs. {(treatment.amount || 0).toFixed(2)}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={4} className="text-center h-24">No treatments assigned.</TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                    <Separator className="my-4" />
+                                    <div className="space-y-2 text-right font-medium">
+                                        <div className="flex justify-end items-center text-md">
+                                            <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                                            <span>Rs. {totalAmount.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-end items-center text-md">
+                                            <span className="text-muted-foreground mr-4">Total Discount:</span>
+                                            <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-end items-center text-md">
+                                            <span className="text-muted-foreground mr-4">Total Paid:</span>
+                                            <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
+                                        </div>
+                                        <Separator className="my-2" />
+                                        <div className="flex justify-end items-center text-lg font-bold">
+                                            <span className="text-muted-foreground mr-4">Balance Due:</span>
+                                            {balanceDue <= 0 && totalAmount > 0 ? (
+                                                <span className="text-green-600">Fully Paid</span>
+                                            ) : (
+                                                <span>Rs. {balanceDue.toFixed(2)}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    <Separator className="my-4" />
+                                    <div>
+                                        <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Reason</TableHead>
+                                                    <TableHead>Date Added</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {patient.discounts && patient.discounts.length > 0 ? (
+                                                    patient.discounts.map(discount => (
+                                                        <TableRow key={discount.dateAdded}>
+                                                            <TableCell className="font-medium">{discount.reason}</TableCell>
+                                                            <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
+                                                            <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={3} className="text-center h-24">No discounts applied.</TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+
+                                    <Separator />
+                                    
+                                    <div>
+                                        <h4 className="font-semibold mb-2 text-base">Payment History</h4>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Date</TableHead>
+                                                    <TableHead>Method</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {patient.payments && patient.payments.length > 0 ? (
+                                                    patient.payments.map(payment => (
+                                                        <TableRow key={payment.dateAdded}>
+                                                            <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                                                            <TableCell>{payment.method}</TableCell>
+                                                            <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={3} className="text-center h-24">No payments recorded yet.</TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <CalendarIcon className="h-5 w-5" />
+                                        <CardTitle>Appointment History</CardTitle>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={handleNewAppointmentClick}>
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        New Appointment
+                                    </Button>
+                                </CardHeader>
+                                <CardContent>
+                                    {appointments && appointments.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {appointments.map((appt) => (
+                                                <div key={appt.id} className="p-3 border rounded-md bg-card shadow-sm">
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-semibold">{appt.procedure}</p>
+                                                                {appt.status === 'Completed' ? (
+                                                                    <Badge variant="secondary">Completed</Badge>
+                                                                ) : (
+                                                                    <Badge variant="outline">Scheduled</Badge>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {new Date(appt.date).toLocaleDateString()} with {appt.doctor}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-center">
+                                                            <p className="text-sm font-medium text-muted-foreground shrink-0 pr-2">{formatTime12h(appt.time)}</p>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditAppointmentClick(appt)}>
+                                                                <Edit className="h-4 w-4" />
+                                                                <span className="sr-only">Edit appointment</span>
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                    {appt.description && (
+                                                        <div className="mt-3 pt-3 border-t">
+                                                            <p className="text-sm font-semibold mb-1">Notes / Prescription:</p>
+                                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{appt.description}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground text-center py-4">No appointment history found.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                        <TabsContent value="files" className="mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Patient Files</CardTitle>
+                                    <CardDescription>Manage patient documents, X-rays, and other files.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex h-48 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 p-8 text-center">
+                                        <Upload className="h-8 w-8 text-muted-foreground" />
+                                        <p className="mt-4 text-muted-foreground">
+                                            File management is coming soon.
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">You will be able to upload and view documents here.</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </div>
                 </Tabs>
             </div>
              <Dialog open={isAppointmentDialogOpen} onOpenChange={setIsAppointmentDialogOpen}>
@@ -1010,7 +1012,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
             <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]" align="start" onCloseAutoFocus={(e) => e.preventDefault()}>
                 <div className="p-2">
                     <div className="flex items-center border-b px-2">
-                        <ClipboardPlus className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                         <Input 
                             placeholder="Search or add complaint..."
                             value={searchQuery}
