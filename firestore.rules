@@ -2,44 +2,36 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Allow users to read and write their own data.
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Helper function to check for authentication
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Allow authenticated users to read and write to these collections.
-    // The {document=**} allows for deep wildcard matching for any document in the collection.
+    // Rules for each collection
     match /patients/{document=**} {
-      allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
-
     match /appointments/{document=**} {
-      allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
-
     match /treatments/{document=**} {
-      allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
-
-    match /counters/{document=**} {
-        allow read, list, write: if request.auth != null;
-    }
-    
     match /expenses/{document=**} {
-        allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
-    
+    match /counters/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
     match /stock/{document=**} {
-        allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
-    
     match /chiefComplaints/{document=**} {
-        allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
-
     match /dentalExaminations/{document=**} {
-        allow read, list, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
   }
 }
