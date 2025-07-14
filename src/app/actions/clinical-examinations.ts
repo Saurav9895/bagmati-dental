@@ -21,7 +21,6 @@ export async function addClinicalExaminationToPatient(
       const newExamination: ClinicalExamination = {
         id: crypto.randomUUID(),
         ...examinationData,
-        chiefComplaint: examinationData.chiefComplaint || [], // Ensure it's an array
       };
 
       const currentExaminations = patientData.clinicalExaminations || [];

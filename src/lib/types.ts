@@ -3,7 +3,7 @@
 export type ClinicalExamination = {
   id: string;
   date: string;
-  chiefComplaint: string[];
+  chiefComplaint: string;
   medicalHistory?: string;
   dentalHistory?: string;
   observationNotes?: string;

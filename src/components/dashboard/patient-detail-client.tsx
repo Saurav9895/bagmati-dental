@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Label } from '@/components/ui/label';
 import { addChiefComplaint } from '@/app/actions/examinations';
+import { Search } from 'lucide-react';
+
 
 const appointmentSchema = z.object({
     procedure: z.string().min(2, "Procedure must be at least 2 characters."),
@@ -54,7 +56,7 @@ const newComplaintSchema = z.object({
 type NewComplaintFormValues = z.infer<typeof newComplaintSchema>;
 
 const clinicalExaminationSchema = z.object({
-    chiefComplaint: z.array(z.string()).min(1, { message: 'At least one chief complaint is required.' }),
+    chiefComplaint: z.string().min(1, { message: 'A chief complaint is required.' }),
     medicalHistory: z.string().optional(),
     dentalHistory: z.string().optional(),
     observationNotes: z.string().optional(),
@@ -128,7 +130,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const clinicalExaminationForm = useForm<ClinicalExaminationFormValues>({
         resolver: zodResolver(clinicalExaminationSchema),
         defaultValues: {
-            chiefComplaint: [],
+            chiefComplaint: '',
             medicalHistory: '',
             dentalHistory: '',
             observationNotes: '',
@@ -144,7 +146,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
             toast({ title: 'Examination record saved successfully!' });
             setIsExaminationDialogOpen(false);
-            clinicalExaminationForm.reset({ chiefComplaint: [], medicalHistory: '', dentalHistory: '', observationNotes: '' });
+            clinicalExaminationForm.reset({ chiefComplaint: '', medicalHistory: '', dentalHistory: '', observationNotes: '' });
         } else {
             toast({ variant: 'destructive', title: 'Failed to save examination', description: result.error });
         }
@@ -434,13 +436,16 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                             name="chiefComplaint"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel>Chief Complaint(s)</FormLabel>
-                                                    <MultiSelectSearchBar
+                                                    <FormLabel>Chief Complaint</FormLabel>
+                                                     <MultiSelectSearchBar
                                                         options={chiefComplaints}
-                                                        selected={field.value}
-                                                        onChange={field.onChange}
+                                                        selected={[field.value]}
+                                                        onChange={(selectedNames) => {
+                                                            field.onChange(selectedNames[0] || '');
+                                                        }}
                                                         onCreate={handleNewComplaintSubmit}
-                                                        placeholder="Select complaints..."
+                                                        placeholder="Select a complaint..."
+                                                        isMulti={false}
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -476,7 +481,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {exam.chiefComplaint.map(c => <Badge key={c}>{c}</Badge>)}
+                                                            <Badge>{exam.chiefComplaint}</Badge>
                                                         </div>
                                                         <p className="text-sm text-muted-foreground mt-2">{format(new Date(exam.date), 'PPP')}</p>
                                                     </div>
@@ -965,12 +970,13 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
 
     const handleSelect = (value: string) => {
         if(isMulti) {
-            onChange([...selected, value]);
+            onChange(selected.includes(value) ? selected.filter((s) => s !== value) : [...selected, value]);
         } else {
             onChange([value]);
         }
         setSearchQuery('');
-        setIsOpen(false);
+        inputRef.current?.focus();
+        if (!isMulti) setIsOpen(false);
     };
     
     const handleRemove = (value: string) => {
@@ -989,7 +995,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
     };
 
     const filteredOptions = options.filter(option =>
-        option.name.toLowerCase().includes(searchQuery.toLowerCase()) && !selected.includes(option.name)
+        option.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const showCreateOption = onCreate && searchQuery && !options.some(o => o.name.toLowerCase() === searchQuery.toLowerCase());
@@ -997,7 +1003,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <div className={cn("space-y-2", className)}>
-                {selected.length > 0 && isMulti && (
+                 {isMulti && selected.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                         {selected.map(value => (
                             <Badge key={value} variant="secondary" className="gap-1">
@@ -1005,6 +1011,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                 <button
                                     type="button"
                                     className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onMouseDown={(e) => e.preventDefault()}
                                     onClick={() => handleRemove(value)}
                                 >
                                     <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
@@ -1014,12 +1021,15 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                     </div>
                 )}
                 <PopoverTrigger asChild>
-                    <Button
+                     <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={isOpen}
                         className="w-full justify-between font-normal"
-                        onClick={() => setIsOpen(!isOpen)}
+                        onMouseDown={(e) => {
+                           e.preventDefault();
+                           setIsOpen(!isOpen);
+                        }}
                     >
                         {selected.length > 0 && !isMulti ? selected[0] : placeholder}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1028,18 +1038,18 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                     <Command>
                         <div className="flex items-center border-b px-3">
-                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                             <CommandInput
                                 ref={inputRef}
-                                placeholder={placeholder}
+                                placeholder="Search complaints..."
                                 value={searchQuery}
                                 onValueChange={setSearchQuery}
-                                className="border-0"
+                                className="border-0 h-9"
                              />
                         </div>
                         <CommandList>
                             <CommandEmpty>
-                                {showCreateOption ? 'No results found.' : ''}
+                                No results found.
                             </CommandEmpty>
                             <CommandGroup>
                                 {filteredOptions.map((option) => (
@@ -1047,18 +1057,17 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                         key={option.id}
                                         value={option.name}
                                         onSelect={() => handleSelect(option.name)}
-                                        onMouseDown={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                        }}
+                                        onMouseDown={(e) => e.preventDefault()}
                                         className="cursor-pointer"
                                     >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                selected.includes(option.name) ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
+                                        {isMulti && (
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    selected.includes(option.name) ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                        )}
                                         {option.name}
                                     </CommandItem>
                                 ))}
@@ -1069,11 +1078,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                     <CommandGroup>
                                         <CommandItem
                                             onSelect={handleCreateNew}
-                                            onMouseDown={(e) => {
-                                              e.preventDefault();
-                                              e.stopPropagation();
-                                              handleCreateNew();
-                                            }}
+                                            onMouseDown={(e) => e.preventDefault()}
                                             className="cursor-pointer"
                                             disabled={isCreating}
                                         >
