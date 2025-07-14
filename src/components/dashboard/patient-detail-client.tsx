@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus, History } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus, History, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -55,7 +55,7 @@ const newComplaintSchema = z.object({
 type NewComplaintFormValues = z.infer<typeof newComplaintSchema>;
 
 const clinicalExaminationSchema = z.object({
-    chiefComplaint: z.string().min(1, { message: 'Chief complaint is required.' }),
+    chiefComplaint: z.array(z.string()).min(1, { message: 'At least one chief complaint is required.' }),
     medicalHistory: z.string().optional(),
     dentalHistory: z.string().optional(),
     observationNotes: z.string().optional(),
@@ -131,7 +131,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const clinicalExaminationForm = useForm<ClinicalExaminationFormValues>({
         resolver: zodResolver(clinicalExaminationSchema),
         defaultValues: {
-            chiefComplaint: '',
+            chiefComplaint: [],
             medicalHistory: '',
             dentalHistory: '',
             observationNotes: '',
@@ -358,7 +358,10 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         if (result.success && result.data) {
             const newComplaint = result.data;
             setChiefComplaints(prev => [...prev, newComplaint].sort((a, b) => a.name.localeCompare(b.name)));
-            clinicalExaminationForm.setValue('chiefComplaint', newComplaint.name);
+            
+            const currentComplaints = clinicalExaminationForm.getValues('chiefComplaint');
+            clinicalExaminationForm.setValue('chiefComplaint', [...currentComplaints, newComplaint.name]);
+            
             toast({ title: 'New complaint added!' });
             setIsNewComplaintDialogOpen(false);
             newComplaintForm.reset();
@@ -448,35 +451,66 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                     name="chiefComplaint"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>Chief Complaint</FormLabel>
-                                                            <Select
-                                                                onValueChange={(value) => {
-                                                                    if (value === 'add_new') {
-                                                                        setIsNewComplaintDialogOpen(true);
-                                                                    } else {
-                                                                        field.onChange(value);
-                                                                    }
-                                                                }}
-                                                                value={field.value}
-                                                            >
-                                                                <FormControl>
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="Select a complaint" />
-                                                                    </SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="add_new" className="font-medium text-primary">
-                                                                        <PlusCircle className="inline-block mr-2 h-4 w-4" />
-                                                                        Add new complaint...
-                                                                    </SelectItem>
-                                                                    <Separator />
-                                                                    {chiefComplaints.map((complaint) => (
-                                                                        <SelectItem key={complaint.id} value={complaint.name}>
-                                                                            {complaint.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                            <FormLabel>Chief Complaint(s)</FormLabel>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <FormControl>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            role="combobox"
+                                                                            className={cn("w-full justify-between h-auto", !field.value.length && "text-muted-foreground")}
+                                                                        >
+                                                                            <div className="flex gap-1 flex-wrap">
+                                                                                {field.value.length > 0 ? (
+                                                                                    field.value.map((complaint) => (
+                                                                                        <Badge variant="secondary" key={complaint} className="mr-1 mb-1">
+                                                                                            {complaint}
+                                                                                        </Badge>
+                                                                                    ))
+                                                                                ) : (
+                                                                                    "Select complaints"
+                                                                                )}
+                                                                            </div>
+                                                                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                                        </Button>
+                                                                    </FormControl>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                                    <Command>
+                                                                        <CommandInput placeholder="Search complaints..." />
+                                                                        <CommandList>
+                                                                            <CommandEmpty>No results found.</CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                <CommandItem
+                                                                                    onSelect={() => setIsNewComplaintDialogOpen(true)}
+                                                                                    className="cursor-pointer text-primary"
+                                                                                >
+                                                                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                                                                    Add new complaint
+                                                                                </CommandItem>
+                                                                                <Separator className="my-1"/>
+                                                                                {chiefComplaints.map((complaint) => (
+                                                                                    <CommandItem
+                                                                                        key={complaint.id}
+                                                                                        onSelect={() => {
+                                                                                            const current = field.value;
+                                                                                            const next = current.includes(complaint.name)
+                                                                                                ? current.filter(c => c !== complaint.name)
+                                                                                                : [...current, complaint.name];
+                                                                                            field.onChange(next);
+                                                                                        }}
+                                                                                    >
+                                                                                        <Check
+                                                                                            className={cn("mr-2 h-4 w-4", field.value.includes(complaint.name) ? "opacity-100" : "opacity-0")}
+                                                                                        />
+                                                                                        {complaint.name}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -512,8 +546,10 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                             <div key={exam.id} className="p-4 border rounded-md bg-card shadow-sm">
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div>
-                                                        <p className="font-semibold text-lg">{exam.chiefComplaint}</p>
-                                                        <p className="text-sm text-muted-foreground">{format(new Date(exam.date), 'PPP')}</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {exam.chiefComplaint.map(c => <Badge key={c}>{c}</Badge>)}
+                                                        </div>
+                                                        <p className="text-sm text-muted-foreground mt-2">{format(new Date(exam.date), 'PPP')}</p>
                                                     </div>
                                                     <Button variant="ghost" size="icon" onClick={() => setExaminationToDelete(exam)}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
