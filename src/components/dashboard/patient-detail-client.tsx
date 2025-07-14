@@ -152,7 +152,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
             toast({ title: 'Examination record saved successfully!' });
             setIsExaminationFormVisible(false);
-            clinicalExaminationForm.reset();
+            clinicalExaminationForm.reset({ chiefComplaint: [], medicalHistory: '', dentalHistory: '', observationNotes: '' });
         } else {
             toast({ variant: 'destructive', title: 'Failed to save examination', description: result.error });
         }
@@ -353,9 +353,8 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
 
-    const handleNewComplaintSubmit = async () => {
-        const data = newComplaintForm.getValues();
-        const result = await addChiefComplaint({ name: data.name.trim() });
+    const handleNewComplaintSubmit = async (complaintName: string) => {
+        const result = await addChiefComplaint({ name: complaintName });
         if (result.success && result.data) {
             const newComplaint = result.data;
             setChiefComplaints(prev => [...prev, newComplaint].sort((a, b) => a.name.localeCompare(b.name)));
@@ -364,10 +363,10 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             clinicalExaminationForm.setValue('chiefComplaint', [...currentComplaints, newComplaint.name]);
             
             toast({ title: 'New complaint added!' });
-            setIsNewComplaintDialogOpen(false);
-            newComplaintForm.reset();
+            return newComplaint;
         } else {
             toast({ variant: 'destructive', title: 'Failed to add complaint', description: result.error });
+            return null;
         }
     };
 
@@ -447,12 +446,28 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                     {isExaminationFormVisible && (
                                         <Form {...clinicalExaminationForm}>
                                             <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4">
-                                                
+                                                <FormField
+                                                    control={clinicalExaminationForm.control}
+                                                    name="chiefComplaint"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Chief Complaint(s)</FormLabel>
+                                                            <MultiSelect
+                                                                options={chiefComplaints}
+                                                                selected={field.value}
+                                                                onChange={field.onChange}
+                                                                onCreate={handleNewComplaintSubmit}
+                                                                placeholder="Select complaints..."
+                                                            />
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                                 <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
                                                 <div className="flex justify-end gap-2">
-                                                    <Button type="button" variant="ghost" onClick={() => setIsExaminationFormVisible(false)}>Cancel</Button>
+                                                    <Button type="button" variant="ghost" onClick={() => { setIsExaminationFormVisible(false); clinicalExaminationForm.reset({ chiefComplaint: [], medicalHistory: '', dentalHistory: '', observationNotes: '' }); }}>Cancel</Button>
                                                     <Button type="submit" disabled={isSubmitting}>
                                                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                                         Save
@@ -906,40 +921,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     </Form>
                 </DialogContent>
             </Dialog>
-            <Dialog open={isNewComplaintDialogOpen} onOpenChange={setIsNewComplaintDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add New Chief Complaint</DialogTitle>
-                        <DialogDescription>
-                            Create a new complaint that can be reused for other patients.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <Form {...newComplaintForm}>
-                        <form onSubmit={(e) => { e.preventDefault(); handleNewComplaintSubmit(); }} className="space-y-4 py-4">
-                             <FormField
-                                control={newComplaintForm.control}
-                                name="name"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Complaint Name</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="e.g., Bleeding Gums" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <DialogFooter>
-                                <Button type="button" variant="ghost" onClick={() => setIsNewComplaintDialogOpen(false)}>Cancel</Button>
-                                <Button type="submit" disabled={newComplaintForm.formState.isSubmitting}>
-                                    {newComplaintForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Complaint
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </Form>
-                </DialogContent>
-            </Dialog>
             <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -976,5 +957,126 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 </AlertDialogContent>
             </AlertDialog>
         </>
+    );
+}
+
+// Reusable MultiSelect component
+type MultiSelectProps = {
+    options: { id: string, name: string }[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+    onCreate: (name: string) => Promise<ChiefComplaint | null>;
+    placeholder?: string;
+    className?: string;
+};
+
+function MultiSelect({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectProps) {
+    const [open, setOpen] = React.useState(false);
+    const [query, setQuery] = React.useState('');
+    const [isCreating, setIsCreating] = React.useState(false);
+
+    const handleSelect = (value: string) => {
+        const newSelected = selected.includes(value)
+            ? selected.filter((item) => item !== value)
+            : [...selected, value];
+        onChange(newSelected);
+    };
+    
+    const handleCreate = async () => {
+        if (query.trim() === '' || options.some(opt => opt.name.toLowerCase() === query.trim().toLowerCase())) return;
+        setIsCreating(true);
+        const newOption = await onCreate(query.trim());
+        if (newOption) {
+            setQuery('');
+        }
+        setIsCreating(false);
+    };
+
+    const filteredOptions = query === ''
+        ? options
+        : options.filter(option =>
+            option.name.toLowerCase().includes(query.toLowerCase())
+        );
+        
+    const showCreateOption = query !== '' && !filteredOptions.some(opt => opt.name.toLowerCase() === query.toLowerCase());
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className={cn("w-full justify-between h-auto min-h-10", className)}
+                >
+                    <div className="flex gap-1 flex-wrap">
+                        {selected.length > 0 ? (
+                            selected.map(value => (
+                                <Badge
+                                    variant="secondary"
+                                    key={value}
+                                    className="mr-1 mb-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSelect(value);
+                                    }}
+                                >
+                                    {value}
+                                    <X className="ml-1 h-3 w-3" />
+                                </Badge>
+                            ))
+                        ) : (
+                            <span className="text-muted-foreground">{placeholder}</span>
+                        )}
+                    </div>
+                    <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <Command shouldFilter={false}>
+                    <CommandInput 
+                        placeholder="Search or add complaint..."
+                        value={query}
+                        onValueChange={setQuery}
+                    />
+                    <CommandList>
+                        <CommandEmpty>No results found.</CommandEmpty>
+                        <CommandGroup>
+                            {filteredOptions.map((option) => (
+                                <CommandItem
+                                    key={option.id}
+                                    value={option.name}
+                                    onSelect={() => {
+                                        handleSelect(option.name);
+                                    }}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            selected.includes(option.name) ? "opacity-100" : "opacity-0"
+                                        )}
+                                    />
+                                    {option.name}
+                                </CommandItem>
+                            ))}
+                            {showCreateOption && (
+                                <CommandItem
+                                    onSelect={handleCreate}
+                                    disabled={isCreating}
+                                    className="text-primary focus:text-primary"
+                                >
+                                    {isCreating ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                    )}
+                                    Add "{query}"
+                                </CommandItem>
+                            )}
+                        </CommandGroup>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
     );
 }
