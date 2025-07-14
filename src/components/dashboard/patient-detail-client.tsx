@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -32,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Label } from '@/components/ui/label';
 import { addChiefComplaint } from '@/app/actions/examinations';
-import { Search } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 
 const appointmentSchema = z.object({
@@ -56,7 +56,7 @@ const newComplaintSchema = z.object({
 type NewComplaintFormValues = z.infer<typeof newComplaintSchema>;
 
 const clinicalExaminationSchema = z.object({
-    chiefComplaint: z.string().min(1, { message: 'A chief complaint is required.' }),
+    chiefComplaint: z.array(z.string()).min(1, { message: 'At least one chief complaint is required.' }),
     medicalHistory: z.string().optional(),
     dentalHistory: z.string().optional(),
     observationNotes: z.string().optional(),
@@ -130,7 +130,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const clinicalExaminationForm = useForm<ClinicalExaminationFormValues>({
         resolver: zodResolver(clinicalExaminationSchema),
         defaultValues: {
-            chiefComplaint: '',
+            chiefComplaint: [],
             medicalHistory: '',
             dentalHistory: '',
             observationNotes: '',
@@ -146,7 +146,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
             toast({ title: 'Examination record saved successfully!' });
             setIsExaminationDialogOpen(false);
-            clinicalExaminationForm.reset({ chiefComplaint: '', medicalHistory: '', dentalHistory: '', observationNotes: '' });
+            clinicalExaminationForm.reset({ chiefComplaint: [], medicalHistory: '', dentalHistory: '', observationNotes: '' });
         } else {
             toast({ variant: 'destructive', title: 'Failed to save examination', description: result.error });
         }
@@ -415,7 +415,12 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         <TabsTrigger value="files">Files</TabsTrigger>
                     </TabsList>
                     <TabsContent value="examination" className="mt-6 space-y-6">
-                         <Dialog open={isExaminationDialogOpen} onOpenChange={setIsExaminationDialogOpen}>
+                         <Dialog open={isExaminationDialogOpen} onOpenChange={(open) => {
+                            if (!open) {
+                                clinicalExaminationForm.reset();
+                            }
+                            setIsExaminationDialogOpen(open);
+                         }}>
                             <DialogTrigger asChild>
                                  <Button>
                                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -437,15 +442,12 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel>Chief Complaint</FormLabel>
-                                                     <MultiSelectSearchBar
+                                                    <MultiSelectDropdown
                                                         options={chiefComplaints}
-                                                        selected={[field.value]}
-                                                        onChange={(selectedNames) => {
-                                                            field.onChange(selectedNames[0] || '');
-                                                        }}
+                                                        selected={field.value}
+                                                        onChange={field.onChange}
                                                         onCreate={handleNewComplaintSubmit}
-                                                        placeholder="Select a complaint..."
-                                                        isMulti={false}
+                                                        placeholder="Select complaints..."
                                                     />
                                                     <FormMessage />
                                                 </FormItem>
@@ -481,7 +483,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            <Badge>{exam.chiefComplaint}</Badge>
+                                                            {exam.chiefComplaint.map(complaint => <Badge key={complaint}>{complaint}</Badge>)}
                                                         </div>
                                                         <p className="text-sm text-muted-foreground mt-2">{format(new Date(exam.date), 'PPP')}</p>
                                                     </div>
@@ -952,11 +954,102 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     );
 }
 
-type MultiSelectSearchBarProps = {
+type MultiSelectDropdownProps = {
     options: { id: string, name: string }[];
     selected: string[];
     onChange: (selected: string[]) => void;
     onCreate?: (name: string) => Promise<ChiefComplaint | null>;
+    placeholder?: string;
+    className?: string;
+};
+
+function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectDropdownProps) {
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const [isCreating, setIsCreating] = React.useState(false);
+
+    const handleCreateNew = async () => {
+        if (searchQuery.trim() === '' || isCreating || !onCreate) return;
+        setIsCreating(true);
+        const newComplaint = await onCreate(searchQuery.trim());
+        if (newComplaint) {
+            onChange([...selected, newComplaint.name]);
+        }
+        setIsCreating(false);
+        setSearchQuery('');
+    };
+
+    const filteredOptions = options.filter(option =>
+        option.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const showCreateOption = onCreate && searchQuery && !options.some(o => o.name.toLowerCase() === searchQuery.toLowerCase());
+
+    const selectedValue = React.useMemo(() => {
+        if (selected.length === 0) return placeholder || 'Select...';
+        if (selected.length > 2) return `${selected.length} selected`;
+        return selected.join(', ');
+    }, [selected, placeholder]);
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
+                    <span className="truncate">{selectedValue}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]" align="start" onCloseAutoFocus={(e) => e.preventDefault()}>
+                <div className="p-2">
+                    <div className="flex items-center border-b px-2">
+                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                        <Input 
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="border-0 h-9 focus-visible:ring-0 shadow-none px-0"
+                        />
+                    </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                    {showCreateOption && (
+                         <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={handleCreateNew} disabled={isCreating}>
+                                {isCreating ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Create "{searchQuery}"
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                        </>
+                    )}
+                    {filteredOptions.length > 0 ? filteredOptions.map(option => (
+                        <DropdownMenuCheckboxItem
+                            key={option.id}
+                            checked={selected.includes(option.name)}
+                            onCheckedChange={(checked) => {
+                                const newSelected = checked 
+                                    ? [...selected, option.name]
+                                    : selected.filter(s => s !== option.name);
+                                onChange(newSelected);
+                            }}
+                            onSelect={(e) => e.preventDefault()}
+                        >
+                            {option.name}
+                        </DropdownMenuCheckboxItem>
+                    )) : !showCreateOption && <p className="p-2 text-center text-sm text-muted-foreground">No results found.</p>}
+                </div>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
+
+type MultiSelectSearchBarProps = {
+    options: { id: string, name: string }[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+    onCreate?: (name: string) => Promise<{ id: string, name: string } | null>;
     placeholder?: string;
     className?: string;
     isMulti?: boolean;
@@ -979,10 +1072,6 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
         if (!isMulti) setIsOpen(false);
     };
     
-    const handleRemove = (value: string) => {
-        onChange(selected.filter((s) => s !== value));
-    };
-
     const handleCreateNew = async () => {
         if (searchQuery.trim() === '' || isCreating || !onCreate) return;
         setIsCreating(true);
@@ -1003,8 +1092,8 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <div className={cn("space-y-2", className)}>
-                 {isMulti && selected.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
+                {isMulti && selected.length > 0 && (
+                    <div className="flex flex-wrap gap-1 p-2 border rounded-md min-h-[40px]">
                         {selected.map(value => (
                             <Badge key={value} variant="secondary" className="gap-1">
                                 {value}
@@ -1012,7 +1101,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                     type="button"
                                     className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                     onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => handleRemove(value)}
+                                    onClick={() => onChange(selected.filter((s) => s !== value))}
                                 >
                                     <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                 </button>
@@ -1020,7 +1109,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                         ))}
                     </div>
                 )}
-                <PopoverTrigger asChild>
+                 <PopoverTrigger asChild>
                      <Button
                         variant="outline"
                         role="combobox"
@@ -1037,7 +1126,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                     <Command>
-                        <div className="flex items-center border-b px-3">
+                         <div className="flex items-center border-b px-3">
                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                             <CommandInput
                                 ref={inputRef}
