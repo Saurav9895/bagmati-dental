@@ -405,7 +405,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     };
     
     const handleNewTreatmentSubmit = async (treatmentName: string) => {
-        const result = await addTreatment({ name: treatmentName, amount: 0 });
+        const result = await addTreatment({ name: treatmentName });
         if (result.success && result.data) {
             const newTreatment = result.data;
             setTreatments(prev => [...prev, newTreatment].sort((a, b) => a.name.localeCompare(b.name)));
@@ -1171,6 +1171,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 }
 
     
+
 
 
 
