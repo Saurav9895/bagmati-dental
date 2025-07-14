@@ -353,7 +353,8 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
 
-    const handleNewComplaintSubmit = async (data: NewComplaintFormValues) => {
+    const handleNewComplaintSubmit = async () => {
+        const data = newComplaintForm.getValues();
         const result = await addChiefComplaint({ name: data.name.trim() });
         if (result.success && result.data) {
             const newComplaint = result.data;
@@ -983,7 +984,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         </DialogDescription>
                     </DialogHeader>
                     <Form {...newComplaintForm}>
-                        <form onSubmit={newComplaintForm.handleSubmit(handleNewComplaintSubmit)} className="space-y-4 py-4">
+                        <form onSubmit={(e) => { e.preventDefault(); handleNewComplaintSubmit(); }} className="space-y-4 py-4">
                              <FormField
                                 control={newComplaintForm.control}
                                 name="name"
