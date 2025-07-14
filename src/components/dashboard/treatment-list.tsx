@@ -229,7 +229,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         </CardTitle>
                         <Dialog open={isComplaintFormOpen} onOpenChange={handleComplaintDialogChange}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setEditingComplaint(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
+                                <Button size="sm" onClick={() => setEditingComplaint(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader>
@@ -293,7 +293,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         </CardTitle>
                         <Dialog open={isExaminationFormOpen} onOpenChange={handleExaminationDialogChange}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setEditingExamination(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
+                                <Button size="sm" onClick={() => setEditingExamination(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
                             </DialogTrigger>
                              <DialogContent>
                                 <DialogHeader>
