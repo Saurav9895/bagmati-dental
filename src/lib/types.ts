@@ -2,6 +2,7 @@
 
 
 
+
 export type AssignedTreatment = {
   id: string;
   name: string;
@@ -100,5 +101,6 @@ export type ChiefComplaint = {
 export type DentalExamination = {
   id: string;
   name: string;
+  defaultAmount?: number;
   createdAt?: any;
 };

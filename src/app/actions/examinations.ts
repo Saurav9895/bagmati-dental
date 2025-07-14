@@ -44,10 +44,14 @@ export async function deleteChiefComplaint(id: string): Promise<{ success: boole
 }
 
 // Dental Examinations
-export async function addDentalExamination(data: { name: string }): Promise<{ success: boolean; data?: DentalExamination; error?: string }> {
+export async function addDentalExamination(data: { name: string, defaultAmount?: number }): Promise<{ success: boolean; data?: DentalExamination; error?: string }> {
     try {
-        const docRef = await addDoc(collection(db, "dentalExaminations"), { ...data, createdAt: serverTimestamp() });
-        const newExamination: DentalExamination = { id: docRef.id, ...data };
+        const payload = { ...data, createdAt: serverTimestamp() };
+        if (typeof data.defaultAmount === 'undefined') {
+            (payload as Partial<typeof payload>).defaultAmount = 0;
+        }
+        const docRef = await addDoc(collection(db, "dentalExaminations"), payload);
+        const newExamination: DentalExamination = { id: docRef.id, ...data, defaultAmount: data.defaultAmount || 0 };
         return { success: true, data: newExamination };
     } catch (e) {
         return { success: false, error: (e as Error).message };
@@ -64,7 +68,7 @@ export async function getDentalExaminations(): Promise<DentalExamination[]> {
     });
 }
 
-export async function updateDentalExamination(id: string, data: { name: string }): Promise<{ success: boolean; error?: string }> {
+export async function updateDentalExamination(id: string, data: { name: string, defaultAmount?: number }): Promise<{ success: boolean; error?: string }> {
     try {
         await updateDoc(doc(db, "dentalExaminations", id), data);
         return { success: true };

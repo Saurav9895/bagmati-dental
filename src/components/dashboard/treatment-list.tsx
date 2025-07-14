@@ -31,6 +31,7 @@ type ComplaintFormValues = z.infer<typeof complaintSchema>;
 
 const examinationSchema = z.object({
   name: z.string().min(2, "Examination name must be at least 2 characters."),
+  defaultAmount: z.coerce.number().min(0, "Price must be a positive number.").optional(),
 });
 type ExaminationFormValues = z.infer<typeof examinationSchema>;
 
@@ -56,7 +57,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
   const [editingComplaint, setEditingComplaint] = React.useState<ChiefComplaint | null>(null);
   const [deletingComplaint, setDeletingComplaint] = React.useState<ChiefComplaint | null>(null);
 
-  const [isExaminationFormOpen, setIsExaminationFormOpen] = React.useState(false);
+  const [isAddingExamination, setIsAddingExamination] = React.useState(false);
   const [editingExamination, setEditingExamination] = React.useState<DentalExamination | null>(null);
   const [deletingExamination, setDeletingExamination] = React.useState<DentalExamination | null>(null);
 
@@ -64,7 +65,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   const treatmentForm = useForm<TreatmentFormValues>({ resolver: zodResolver(treatmentSchema), defaultValues: { name: "" } });
   const complaintForm = useForm<ComplaintFormValues>({ resolver: zodResolver(complaintSchema), defaultValues: { name: "" } });
-  const examinationForm = useForm<ExaminationFormValues>({ resolver: zodResolver(examinationSchema), defaultValues: { name: "" } });
+  const examinationForm = useForm<ExaminationFormValues>({ resolver: zodResolver(examinationSchema), defaultValues: { name: "", defaultAmount: 0 } });
 
   const filteredTreatments = React.useMemo(() => {
     if (!searchQuery) return treatments;
@@ -89,12 +90,12 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
   }, [isComplaintFormOpen, editingComplaint, complaintForm]);
 
   React.useEffect(() => {
-    if (isExaminationFormOpen && editingExamination) {
-      examinationForm.reset({ name: editingExamination.name });
+    if (editingExamination) {
+      examinationForm.reset({ name: editingExamination.name, defaultAmount: editingExamination.defaultAmount || 0 });
     } else {
-      examinationForm.reset({ name: "" });
+      examinationForm.reset({ name: "", defaultAmount: 0 });
     }
-  }, [isExaminationFormOpen, editingExamination, examinationForm]);
+  }, [editingExamination, examinationForm]);
   
   const handleTreatmentDialogChange = (open: boolean) => {
     setIsTreatmentFormOpen(open);
@@ -105,7 +106,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
     if (!open) setEditingComplaint(null);
   }
   const handleExaminationDialogChange = (open: boolean) => {
-    setIsExaminationFormOpen(open);
+    // This is for the edit dialog, not the inline add form
     if (!open) setEditingExamination(null);
   }
 
@@ -164,6 +165,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
         } else {
             toast({ variant: "destructive", title: "Failed to update examination", description: result.error });
         }
+        setEditingExamination(null); // This closes the edit dialog
     } else {
         const result = await addDentalExamination(data);
         if (result.success && result.data) {
@@ -172,8 +174,9 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
         } else {
             toast({ variant: "destructive", title: "Failed to add examination", description: result.error });
         }
+        setIsAddingExamination(false);
+        examinationForm.reset({ name: '', defaultAmount: 0 });
     }
-    handleExaminationDialogChange(false);
   };
 
   const confirmDeleteTreatment = async () => {
@@ -291,39 +294,48 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             <Stethoscope className="h-5 w-5" />
                             Dental Examinations
                         </CardTitle>
-                        <Dialog open={isExaminationFormOpen} onOpenChange={handleExaminationDialogChange}>
-                            <DialogTrigger asChild>
-                                <Button size="sm" onClick={() => setEditingExamination(null)}><PlusCircle className="mr-2 h-4 w-4" /> Add New</Button>
-                            </DialogTrigger>
-                             <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{editingExamination ? 'Edit' : 'Add New'} Dental Examination</DialogTitle>
-                                </DialogHeader>
-                                <Form {...examinationForm}>
-                                    <form onSubmit={examinationForm.handleSubmit(onExaminationSubmit)} className="space-y-4 py-4">
+                        {!isAddingExamination && (
+                             <Button size="sm" onClick={() => setIsAddingExamination(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add New
+                             </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent>
+                        {isAddingExamination && (
+                            <Form {...examinationForm}>
+                                <form onSubmit={examinationForm.handleSubmit(onExaminationSubmit)} className="space-y-4 p-4 border rounded-md mb-4">
+                                    <h3 className="font-medium">Add New Dental Examination</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <FormField control={examinationForm.control} name="name" render={({ field }) => (
-                                            <FormItem>
+                                            <FormItem className="md:col-span-2">
                                             <FormLabel>Examination Name</FormLabel>
                                             <FormControl><Input placeholder="e.g., Standard Check-up" {...field} /></FormControl>
                                             <FormMessage />
                                             </FormItem>
                                         )} />
-                                        <DialogFooter>
-                                            <Button type="submit" disabled={examinationForm.formState.isSubmitting}>
-                                                {examinationForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save'}
-                                            </Button>
-                                        </DialogFooter>
-                                    </form>
-                                </Form>
-                            </DialogContent>
-                        </Dialog>
-                    </CardHeader>
-                    <CardContent>
+                                        <FormField control={examinationForm.control} name="defaultAmount" render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Default Price</FormLabel>
+                                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                        <Button type="button" variant="ghost" onClick={() => setIsAddingExamination(false)}>Cancel</Button>
+                                        <Button type="submit" disabled={examinationForm.formState.isSubmitting}>
+                                            {examinationForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </Form>
+                        )}
                        <div className="border rounded-md">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Name</TableHead>
+                                        <TableHead>Default Price</TableHead>
                                         <TableHead className="w-[80px] text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -331,18 +343,19 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                     {dentalExaminations.length > 0 ? dentalExaminations.map(exam => (
                                         <TableRow key={exam.id}>
                                             <TableCell>{exam.name}</TableCell>
+                                            <TableCell>Rs. {(exam.defaultAmount || 0).toFixed(2)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onSelect={() => {setEditingExamination(exam); setIsExaminationFormOpen(true);}}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => setEditingExamination(exam)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
                                                         <DropdownMenuItem onSelect={() => setDeletingExamination(exam)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">No examination templates defined.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">No examination templates defined.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -427,7 +440,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onSelect={() => handleEditClick(treatment)}>
+                                                <DropdownMenuItem onSelect={() => {setEditingTreatment(treatment); setIsTreatmentFormOpen(true);}}>
                                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem onSelect={() => setDeletingTreatment(treatment)} className="text-destructive">
@@ -484,6 +497,37 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
         </AlertDialogContent>
       </AlertDialog>
       
+      <Dialog open={!!editingExamination} onOpenChange={(open) => !open && setEditingExamination(null)}>
+         <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Edit Dental Examination</DialogTitle>
+            </DialogHeader>
+            <Form {...examinationForm}>
+                <form onSubmit={examinationForm.handleSubmit(onExaminationSubmit)} className="space-y-4 py-4">
+                    <FormField control={examinationForm.control} name="name" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Examination Name</FormLabel>
+                        <FormControl><Input placeholder="e.g., Standard Check-up" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={examinationForm.control} name="defaultAmount" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Default Price</FormLabel>
+                        <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <DialogFooter>
+                        <Button type="submit" disabled={examinationForm.formState.isSubmitting}>
+                            {examinationForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+
       <AlertDialog open={!!deletingExamination} onOpenChange={(open) => !open && setDeletingExamination(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
