@@ -32,6 +32,7 @@ import { Checkbox } from '../ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Label } from '@/components/ui/label';
+import { addChiefComplaint } from '@/app/actions/examinations';
 
 const appointmentSchema = z.object({
     procedure: z.string().min(2, "Procedure must be at least 2 characters."),
@@ -74,9 +75,10 @@ interface PatientDetailClientProps {
     chiefComplaints: ChiefComplaint[];
 }
 
-export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments, chiefComplaints }: PatientDetailClientProps) {
+export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints }: PatientDetailClientProps) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
+    const [chiefComplaints, setChiefComplaints] = React.useState<ChiefComplaint[]>(initialChiefComplaints);
     
     const [selectedTreatmentId, setSelectedTreatmentId] = React.useState<string | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -98,6 +100,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [isExaminationMode, setIsExaminationMode] = React.useState(false);
     const [isExaminationFormVisible, setIsExaminationFormVisible] = React.useState(false);
     const [isComplaintPopoverOpen, setIsComplaintPopoverOpen] = React.useState(false);
+    const [complaintSearchQuery, setComplaintSearchQuery] = React.useState('');
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
 
     const { toast } = useToast();
@@ -341,6 +344,23 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
 
+    const handleAddNewComplaint = async (newComplaintName: string) => {
+        if (!newComplaintName.trim()) return;
+
+        const result = await addChiefComplaint({ name: newComplaintName.trim() });
+        if (result.success && result.data) {
+            setChiefComplaints(prev => [...prev, result.data!].sort((a, b) => a.name.localeCompare(b.name)));
+            clinicalExaminationForm.setValue('chiefComplaint', result.data.name);
+            toast({ title: 'New complaint added!' });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to add complaint', description: result.error });
+        }
+        setComplaintSearchQuery('');
+        setIsComplaintPopoverOpen(false);
+    };
+
+    const filteredComplaints = chiefComplaints.filter(c => c.name.toLowerCase().includes(complaintSearchQuery.toLowerCase()));
+
     return (
         <>
             <div className="space-y-6">
@@ -424,28 +444,33 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                             <PopoverTrigger asChild>
                                                                 <FormControl>
                                                                     <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                                                                        {field.value ? chiefComplaints.find((c) => c.name === field.value)?.name : "Select chief complaint"}
+                                                                        {field.value || "Select chief complaint"}
                                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                                     </Button>
                                                                 </FormControl>
                                                             </PopoverTrigger>
                                                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                                                 <Command>
-                                                                    <CommandInput placeholder="Search complaints..." />
-                                                                    <CommandEmpty>No complaint found.</CommandEmpty>
-                                                                    <CommandGroup>
-                                                                        <CommandList>
-                                                                            {chiefComplaints.map((c) => (
-                                                                                <CommandItem key={c.id} value={c.name} onSelect={() => {
-                                                                                    field.onChange(c.name);
+                                                                    <CommandInput placeholder="Search complaints..." value={complaintSearchQuery} onValueChange={setComplaintSearchQuery}/>
+                                                                    <CommandList>
+                                                                        {filteredComplaints.length === 0 && complaintSearchQuery.length > 0 ? (
+                                                                            <CommandItem onSelect={() => handleAddNewComplaint(complaintSearchQuery)}>
+                                                                                <PlusCircle className="mr-2 h-4 w-4" />
+                                                                                Add new: "{complaintSearchQuery}"
+                                                                            </CommandItem>
+                                                                        ) : <CommandEmpty>No complaint found.</CommandEmpty>}
+                                                                        <CommandGroup>
+                                                                            {filteredComplaints.map((c) => (
+                                                                                <CommandItem key={c.id} value={c.name} onSelect={(currentValue) => {
+                                                                                    field.onChange(currentValue === field.value ? "" : currentValue);
                                                                                     setIsComplaintPopoverOpen(false);
                                                                                 }}>
                                                                                     <Check className={cn("mr-2 h-4 w-4", c.name === field.value ? "opacity-100" : "opacity-0")} />
                                                                                     {c.name}
                                                                                 </CommandItem>
                                                                             ))}
-                                                                        </CommandList>
-                                                                    </CommandGroup>
+                                                                        </CommandGroup>
+                                                                    </CommandList>
                                                                 </Command>
                                                             </PopoverContent>
                                                         </Popover>
