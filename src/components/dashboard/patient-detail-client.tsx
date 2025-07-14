@@ -24,7 +24,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
 import { format } from 'date-fns';
 import { Badge } from '../ui/badge';
-import { ToothChart, COLOR_PALETTE } from './tooth-chart';
+import { ToothChart, COLOR_PALETTE, PrimaryToothChart } from './tooth-chart';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '../ui/checkbox';
@@ -98,13 +98,15 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [editingAppointment, setEditingAppointment] = React.useState<Appointment | null>(null);
     
     const [isTreatmentDialogOpen, setIsTreatmentDialogOpen] = React.useState(false);
-    const [selectedTooth, setSelectedTooth] = React.useState<number | null>(null);
+    const [selectedTooth, setSelectedTooth] = React.useState<number | string | null>(null);
     
     const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
 
     const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
+    const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
+
 
     const { toast } = useToast();
 
@@ -325,13 +327,13 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         }
     }
     
-    const onToothClick = (toothNumber: number) => {
-        setSelectedTooth(toothNumber);
+    const onToothClick = (tooth: number | string) => {
+        setSelectedTooth(tooth);
         setIsTreatmentDialogOpen(true);
     }
     
     const assignedTreatmentsByTooth = React.useMemo(() => {
-        const map = new Map<number, AssignedTreatment[]>();
+        const map = new Map<number | string, AssignedTreatment[]>();
         if (patient.assignedTreatments) {
             for (const treatment of patient.assignedTreatments) {
                 if (treatment.tooth) {
@@ -417,9 +419,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     <div className="border-t -mt-px">
                         <TabsContent value="examination" className="mt-6">
                              <Tabs defaultValue="examination-details" className="w-full">
-                                <TabsList>
-                                    <TabsTrigger value="examination-details">Examination</TabsTrigger>
-                                    <TabsTrigger value="dental-chart">Dental Chart</TabsTrigger>
+                                <TabsList className="border-b w-full justify-start rounded-none bg-transparent p-0">
+                                    <TabsTrigger value="examination-details" className="relative h-9 rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground shadow-none transition-none data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none">Examination</TabsTrigger>
+                                    <TabsTrigger value="dental-chart" className="relative h-9 rounded-none border-b-2 border-b-transparent bg-transparent px-4 pb-3 pt-2 font-semibold text-muted-foreground shadow-none transition-none data-[state=active]:border-b-primary data-[state=active]:text-foreground data-[state=active]:shadow-none">Dental Chart</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="examination-details" className="mt-6 space-y-6">
                                      <Dialog open={isExaminationDialogOpen} onOpenChange={(open) => {
@@ -515,14 +517,28 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 <TabsContent value="dental-chart" className="mt-6">
                                      <Card>
                                         <CardHeader>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Heart className="h-5 w-5" />
-                                                Dental Chart
-                                            </CardTitle>
+                                            <div className="flex justify-between items-center">
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <Heart className="h-5 w-5" />
+                                                    Dental Chart
+                                                </CardTitle>
+                                                <div className="flex items-center space-x-2">
+                                                    <Checkbox 
+                                                        id="primary-teeth" 
+                                                        checked={showPrimaryTeeth}
+                                                        onCheckedChange={(checked) => setShowPrimaryTeeth(Boolean(checked))}
+                                                    />
+                                                    <Label htmlFor="primary-teeth" className="font-medium">Primary Teeth</Label>
+                                                </div>
+                                            </div>
                                             <CardDescription>Click on a tooth to assign a treatment.</CardDescription>
                                         </CardHeader>
                                         <CardContent>
-                                            <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                                             {showPrimaryTeeth ? (
+                                                <PrimaryToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                                             ) : (
+                                                <ToothChart onToothClick={onToothClick} assignedTreatmentsByTooth={assignedTreatmentsByTooth} />
+                                             )}
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
@@ -570,6 +586,41 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 </CardContent>
                             </Card>
 
+                             <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <CreditCard className="h-5 w-5" />
+                                        <CardTitle>Billing Summary</CardTitle>
+                                    </div>
+                                     <Button asChild size="sm">
+                                        <Link href="/dashboard/billing">Go to Billing</Link>
+                                    </Button>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-right font-medium">
+                                    <div className="flex justify-end items-center text-md">
+                                        <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                                        <span>Rs. {totalAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-end items-center text-md">
+                                        <span className="text-muted-foreground mr-4">Total Discount:</span>
+                                        <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-end items-center text-md">
+                                        <span className="text-muted-foreground mr-4">Total Paid:</span>
+                                        <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
+                                    </div>
+                                    <Separator className="my-2" />
+                                    <div className="flex justify-end items-center text-lg font-bold">
+                                        <span className="text-muted-foreground mr-4">Balance Due:</span>
+                                        {balanceDue <= 0 && totalAmount > 0 ? (
+                                            <span className="text-green-600">Fully Paid</span>
+                                        ) : (
+                                            <span>Rs. {balanceDue.toFixed(2)}</span>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -603,129 +654,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 </CardContent>
                             </Card>
                             
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <CreditCard className="h-5 w-5" />
-                                        Billing Summary
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    <div>
-                                        <h4 className="font-semibold mb-2 text-base">Itemized Bill</h4>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Treatment</TableHead>
-                                                    <TableHead>Tooth #</TableHead>
-                                                    <TableHead>Date Added</TableHead>
-                                                    <TableHead className="text-right">Amount</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
-                                                    patient.assignedTreatments.map(treatment => (
-                                                        <TableRow key={treatment.dateAdded}>
-                                                            <TableCell className="font-medium">{treatment.name}</TableCell>
-                                                            <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                                            <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                                            <TableCell className="text-right">Rs. {(treatment.amount || 0).toFixed(2)}</TableCell>
-                                                        </TableRow>
-                                                    ))
-                                                ) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={4} className="text-center h-24">No treatments assigned.</TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                    <Separator className="my-4" />
-                                    <div className="space-y-2 text-right font-medium">
-                                        <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
-                                            <span>Rs. {totalAmount.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Total Discount:</span>
-                                            <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Total Paid:</span>
-                                            <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
-                                        </div>
-                                        <Separator className="my-2" />
-                                        <div className="flex justify-end items-center text-lg font-bold">
-                                            <span className="text-muted-foreground mr-4">Balance Due:</span>
-                                            {balanceDue <= 0 && totalAmount > 0 ? (
-                                                <span className="text-green-600">Fully Paid</span>
-                                            ) : (
-                                                <span>Rs. {balanceDue.toFixed(2)}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    
-                                    <Separator className="my-4" />
-                                    <div>
-                                        <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Reason</TableHead>
-                                                    <TableHead>Date Added</TableHead>
-                                                    <TableHead className="text-right">Amount</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {patient.discounts && patient.discounts.length > 0 ? (
-                                                    patient.discounts.map(discount => (
-                                                        <TableRow key={discount.dateAdded}>
-                                                            <TableCell className="font-medium">{discount.reason}</TableCell>
-                                                            <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
-                                                            <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
-                                                        </TableRow>
-                                                    ))
-                                                ) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={3} className="text-center h-24">No discounts applied.</TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-
-                                    <Separator />
-                                    
-                                    <div>
-                                        <h4 className="font-semibold mb-2 text-base">Payment History</h4>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Date</TableHead>
-                                                    <TableHead>Method</TableHead>
-                                                    <TableHead className="text-right">Amount</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {patient.payments && patient.payments.length > 0 ? (
-                                                    patient.payments.map(payment => (
-                                                        <TableRow key={payment.dateAdded}>
-                                                            <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                                                            <TableCell>{payment.method}</TableCell>
-                                                            <TableCell className="text-right">Rs. {payment.amount.toFixed(2)}</TableCell>
-                                                        </TableRow>
-                                                    ))
-                                                ) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={3} className="text-center h-24">No payments recorded yet.</TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </TableBody>
-                                        </Table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -1054,7 +982,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
                         </DropdownMenuCheckboxItem>
                     )) : !showCreateOption && <p className="p-2 text-center text-sm text-muted-foreground">No results found.</p>}
                 </div>
-                <DropdownMenuSeparator />
+                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                     <Button
                         className="w-full"
@@ -1125,6 +1053,11 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                         type="button"
                                         className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                                         onClick={() => handleSelect(value)}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleSelect(value);
+                                        }}
                                     >
                                         <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                     </button>
@@ -1132,7 +1065,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                             ))}
                         </div>
                         <Command className="bg-transparent">
-                            <div className="flex items-center">
+                             <div className="flex items-center">
                                 <CommandInput
                                     ref={inputRef}
                                     placeholder={placeholder}
@@ -1180,7 +1113,11 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                         key={option.id}
                                         value={option.name}
                                         onSelect={() => handleSelect(option.name)}
-                                        onMouseDown={(e) => e.preventDefault()}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleSelect(option.name);
+                                        }}
                                         className="cursor-pointer"
                                     >
                                         <Check
@@ -1199,7 +1136,11 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                     <CommandGroup>
                                         <CommandItem
                                             onSelect={handleCreateNew}
-                                            onMouseDown={(e) => e.preventDefault()}
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleCreateNew();
+                                            }}
                                             className="cursor-pointer"
                                             disabled={isCreating}
                                         >
@@ -1220,3 +1161,4 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
         </Popover>
     );
 }
+

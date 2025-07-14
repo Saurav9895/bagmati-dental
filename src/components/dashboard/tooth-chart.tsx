@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -23,8 +24,8 @@ export const COLOR_PALETTE = [
 ];
 
 interface ToothProps extends React.SVGProps<SVGGElement> {
-  toothNumber: number;
-  onClick: (toothNumber: number) => void;
+  toothNumber: number | string;
+  onClick: (toothNumber: number | string) => void;
   assignedTreatments?: AssignedTreatment[];
   color?: string;
   isUpper: boolean;
@@ -32,6 +33,8 @@ interface ToothProps extends React.SVGProps<SVGGElement> {
 
 // A more realistic tooth SVG path
 const realisticToothPath = "M16 3c-1.1 0-2 .9-2 2 0 .9.6 1.6 1.4 1.9C14.5 7.5 13 9.1 13 11v5c0 .6.4 1 1 1s1-.4 1-1v-2h2v2c0 .6.4 1 1 1s1-.4 1-1v-5c0-1.9-1.5-3.5-2.4-4.1.8-.3 1.4-1 1.4-1.9 0-1.1-.9-2-2-2z";
+const primaryToothPath = "M16 4c-1.1 0-2 1-2 2.2 0 1 .6 1.8 1.4 2.1-1 .7-1.4 2.1-1.4 3.4v2.3c0 .6.4 1 1 1s1-.4 1-1v-1h2v1c0 .6.4 1 1 1s1-.4 1-1v-2.3c0-1.3-.4-2.7-1.4-3.4.8-.3 1.4-1.1 1.4-2.1C18 5 17.1 4 16 4z";
+
 
 const Tooth: React.FC<ToothProps> = ({
   toothNumber,
@@ -57,6 +60,8 @@ const Tooth: React.FC<ToothProps> = ({
       <p>Click to assign a treatment.</p>
     </div>
   );
+  
+  const isPrimary = typeof toothNumber === 'string';
 
   return (
     <Tooltip>
@@ -67,7 +72,7 @@ const Tooth: React.FC<ToothProps> = ({
           {...props}
         >
           <path
-            d={realisticToothPath}
+            d={isPrimary ? primaryToothPath : realisticToothPath}
             transform="scale(1.2)"
             className={cn(
               'transition-all duration-200 group-hover:fill-blue-200',
@@ -99,8 +104,8 @@ const Tooth: React.FC<ToothProps> = ({
 };
 
 interface ToothChartProps {
-  onToothClick: (toothNumber: number) => void;
-  assignedTreatmentsByTooth?: Map<number, AssignedTreatment[]>;
+  onToothClick: (toothNumber: number | string) => void;
+  assignedTreatmentsByTooth?: Map<number | string, AssignedTreatment[]>;
 }
 
 const upperRight = Array.from({ length: 8 }, (_, i) => 8 - i);
@@ -117,7 +122,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
     [assignedTreatmentsByTooth]
   );
   
-  const getToothColor = (toothNumber: number) => {
+  const getToothColor = (toothNumber: number | string) => {
     const colorIndex = treatedTeeth.indexOf(toothNumber);
     return colorIndex !== -1 ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length] : undefined;
   };
@@ -173,6 +178,86 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               color={getToothColor(num)}
               isUpper={false}
               transform={`translate(${305 + i * 32}, 75)`}
+            />
+          ))}
+        </svg>
+      </div>
+    </TooltipProvider>
+  );
+};
+
+
+// Primary Teeth Chart (A-T)
+const primaryUpperRight = ['A', 'B', 'C', 'D', 'E'];
+const primaryUpperLeft = ['F', 'G', 'H', 'I', 'J'];
+const primaryLowerLeft = ['K', 'L', 'M', 'N', 'O'];
+const primaryLowerRight = ['P', 'Q', 'R', 'S', 'T'];
+
+export const PrimaryToothChart: React.FC<ToothChartProps> = ({
+  onToothClick,
+  assignedTreatmentsByTooth,
+}) => {
+  const treatedTeeth = React.useMemo(
+    () => Array.from(assignedTreatmentsByTooth?.keys() || []),
+    [assignedTreatmentsByTooth]
+  );
+  
+  const getToothColor = (toothNumber: number | string) => {
+    const colorIndex = treatedTeeth.indexOf(toothNumber);
+    return colorIndex !== -1 ? COLOR_PALETTE[colorIndex % COLOR_PALETTE.length] : undefined;
+  };
+
+  return (
+    <TooltipProvider>
+      <div className="flex justify-center overflow-x-auto p-4 bg-muted/30 rounded-lg">
+        <svg viewBox="0 0 420 120" width="100%" style={{ minWidth: '400px' }}>
+          {/* Upper Right Quadrant (Teeth A-E) */}
+          {primaryUpperRight.map((letter, i) => (
+            <Tooth
+              key={`upper-${letter}`}
+              toothNumber={letter}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(letter)}
+              color={getToothColor(letter)}
+              isUpper={true}
+              transform={`translate(${180 - i * 32}, 5)`}
+            />
+          ))}
+          {/* Upper Left Quadrant (Teeth F-J) */}
+          {primaryUpperLeft.map((letter, i) => (
+            <Tooth
+              key={`upper-${letter}`}
+              toothNumber={letter}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(letter)}
+              color={getToothColor(letter)}
+              isUpper={true}
+              transform={`translate(${215 + i * 32}, 5)`}
+            />
+          ))}
+          
+          {/* Lower Right Quadrant (Teeth P-T) - Reversed */}
+          {primaryLowerRight.slice().reverse().map((letter, i) => (
+            <Tooth
+              key={`lower-${letter}`}
+              toothNumber={letter}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(letter)}
+              color={getToothColor(letter)}
+              isUpper={false}
+              transform={`translate(${180 - i * 32}, 75)`}
+            />
+          ))}
+          {/* Lower Left Quadrant (Teeth K-O) - Reversed */}
+          {primaryLowerLeft.slice().reverse().map((letter, i) => (
+            <Tooth
+              key={`lower-${letter}`}
+              toothNumber={letter}
+              onClick={onToothClick}
+              assignedTreatments={assignedTreatmentsByTooth?.get(letter)}
+              color={getToothColor(letter)}
+              isUpper={false}
+              transform={`translate(${215 + i * 32}, 75)`}
             />
           ))}
         </svg>

@@ -15,7 +15,7 @@ export type AssignedTreatment = {
   description: string;
   amount: number;
   dateAdded: string;
-  tooth?: number; // Optional tooth number
+  tooth?: number | string; // Optional tooth number (permanent) or letter (primary)
 };
 
 export type Prescription = {
@@ -111,3 +111,4 @@ export type DentalExamination = {
   defaultAmount?: number;
   createdAt?: any;
 };
+
