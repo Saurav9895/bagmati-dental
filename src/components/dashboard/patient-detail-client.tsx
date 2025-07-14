@@ -32,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { Label } from '@/components/ui/label';
 import { addChiefComplaint } from '@/app/actions/examinations';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 
 const appointmentSchema = z.object({
@@ -981,6 +981,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
     const filteredOptions = options.filter(option =>
         option.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+    
     const showCreateOption = onCreate && searchQuery && !options.some(o => o.name.toLowerCase() === searchQuery.toLowerCase());
 
     const selectedValue = React.useMemo(() => {
@@ -1092,45 +1093,26 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <div className={cn("space-y-2", className)}>
-                {isMulti && selected.length > 0 && (
-                    <div className="flex flex-wrap gap-1 p-2 border rounded-md min-h-[40px]">
-                        {selected.map(value => (
-                            <Badge key={value} variant="secondary" className="gap-1">
-                                {value}
-                                <button
-                                    type="button"
-                                    className="rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => onChange(selected.filter((s) => s !== value))}
-                                >
-                                    <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                </button>
-                            </Badge>
-                        ))}
-                    </div>
+                {!isMulti && (
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={isOpen}
+                            className="w-full justify-between font-normal"
+                        >
+                            {selected.length > 0 ? selected[0] : placeholder}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
                 )}
-                 <PopoverTrigger asChild>
-                     <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isOpen}
-                        className="w-full justify-between font-normal"
-                        onMouseDown={(e) => {
-                           e.preventDefault();
-                           setIsOpen(!isOpen);
-                        }}
-                    >
-                        {selected.length > 0 && !isMulti ? selected[0] : placeholder}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                     <Command>
                          <div className="flex items-center border-b px-3">
                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                             <CommandInput
                                 ref={inputRef}
-                                placeholder="Search complaints..."
+                                placeholder="Search..."
                                 value={searchQuery}
                                 onValueChange={setSearchQuery}
                                 className="border-0 h-9"
@@ -1149,14 +1131,12 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                         onMouseDown={(e) => e.preventDefault()}
                                         className="cursor-pointer"
                                     >
-                                        {isMulti && (
-                                            <Check
-                                                className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    selected.includes(option.name) ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                        )}
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                selected.includes(option.name) ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
                                         {option.name}
                                     </CommandItem>
                                 ))}
