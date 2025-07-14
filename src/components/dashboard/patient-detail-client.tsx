@@ -14,7 +14,7 @@ import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient }
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -891,7 +891,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 )}
                             />
                             <DialogFooter>
-                                <Button onClick={handleAddTreatment} disabled={isSubmitting} className="w-full">
+                                <Button type="submit" disabled={isSubmitting} className="w-full">
                                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                                     Add to Treatment Plan
                                 </Button>
@@ -1242,3 +1242,5 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
         </Popover>
     );
 }
+
+    
