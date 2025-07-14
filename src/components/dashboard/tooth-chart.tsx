@@ -108,10 +108,12 @@ interface ToothChartProps {
   assignedTreatmentsByTooth?: Map<number | string, AssignedTreatment[]>;
 }
 
-const upperRight = Array.from({ length: 8 }, (_, i) => 8 - i);
-const upperLeft = Array.from({ length: 8 }, (_, i) => i + 9);
-const lowerRight = Array.from({ length: 8 }, (_, i) => i + 25).reverse();
-const lowerLeft = Array.from({ length: 8 }, (_, i) => 24 - i).reverse();
+// FDI Notation for permanent teeth
+const upperRightFDI = Array.from({ length: 8 }, (_, i) => 18 - i); // 18, 17, ... 11
+const upperLeftFDI = Array.from({ length: 8 }, (_, i) => i + 21);  // 21, 22, ... 28
+const lowerRightFDI = Array.from({ length: 8 }, (_, i) => 48 - i); // 48, 47, ... 41
+const lowerLeftFDI = Array.from({ length: 8 }, (_, i) => i + 31);  // 31, 32, ... 38
+
 
 export const ToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
@@ -131,8 +133,8 @@ export const ToothChart: React.FC<ToothChartProps> = ({
     <TooltipProvider>
       <div className="flex justify-center overflow-x-auto p-4 bg-muted/30 rounded-lg">
         <svg viewBox="0 0 580 120" width="100%" style={{ minWidth: '560px' }}>
-          {/* Upper Right Quadrant (Teeth 1-8) */}
-          {upperRight.map((num, i) => (
+          {/* Upper Right Quadrant (Teeth 11-18) */}
+          {upperRightFDI.map((num, i) => (
             <Tooth
               key={`upper-${num}`}
               toothNumber={num}
@@ -143,8 +145,8 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               transform={`translate(${250 - i * 32}, 5)`}
             />
           ))}
-          {/* Upper Left Quadrant (Teeth 9-16) */}
-          {upperLeft.map((num, i) => (
+          {/* Upper Left Quadrant (Teeth 21-28) */}
+          {upperLeftFDI.map((num, i) => (
             <Tooth
               key={`upper-${num}`}
               toothNumber={num}
@@ -156,8 +158,8 @@ export const ToothChart: React.FC<ToothChartProps> = ({
             />
           ))}
           
-          {/* Lower Right Quadrant (Teeth 25-32) - Reversed to match dental notation from patient's perspective */}
-          {lowerRight.map((num, i) => (
+          {/* Lower Right Quadrant (Teeth 41-48) - Reversed to match dental notation from patient's perspective */}
+          {lowerRightFDI.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
               toothNumber={num}
@@ -168,8 +170,8 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               transform={`translate(${250 - i * 32}, 75)`}
             />
           ))}
-          {/* Lower Left Quadrant (Teeth 17-24) - Reversed */}
-          {lowerLeft.map((num, i) => (
+          {/* Lower Left Quadrant (Teeth 31-38) - Reversed */}
+          {lowerLeftFDI.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
               toothNumber={num}
