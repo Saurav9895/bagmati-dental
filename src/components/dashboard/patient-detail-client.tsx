@@ -452,12 +452,12 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel>Chief Complaint(s)</FormLabel>
-                                                            <MultiSelect
+                                                            <MultiSelectSearchBar
                                                                 options={chiefComplaints}
                                                                 selected={field.value}
                                                                 onChange={field.onChange}
                                                                 onCreate={handleNewComplaintSubmit}
-                                                                placeholder="Select complaints..."
+                                                                placeholder="Search and select complaints..."
                                                             />
                                                             <FormMessage />
                                                         </FormItem>
@@ -961,7 +961,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 }
 
 // Reusable MultiSelect component
-type MultiSelectProps = {
+type MultiSelectSearchBarProps = {
     options: { id: string, name: string }[];
     selected: string[];
     onChange: (selected: string[]) => void;
@@ -970,16 +970,34 @@ type MultiSelectProps = {
     className?: string;
 };
 
-function MultiSelect({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectProps) {
+function MultiSelectSearchBar({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectSearchBarProps) {
+    const inputRef = React.useRef<HTMLInputElement>(null);
     const [open, setOpen] = React.useState(false);
     const [query, setQuery] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
+    
+    const handleUnselect = (value: string) => {
+        onChange(selected.filter((s) => s !== value));
+    };
+
+    const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+        const input = inputRef.current;
+        if (input) {
+            if (e.key === "Delete" || e.key === "Backspace") {
+                if (input.value === "") {
+                    const newSelected = [...selected];
+                    newSelected.pop();
+                    onChange(newSelected);
+                }
+            }
+            if (e.key === "Escape") {
+                input.blur();
+            }
+        }
+    }, [onChange, selected]);
 
     const handleSelect = (value: string) => {
-        const newSelected = selected.includes(value)
-            ? selected.filter((item) => item !== value)
-            : [...selected, value];
-        onChange(newSelected);
+        onChange([...selected, value]);
     };
     
     const handleCreate = async () => {
@@ -993,8 +1011,9 @@ function MultiSelect({ options, selected, onChange, onCreate, placeholder, class
     };
 
     const filteredOptions = query === ''
-        ? options
+        ? options.filter(option => !selected.includes(option.name))
         : options.filter(option =>
+            !selected.includes(option.name) &&
             option.name.toLowerCase().includes(query.toLowerCase())
         );
         
@@ -1003,79 +1022,86 @@ function MultiSelect({ options, selected, onChange, onCreate, placeholder, class
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
+                <div
                     role="combobox"
                     aria-expanded={open}
-                    className={cn("w-full justify-between h-auto min-h-10", className)}
+                    className={cn(
+                        "flex flex-wrap gap-1 items-center w-full min-h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+                        "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                        className
+                    )}
+                    onClick={() => inputRef.current?.focus()}
                 >
-                    <div className="flex gap-1 flex-wrap">
-                        {selected.length > 0 ? (
-                            selected.map(value => (
-                                <Badge
-                                    variant="secondary"
-                                    key={value}
-                                    className="mr-1 mb-1"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSelect(value);
-                                    }}
-                                >
-                                    {value}
-                                    <X className="ml-1 h-3 w-3" />
-                                </Badge>
-                            ))
-                        ) : (
-                            <span className="text-muted-foreground">{placeholder}</span>
-                        )}
-                    </div>
-                    <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-                </Button>
+                    {selected.map((value) => (
+                        <Badge
+                            variant="secondary"
+                            key={value}
+                            className="mr-1"
+                        >
+                            {value}
+                            <button
+                                className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                onKeyDown={(e) => { if (e.key === "Enter") handleUnselect(value); }}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onClick={() => handleUnselect(value)}
+                            >
+                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </button>
+                        </Badge>
+                    ))}
+                    <Command onKeyDown={handleKeyDown} className="flex-1">
+                        <CommandInput
+                            ref={inputRef}
+                            value={query}
+                            onValueChange={setQuery}
+                            onBlur={() => setOpen(false)}
+                            onFocus={() => setOpen(true)}
+                            placeholder={placeholder}
+                            className="h-full p-0 border-0 focus:ring-0"
+                        />
+                    </Command>
+                </div>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command shouldFilter={false}>
-                    <CommandInput 
-                        placeholder="Search or add complaint..."
-                        value={query}
-                        onValueChange={setQuery}
-                    />
-                    <CommandList>
-                        <CommandEmpty>No results found.</CommandEmpty>
-                        <CommandGroup>
-                            {filteredOptions.map((option) => (
-                                <CommandItem
-                                    key={option.id}
-                                    value={option.name}
-                                    onSelect={() => {
-                                        handleSelect(option.name);
-                                    }}
-                                >
-                                    <Check
-                                        className={cn(
-                                            "mr-2 h-4 w-4",
-                                            selected.includes(option.name) ? "opacity-100" : "opacity-0"
-                                        )}
-                                    />
-                                    {option.name}
-                                </CommandItem>
-                            ))}
-                            {showCreateOption && (
-                                <CommandItem
-                                    onSelect={handleCreate}
-                                    disabled={isCreating}
-                                    className="text-primary focus:text-primary"
-                                >
-                                    {isCreating ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                    )}
-                                    Add "{query}"
-                                </CommandItem>
-                            )}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
+                <CommandList>
+                    <CommandEmpty>No results found.</CommandEmpty>
+                    <CommandGroup>
+                        {filteredOptions.map((option) => (
+                            <CommandItem
+                                key={option.id}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                                onSelect={() => {
+                                    handleSelect(option.name);
+                                    setQuery('');
+                                }}
+                                className="cursor-pointer"
+                            >
+                                {option.name}
+                            </CommandItem>
+                        ))}
+                        {showCreateOption && (
+                            <CommandItem
+                                onSelect={handleCreate}
+                                disabled={isCreating}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                                className="text-primary focus:text-primary cursor-pointer"
+                            >
+                                {isCreating ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                )}
+                                Add "{query}"
+                            </CommandItem>
+                        )}
+                    </CommandGroup>
+                </CommandList>
             </PopoverContent>
         </Popover>
     );
