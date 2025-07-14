@@ -3,14 +3,15 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus, History } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient } from '@/app/actions/patients';
+import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,6 +47,14 @@ const prescriptionSchema = z.object({
   date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
 });
 type PrescriptionFormValues = z.infer<typeof prescriptionSchema>;
+
+const clinicalExaminationSchema = z.object({
+    chiefComplaint: z.string().min(1, { message: 'Chief complaint is required.' }),
+    medicalHistory: z.string().optional(),
+    dentalHistory: z.string().optional(),
+    observationNotes: z.string().optional(),
+});
+type ClinicalExaminationFormValues = z.infer<typeof clinicalExaminationSchema>;
 
 
 const formatTime12h = (time24h: string): string => {
@@ -87,9 +96,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
 
     const [isExaminationMode, setIsExaminationMode] = React.useState(false);
-    const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
-    const [selectedComplaintId, setSelectedComplaintId] = React.useState('');
+    const [isExaminationFormVisible, setIsExaminationFormVisible] = React.useState(false);
     const [isComplaintPopoverOpen, setIsComplaintPopoverOpen] = React.useState(false);
+    const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
 
     const { toast } = useToast();
 
@@ -111,6 +120,46 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             date: format(new Date(), 'yyyy-MM-dd'),
         },
     });
+
+    const clinicalExaminationForm = useForm<ClinicalExaminationFormValues>({
+        resolver: zodResolver(clinicalExaminationSchema),
+        defaultValues: {
+            chiefComplaint: '',
+            medicalHistory: '',
+            dentalHistory: '',
+            observationNotes: '',
+        },
+    });
+    
+    const handleClinicalExaminationSubmit = async (data: ClinicalExaminationFormValues) => {
+        setIsSubmitting(true);
+        const payload = { ...data, date: new Date().toISOString() };
+        const result = await addClinicalExaminationToPatient(patient.id, payload);
+
+        if (result.success && result.data) {
+            setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
+            toast({ title: 'Examination record saved successfully!' });
+            setIsExaminationFormVisible(false);
+            clinicalExaminationForm.reset();
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to save examination', description: result.error });
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleConfirmDeleteExamination = async () => {
+        if (!examinationToDelete) return;
+        setIsDeleting(true);
+        const result = await removeClinicalExaminationFromPatient(patient.id, examinationToDelete.id);
+        if (result.success && result.data) {
+            setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
+            toast({ title: "Examination record deleted." });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to delete record', description: result.error });
+        }
+        setIsDeleting(false);
+        setExaminationToDelete(null);
+    };
 
     const handleAppointmentSubmit = async (data: AppointmentFormValues) => {
         setIsSubmittingAppointment(true);
@@ -223,8 +272,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
         setIsSubmitting(true);
         try {
-            // Since we removed pricing from the treatment itself, we need a default amount.
-            // For now, let's assume a default of 0 if not present.
             const treatmentWithPrice = { ...selectedTreatment, amount: selectedTreatment.defaultAmount || 0 };
 
             const result = await addTreatmentToPatient(patient.id, treatmentWithPrice, selectedTooth ?? undefined);
@@ -350,62 +397,112 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     <TabsContent value="examination" className="mt-6 space-y-6">
                         <div className="space-y-4 rounded-lg border p-4">
                             <div className="flex items-center space-x-2">
-                                <Checkbox id="examination-mode" checked={isExaminationMode} onCheckedChange={(checked) => setIsExaminationMode(!!checked)} />
+                                <Checkbox id="examination-mode" checked={isExaminationMode} onCheckedChange={(checked) => {
+                                    setIsExaminationMode(!!checked);
+                                    if (!checked) setIsExaminationFormVisible(false);
+                                }} />
                                 <label htmlFor="examination-mode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                     Proceed with Examination
                                 </label>
                             </div>
-                            {isExaminationMode && (
+                             {isExaminationMode && (
                                 <div className="pl-6 pt-4 border-l-2 space-y-4">
-                                     <div className="space-y-2">
-                                        <Label>Chief Complaint</Label>
-                                         <Popover open={isComplaintPopoverOpen} onOpenChange={setIsComplaintPopoverOpen}>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    role="combobox"
-                                                    aria-expanded={isComplaintPopoverOpen}
-                                                    className="w-full max-w-sm justify-between"
-                                                >
-                                                    {selectedComplaintId
-                                                    ? chiefComplaints.find((c) => c.id === selectedComplaintId)?.name
-                                                    : "Select chief complaint..."}
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                <Command>
-                                                <CommandInput placeholder="Search complaints..." />
-                                                <CommandEmpty>No complaint found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    <CommandList>
-                                                        {chiefComplaints.map((c) => (
-                                                        <CommandItem
-                                                            key={c.id}
-                                                            value={c.name}
-                                                            onSelect={() => {
-                                                                setSelectedComplaintId(c.id === selectedComplaintId ? "" : c.id);
-                                                                setIsComplaintPopoverOpen(false);
-                                                            }}
-                                                        >
-                                                            <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                selectedComplaintId === c.id ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                            />
-                                                            {c.name}
-                                                        </CommandItem>
-                                                        ))}
-                                                    </CommandList>
-                                                </CommandGroup>
-                                                </Command>
-                                            </PopoverContent>
-                                            </Popover>
-                                     </div>
+                                    {!isExaminationFormVisible && (
+                                        <Button onClick={() => setIsExaminationFormVisible(true)}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Examination
+                                        </Button>
+                                    )}
+
+                                    {isExaminationFormVisible && (
+                                        <Form {...clinicalExaminationForm}>
+                                            <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4">
+                                                <FormField control={clinicalExaminationForm.control} name="chiefComplaint" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Chief Complaint</FormLabel>
+                                                        <Popover open={isComplaintPopoverOpen} onOpenChange={setIsComplaintPopoverOpen}>
+                                                            <PopoverTrigger asChild>
+                                                                <FormControl>
+                                                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                                                                        {field.value ? chiefComplaints.find((c) => c.name === field.value)?.name : "Select chief complaint"}
+                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    </Button>
+                                                                </FormControl>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Search complaints..." />
+                                                                    <CommandEmpty>No complaint found.</CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        <CommandList>
+                                                                            {chiefComplaints.map((c) => (
+                                                                                <CommandItem key={c.id} value={c.name} onSelect={() => {
+                                                                                    field.onChange(c.name);
+                                                                                    setIsComplaintPopoverOpen(false);
+                                                                                }}>
+                                                                                    <Check className={cn("mr-2 h-4 w-4", c.name === field.value ? "opacity-100" : "opacity-0")} />
+                                                                                    {c.name}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandList>
+                                                                    </CommandGroup>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <div className="flex justify-end gap-2">
+                                                    <Button type="button" variant="ghost" onClick={() => setIsExaminationFormVisible(false)}>Cancel</Button>
+                                                    <Button type="submit" disabled={isSubmitting}>
+                                                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                        Save
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        </Form>
+                                    )}
                                 </div>
                             )}
                         </div>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <History className="h-5 w-5" />
+                                    Examination History
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {patient.clinicalExaminations && patient.clinicalExaminations.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {patient.clinicalExaminations.map((exam) => (
+                                            <div key={exam.id} className="p-4 border rounded-md bg-card shadow-sm">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div>
+                                                        <p className="font-semibold text-lg">{exam.chiefComplaint}</p>
+                                                        <p className="text-sm text-muted-foreground">{format(new Date(exam.date), 'PPP')}</p>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" onClick={() => setExaminationToDelete(exam)}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                                <div className="mt-4 space-y-4">
+                                                    {exam.medicalHistory && <div><Label className="font-semibold">Medical History</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.medicalHistory}</p></div>}
+                                                    {exam.dentalHistory && <div><Label className="font-semibold">Dental History</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.dentalHistory}</p></div>}
+                                                    {exam.observationNotes && <div><Label className="font-semibold">Observation Notes</Label><p className="text-sm text-muted-foreground whitespace-pre-wrap">{exam.observationNotes}</p></div>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center py-4">No examination records for this patient.</p>
+                                )}
+                            </CardContent>
+                        </Card>
 
                          <Card>
                             <CardHeader>
@@ -823,6 +920,23 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setTreatmentToDelete(null)}>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmRemoveTreatment} disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={!!examinationToDelete} onOpenChange={(open) => !open && setExaminationToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this examination record from {format(new Date(examinationToDelete?.date || 0), 'PPP')}. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDeleteExamination} disabled={isDeleting}>
                             {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Continue
                         </AlertDialogAction>

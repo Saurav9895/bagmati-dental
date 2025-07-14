@@ -1,8 +1,12 @@
 
-
-
-
-
+export type ClinicalExamination = {
+  id: string;
+  date: string;
+  chiefComplaint: string;
+  medicalHistory?: string;
+  dentalHistory?: string;
+  observationNotes?: string;
+};
 
 export type AssignedTreatment = {
   id: string;
@@ -36,6 +40,7 @@ export type Patient = {
   payments?: Payment[];
   discounts?: Discount[];
   prescriptions?: Prescription[];
+  clinicalExaminations?: ClinicalExamination[];
   createdAt?: any;
 };
 
