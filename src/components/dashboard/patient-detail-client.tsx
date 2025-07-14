@@ -458,10 +458,10 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                                         <Button
                                                                             variant="outline"
                                                                             role="combobox"
-                                                                            className={cn("w-full justify-between h-auto", !field.value.length && "text-muted-foreground")}
+                                                                            className={cn("w-full justify-between h-auto", !field.value?.length && "text-muted-foreground")}
                                                                         >
                                                                             <div className="flex gap-1 flex-wrap">
-                                                                                {field.value.length > 0 ? (
+                                                                                {field.value?.length > 0 ? (
                                                                                     field.value.map((complaint) => (
                                                                                         <Badge variant="secondary" key={complaint} className="mr-1 mb-1">
                                                                                             {complaint}
@@ -479,33 +479,34 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                                     <Command>
                                                                         <CommandInput placeholder="Search complaints..." />
                                                                         <CommandList>
-                                                                            <CommandEmpty>No results found.</CommandEmpty>
+                                                                            <CommandEmpty>
+                                                                                <Button variant="ghost" className="w-full justify-start" onClick={() => setIsNewComplaintDialogOpen(true)}>
+                                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add new complaint
+                                                                                </Button>
+                                                                            </CommandEmpty>
                                                                             <CommandGroup>
-                                                                                <CommandItem
-                                                                                    onSelect={() => setIsNewComplaintDialogOpen(true)}
-                                                                                    className="cursor-pointer text-primary"
-                                                                                >
-                                                                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                                                                    Add new complaint
-                                                                                </CommandItem>
-                                                                                <Separator className="my-1"/>
-                                                                                {chiefComplaints.map((complaint) => (
+                                                                                {chiefComplaints.map((complaint) => {
+                                                                                    const isSelected = field.value.includes(complaint.name);
+                                                                                    return (
                                                                                     <CommandItem
                                                                                         key={complaint.id}
                                                                                         onSelect={() => {
                                                                                             const current = field.value;
-                                                                                            const next = current.includes(complaint.name)
+                                                                                            const next = isSelected
                                                                                                 ? current.filter(c => c !== complaint.name)
                                                                                                 : [...current, complaint.name];
                                                                                             field.onChange(next);
                                                                                         }}
                                                                                     >
-                                                                                        <Check
-                                                                                            className={cn("mr-2 h-4 w-4", field.value.includes(complaint.name) ? "opacity-100" : "opacity-0")}
-                                                                                        />
+                                                                                        <div className={cn(
+                                                                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                                                            isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"
+                                                                                            )}>
+                                                                                            <Check className={cn("h-4 w-4")} />
+                                                                                        </div>
                                                                                         {complaint.name}
                                                                                     </CommandItem>
-                                                                                ))}
+                                                                                )})}
                                                                             </CommandGroup>
                                                                         </CommandList>
                                                                     </Command>
@@ -515,9 +516,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                         </FormItem>
                                                     )}
                                                 />
-                                                <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                                <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
+                                                <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
                                                 <div className="flex justify-end gap-2">
                                                     <Button type="button" variant="ghost" onClick={() => setIsExaminationFormVisible(false)}>Cancel</Button>
                                                     <Button type="submit" disabled={isSubmitting}>
