@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -457,7 +457,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                                 selected={field.value}
                                                                 onChange={field.onChange}
                                                                 onCreate={handleNewComplaintSubmit}
-                                                                placeholder="Search and select complaints..."
+                                                                placeholder="Select complaints..."
                                                             />
                                                             <FormMessage />
                                                         </FormItem>
@@ -960,7 +960,6 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     );
 }
 
-// Reusable MultiSelect component
 type MultiSelectSearchBarProps = {
     options: { id: string, name: string }[];
     selected: string[];
@@ -971,115 +970,79 @@ type MultiSelectSearchBarProps = {
 };
 
 function MultiSelectSearchBar({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectSearchBarProps) {
+    const inputRef = React.useRef<HTMLInputElement>(null);
     const [isOpen, setIsOpen] = React.useState(false);
-    const [searchQuery, setSearchQuery] = React.useState('');
+    const [inputValue, setInputValue] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
-    
-    const filteredOptions = options.filter(option => 
-        option.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
 
     const handleSelect = (value: string) => {
         if (selected.includes(value)) {
-            onChange(selected.filter(item => item !== value));
+            onChange(selected.filter((item) => item !== value));
         } else {
             onChange([...selected, value]);
         }
+        setInputValue('');
     };
 
-    const handleCreateNewComplaint = async () => {
-        if (searchQuery.trim() === '') return;
+    const handleRemove = (value: string) => {
+        onChange(selected.filter((item) => item !== value));
+    };
+
+    const handleCreateNew = async () => {
+        if (inputValue.trim() === '' || isCreating) return;
         setIsCreating(true);
-        const newComplaint = await onCreate(searchQuery.trim());
+        const newComplaint = await onCreate(inputValue.trim());
         if (newComplaint) {
-            onChange([...selected, newComplaint.name]);
-            setSearchQuery('');
+            handleSelect(newComplaint.name);
         }
         setIsCreating(false);
+        setInputValue('');
     };
 
+    const filteredOptions = options.filter(option =>
+        option.name.toLowerCase().includes(inputValue.toLowerCase()) && !selected.includes(option.name)
+    );
+
+    const showCreateOption = inputValue && !options.some(o => o.name.toLowerCase() === inputValue.toLowerCase());
+
     return (
-        <Popover open={isOpen} onOpenChange={setIsOpen}>
-            <div className={cn("space-y-2", className)}>
+        <div className={cn("space-y-2", className)}>
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                    {selected.map(value => (
+                        <Badge key={value} variant="secondary">
+                            {value}
+                            <button
+                                type="button"
+                                className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                onClick={() => handleRemove(value)}
+                            >
+                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
                 <PopoverTrigger asChild>
-                    <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isOpen}
-                        className="w-full justify-between"
-                    >
-                        <div className="flex flex-wrap gap-1">
-                            {selected.length > 0 ? (
-                                selected.map(value => (
-                                    <Badge 
-                                        key={value} 
-                                        variant="secondary"
-                                        className="mr-1"
-                                    >
-                                        {value}
-                                        <button
-                                            type="button"
-                                            className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={() => handleSelect(value)}
-                                        >
-                                            <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                                        </button>
-                                    </Badge>
-                                ))
-                            ) : (
-                                <span className="text-muted-foreground">
-                                    {placeholder || "Select complaints..."}
-                                </span>
-                            )}
-                        </div>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
+                    <div className="relative">
+                        <Input
+                            ref={inputRef}
+                            type="text"
+                            placeholder={placeholder}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onFocus={() => setIsOpen(true)}
+                            className="w-full"
+                        />
+                    </div>
                 </PopoverTrigger>
-                
-                <PopoverContent className="w-full p-0">
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                     <Command>
-                        <div className="px-2 pt-2">
-                            <div className="flex items-center border-b">
-                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                <CommandInput 
-                                    placeholder="Search complaints..."
-                                    value={searchQuery}
-                                    onValueChange={setSearchQuery}
-                                />
-                            </div>
-                        </div>
-                        
                         <CommandList>
-                            <CommandEmpty>
-                                {searchQuery ? (
-                                    <div 
-                                        className="p-2 text-sm flex items-center justify-between cursor-pointer hover:bg-accent"
-                                        onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            handleCreateNewComplaint();
-                                        }}
-                                    >
-                                        <span>No complaints found</span>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled={isCreating}
-                                            className="pointer-events-none"
-                                        >
-                                            {isCreating ? (
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                            )}
-                                            Add "{searchQuery}"
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    "No complaints available"
-                                )}
-                            </CommandEmpty>
-                            
+                            {filteredOptions.length === 0 && !showCreateOption && (
+                                <CommandEmpty>No results found.</CommandEmpty>
+                            )}
                             <CommandGroup>
                                 {filteredOptions.map((option) => (
                                     <CommandItem
@@ -1089,23 +1052,37 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                             e.preventDefault();
                                             e.stopPropagation();
                                             handleSelect(option.name);
+                                            inputRef.current?.focus();
                                         }}
                                         className="cursor-pointer"
                                     >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                selected.includes(option.name) ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
                                         {option.name}
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
+                            {showCreateOption && (
+                                <>
+                                    <Separator />
+                                    <CommandGroup>
+                                        <CommandItem
+                                            onSelect={handleCreateNew}
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleCreateNew();
+                                            }}
+                                            className="cursor-pointer"
+                                        >
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Create "{inputValue}"
+                                        </CommandItem>
+                                    </CommandGroup>
+                                </>
+                            )}
                         </CommandList>
                     </Command>
                 </PopoverContent>
-            </div>
-        </Popover>
+            </Popover>
+        </div>
     );
 }
