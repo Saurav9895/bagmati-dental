@@ -447,76 +447,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                     {isExaminationFormVisible && (
                                         <Form {...clinicalExaminationForm}>
                                             <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4">
-                                                <FormField
-                                                    control={clinicalExaminationForm.control}
-                                                    name="chiefComplaint"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Chief Complaint(s)</FormLabel>
-                                                            <Popover>
-                                                                <PopoverTrigger asChild>
-                                                                    <FormControl>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            role="combobox"
-                                                                            className={cn("w-full justify-between h-auto", !field.value?.length && "text-muted-foreground")}
-                                                                        >
-                                                                            <div className="flex gap-1 flex-wrap">
-                                                                                {field.value?.length > 0 ? (
-                                                                                    field.value.map((complaint) => (
-                                                                                        <Badge variant="secondary" key={complaint} className="mr-1 mb-1">
-                                                                                            {complaint}
-                                                                                        </Badge>
-                                                                                    ))
-                                                                                ) : (
-                                                                                    "Select complaints"
-                                                                                )}
-                                                                            </div>
-                                                                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-                                                                        </Button>
-                                                                    </FormControl>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                                    <Command>
-                                                                        <CommandInput placeholder="Search complaints..." />
-                                                                        <CommandList>
-                                                                            <CommandEmpty>
-                                                                                <Button variant="ghost" className="w-full justify-start" onClick={() => setIsNewComplaintDialogOpen(true)}>
-                                                                                    <PlusCircle className="mr-2 h-4 w-4" /> Add new complaint
-                                                                                </Button>
-                                                                            </CommandEmpty>
-                                                                            <CommandGroup>
-                                                                                {chiefComplaints.map((complaint) => {
-                                                                                    const isSelected = field.value.includes(complaint.name);
-                                                                                    return (
-                                                                                    <CommandItem
-                                                                                        key={complaint.id}
-                                                                                        onSelect={() => {
-                                                                                            const current = field.value;
-                                                                                            const next = isSelected
-                                                                                                ? current.filter(c => c !== complaint.name)
-                                                                                                : [...current, complaint.name];
-                                                                                            field.onChange(next);
-                                                                                        }}
-                                                                                    >
-                                                                                        <div className={cn(
-                                                                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                                                                            isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"
-                                                                                            )}>
-                                                                                            <Check className={cn("h-4 w-4")} />
-                                                                                        </div>
-                                                                                        {complaint.name}
-                                                                                    </CommandItem>
-                                                                                )})}
-                                                                            </CommandGroup>
-                                                                        </CommandList>
-                                                                    </Command>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
+                                                
                                                 <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} value={field.value || ''}/></FormControl><FormMessage /></FormItem>)} />
