@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, ChevronsUpDown, Check, ClipboardPlus } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,6 +27,23 @@ import { Badge } from '../ui/badge';
 import { ToothChart, COLOR_PALETTE } from './tooth-chart';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '../ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+
+
+const chiefComplaints = [
+    { value: "toothache", label: "Toothache" },
+    { value: "sensitive-teeth", label: "Sensitive Teeth" },
+    { value: "bleeding-gums", label: "Bleeding Gums" },
+    { value: "jaw-pain", label: "Jaw Pain" },
+    { value: "broken-tooth", label: "Broken or Chipped Tooth" },
+    { value: "bad-breath", label: "Bad Breath (Halitosis)" },
+    { value: "crooked-teeth", label: "Crooked Teeth / Bite Issues" },
+    { value: "cosmetic", label: "Cosmetic Concerns" },
+    { value: "check-up", label: "Routine Check-up" },
+    { value: "other", label: "Other" },
+];
 
 
 const appointmentSchema = z.object({
@@ -75,6 +92,11 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
+
+    const [isExaminationMode, setIsExaminationMode] = React.useState(false);
+    const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
+    const [chiefComplaint, setChiefComplaint] = React.useState('');
+    const [isComplaintPopoverOpen, setIsComplaintPopoverOpen] = React.useState(false);
 
     const { toast } = useToast();
 
@@ -346,6 +368,23 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                         <TabsTrigger value="files">Files</TabsTrigger>
                     </TabsList>
                     <TabsContent value="examination" className="mt-6 space-y-6">
+                        <div className="space-y-4 rounded-lg border p-4">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="examination-mode" checked={isExaminationMode} onCheckedChange={(checked) => setIsExaminationMode(!!checked)} />
+                                <label htmlFor="examination-mode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    Proceed with Examination
+                                </label>
+                            </div>
+                            {isExaminationMode && (
+                                <div className="pl-6 pt-2 border-l-2">
+                                     <Button onClick={() => setIsExaminationDialogOpen(true)}>
+                                        <ClipboardPlus className="mr-2 h-4 w-4" />
+                                        Add Examination
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+
                          <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -524,7 +563,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                         </TableBody>
                                     </Table>
                                 </div>
-                                <Separator />
+                                <Separator className="my-4" />
                                 <div className="space-y-2 text-right font-medium">
                                     <div className="flex justify-end items-center text-md">
                                         <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
@@ -549,7 +588,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                     </div>
                                 </div>
                                 
-                                <Separator />
+                                <Separator className="my-4" />
                                 <div>
                                     <h4 className="font-semibold mb-2 text-base">Applied Discounts</h4>
                                     <Table>
@@ -768,6 +807,65 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <Dialog open={isExaminationDialogOpen} onOpenChange={setIsExaminationDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add Examination</DialogTitle>
+                        <DialogDescription>
+                            Select the chief complaint for {patient.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <Label>Chief Complaint</Label>
+                        <Popover open={isComplaintPopoverOpen} onOpenChange={setIsComplaintPopoverOpen}>
+                          <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={isComplaintPopoverOpen}
+                                className="w-full justify-between"
+                              >
+                                {chiefComplaint
+                                  ? chiefComplaints.find((c) => c.value === chiefComplaint)?.label
+                                  : "Select chief complaint..."}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search complaints..." />
+                              <CommandEmpty>No complaint found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandList>
+                                    {chiefComplaints.map((c) => (
+                                    <CommandItem
+                                        key={c.value}
+                                        value={c.value}
+                                        onSelect={(currentValue) => {
+                                        setChiefComplaint(currentValue === chiefComplaint ? "" : currentValue)
+                                        setIsComplaintPopoverOpen(false)
+                                        }}
+                                    >
+                                        <Check
+                                        className={cn(
+                                            "mr-2 h-4 w-4",
+                                            chiefComplaint === c.value ? "opacity-100" : "opacity-0"
+                                        )}
+                                        />
+                                        {c.label}
+                                    </CommandItem>
+                                    ))}
+                                </CommandList>
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setIsExaminationDialogOpen(false)}>Save Examination</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
