@@ -1,6 +1,7 @@
 
 
 
+
 export type AssignedTreatment = {
   id: string;
   name: string;
@@ -53,7 +54,6 @@ export type Treatment = {
   id:string;
   name: string;
   description: string;
-  defaultAmount: number;
   prices?: { [toothNumber: number]: number };
   createdAt?: any;
 };
@@ -88,5 +88,17 @@ export type StockItem = {
   reorderLevel: number;
   supplier?: string;
   lastUpdatedAt?: any;
+  createdAt?: any;
+};
+
+export type ChiefComplaint = {
+  id: string;
+  name: string;
+  createdAt?: any;
+};
+
+export type DentalExamination = {
+  id: string;
+  name: string;
   createdAt?: any;
 };
