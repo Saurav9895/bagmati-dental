@@ -114,6 +114,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
     const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
+    const [toothExaminationToDelete, setToothExaminationToDelete] = React.useState<ToothExamination | null>(null);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
 
 
@@ -356,6 +357,20 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             setTreatmentToDelete(null);
         }
     }
+
+    const handleConfirmDeleteToothExamination = async () => {
+        if (!toothExaminationToDelete) return;
+        setIsDeleting(true);
+        const result = await removeToothExamination(patient.id, toothExaminationToDelete.id);
+        if (result.success && result.data) {
+            setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
+            toast({ title: "Examination deleted." });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to delete examination', description: result.error });
+        }
+        setIsDeleting(false);
+        setToothExaminationToDelete(null);
+    }
     
     const onToothClick = (tooth: number | string) => {
         setSelectedTooth(tooth);
@@ -568,7 +583,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
-                                <TabsContent value="dental-chart" className="mt-6">
+                                <TabsContent value="dental-chart" className="mt-6 space-y-6">
                                      <Card>
                                         <CardHeader>
                                             <div className="flex justify-between items-center">
@@ -593,6 +608,56 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                              ) : (
                                                 <ToothChart onToothClick={onToothClick} toothExaminationsByTooth={toothExaminationsByTooth} />
                                              )}
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <History className="h-5 w-5" />
+                                                Tooth Examination History
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Tooth #</TableHead>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Examination</TableHead>
+                                                        <TableHead>Diagnosis</TableHead>
+                                                        <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {patient.toothExaminations && patient.toothExaminations.length > 0 ? (
+                                                        patient.toothExaminations
+                                                            .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                                            .map((exam) => (
+                                                            <TableRow key={exam.id}>
+                                                                <TableCell className="font-medium">{exam.tooth}</TableCell>
+                                                                <TableCell>{format(new Date(exam.date), 'PP')}</TableCell>
+                                                                <TableCell>
+                                                                    <div className="font-medium">{exam.dentalExamination}</div>
+                                                                    {exam.investigation && <div className="text-xs text-muted-foreground">{exam.investigation}</div>}
+                                                                </TableCell>
+                                                                <TableCell>{exam.diagnosis}</TableCell>
+                                                                <TableCell>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setToothExaminationToDelete(exam)}>
+                                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))
+                                                    ) : (
+                                                        <TableRow>
+                                                            <TableCell colSpan={5} className="h-24 text-center">
+                                                                No tooth-specific examinations recorded yet.
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </TableBody>
+                                            </Table>
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
@@ -972,6 +1037,23 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <AlertDialog open={!!toothExaminationToDelete} onOpenChange={(open) => !open && setToothExaminationToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete the examination for tooth #{toothExaminationToDelete?.tooth}. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDeleteToothExamination} disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
@@ -1171,6 +1253,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 }
 
     
+
 
 
 

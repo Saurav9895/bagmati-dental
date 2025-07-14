@@ -36,6 +36,8 @@ export async function addTreatmentToPatient(patientId: string, treatment: Treatm
       // Add the new treatment to the patient's record.
       const newAssignedTreatment: AssignedTreatment = {
         ...treatment,
+        amount: 0,
+        description: '',
         dateAdded: new Date().toISOString(),
       };
       if (tooth) {
