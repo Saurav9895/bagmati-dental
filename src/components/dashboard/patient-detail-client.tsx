@@ -5,7 +5,7 @@
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, ChevronsUpDown, Search } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -409,20 +409,20 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 </Card>
 
                 <Tabs defaultValue="examination" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 border-b-0 p-0 h-auto bg-transparent rounded-none">
+                     <TabsList className="grid w-full grid-cols-3 border-b-0 p-0 h-auto bg-transparent rounded-none">
                         <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
                         <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
                         <TabsTrigger value="files" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Files</TabsTrigger>
                     </TabsList>
                     <div className="border-t -mt-px">
                         <TabsContent value="examination" className="mt-6">
-                            <Tabs defaultValue="examination-details" className="w-full">
+                             <Tabs defaultValue="examination-details" className="w-full">
                                 <TabsList>
                                     <TabsTrigger value="examination-details">Examination</TabsTrigger>
                                     <TabsTrigger value="dental-chart">Dental Chart</TabsTrigger>
                                 </TabsList>
                                 <TabsContent value="examination-details" className="mt-6 space-y-6">
-                                    <Dialog open={isExaminationDialogOpen} onOpenChange={(open) => {
+                                     <Dialog open={isExaminationDialogOpen} onOpenChange={(open) => {
                                         if (!open) {
                                             clinicalExaminationForm.reset();
                                         }
@@ -513,7 +513,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                     </Card>
                                 </TabsContent>
                                 <TabsContent value="dental-chart" className="mt-6">
-                                    <Card>
+                                     <Card>
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2">
                                                 <Heart className="h-5 w-5" />
@@ -975,6 +975,7 @@ type MultiSelectDropdownProps = {
 };
 
 function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectDropdownProps) {
+    const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
 
@@ -1002,11 +1003,11 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
     }, [selected, placeholder]);
 
     return (
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
                     <span className="truncate">{selectedValue}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <History className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]" align="start" onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -1053,6 +1054,15 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
                         </DropdownMenuCheckboxItem>
                     )) : !showCreateOption && <p className="p-2 text-center text-sm text-muted-foreground">No results found.</p>}
                 </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                    <Button
+                        className="w-full"
+                        onClick={() => setOpen(false)}
+                    >
+                        Done
+                    </Button>
+                </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -1105,7 +1115,37 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <div className={cn("space-y-2", className)}>
-                {!isMulti && (
+                {isMulti ? (
+                    <div className="w-full p-1 border rounded-md">
+                        <div className="flex gap-1 flex-wrap mb-1">
+                            {selected.map((value) => (
+                                <Badge key={value} variant="secondary">
+                                    {value}
+                                    <button
+                                        type="button"
+                                        className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                        onClick={() => handleSelect(value)}
+                                    >
+                                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                </Badge>
+                            ))}
+                        </div>
+                        <Command className="bg-transparent">
+                            <div className="flex items-center">
+                                <CommandInput
+                                    ref={inputRef}
+                                    placeholder={placeholder}
+                                    value={searchQuery}
+                                    onValueChange={setSearchQuery}
+                                    onBlur={() => setIsOpen(false)}
+                                    onFocus={() => setIsOpen(true)}
+                                    className="border-0 h-9 flex-1"
+                                />
+                            </div>
+                        </Command>
+                    </div>
+                ) : (
                     <PopoverTrigger asChild>
                         <Button
                             variant="outline"
@@ -1114,7 +1154,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                             className="w-full justify-between font-normal"
                         >
                             {selected.length > 0 && !isMulti ? selected[0] : placeholder}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            <History className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
                 )}
