@@ -47,7 +47,12 @@ const prescriptionSchema = z.object({
   notes: z.string().min(2, "Prescription notes must be at least 2 characters."),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
 });
-type PrescriptionFormValues = z.infer<typeof prescriptionSchema>;
+type PrescriptionFormValues = z.infer<typeof prescriptionSchema>
+
+const newComplaintSchema = z.object({
+    name: z.string().min(2, "Complaint name must be at least 2 characters."),
+});
+type NewComplaintFormValues = z.infer<typeof newComplaintSchema>;
 
 const clinicalExaminationSchema = z.object({
     chiefComplaint: z.string().min(1, { message: 'Chief complaint is required.' }),
@@ -99,9 +104,8 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
     const [isExaminationMode, setIsExaminationMode] = React.useState(false);
     const [isExaminationFormVisible, setIsExaminationFormVisible] = React.useState(false);
-    const [isComplaintPopoverOpen, setIsComplaintPopoverOpen] = React.useState(false);
-    const [complaintSearchQuery, setComplaintSearchQuery] = React.useState('');
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
+    const [isNewComplaintDialogOpen, setIsNewComplaintDialogOpen] = React.useState(false);
 
     const { toast } = useToast();
 
@@ -132,6 +136,11 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             dentalHistory: '',
             observationNotes: '',
         },
+    });
+
+    const newComplaintForm = useForm<NewComplaintFormValues>({
+        resolver: zodResolver(newComplaintSchema),
+        defaultValues: { name: '' },
     });
     
     const handleClinicalExaminationSubmit = async (data: ClinicalExaminationFormValues) => {
@@ -344,22 +353,19 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const treatedTeeth = React.useMemo(() => Array.from(assignedTreatmentsByTooth.keys()), [assignedTreatmentsByTooth]);
 
-    const handleAddNewComplaint = async (newComplaintName: string) => {
-        if (!newComplaintName.trim()) return;
-
-        const result = await addChiefComplaint({ name: newComplaintName.trim() });
+    const handleNewComplaintSubmit = async (data: NewComplaintFormValues) => {
+        const result = await addChiefComplaint({ name: data.name.trim() });
         if (result.success && result.data) {
-            setChiefComplaints(prev => [...prev, result.data!].sort((a, b) => a.name.localeCompare(b.name)));
-            clinicalExaminationForm.setValue('chiefComplaint', result.data.name);
+            const newComplaint = result.data;
+            setChiefComplaints(prev => [...prev, newComplaint].sort((a, b) => a.name.localeCompare(b.name)));
+            clinicalExaminationForm.setValue('chiefComplaint', newComplaint.name);
             toast({ title: 'New complaint added!' });
+            setIsNewComplaintDialogOpen(false);
+            newComplaintForm.reset();
         } else {
             toast({ variant: 'destructive', title: 'Failed to add complaint', description: result.error });
         }
-        setComplaintSearchQuery('');
-        setIsComplaintPopoverOpen(false);
     };
-
-    const filteredComplaints = chiefComplaints.filter(c => c.name.toLowerCase().includes(complaintSearchQuery.toLowerCase()));
 
     return (
         <>
@@ -437,46 +443,44 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                     {isExaminationFormVisible && (
                                         <Form {...clinicalExaminationForm}>
                                             <form onSubmit={clinicalExaminationForm.handleSubmit(handleClinicalExaminationSubmit)} className="space-y-4">
-                                                <FormField control={clinicalExaminationForm.control} name="chiefComplaint" render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Chief Complaint</FormLabel>
-                                                        <Popover open={isComplaintPopoverOpen} onOpenChange={setIsComplaintPopoverOpen}>
-                                                            <PopoverTrigger asChild>
+                                                <FormField
+                                                    control={clinicalExaminationForm.control}
+                                                    name="chiefComplaint"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Chief Complaint</FormLabel>
+                                                            <Select
+                                                                onValueChange={(value) => {
+                                                                    if (value === 'add_new') {
+                                                                        setIsNewComplaintDialogOpen(true);
+                                                                    } else {
+                                                                        field.onChange(value);
+                                                                    }
+                                                                }}
+                                                                value={field.value}
+                                                            >
                                                                 <FormControl>
-                                                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                                                                        {field.value || "Select chief complaint"}
-                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                    </Button>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select a complaint" />
+                                                                    </SelectTrigger>
                                                                 </FormControl>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                                <Command>
-                                                                    <CommandInput placeholder="Search complaints..." value={complaintSearchQuery} onValueChange={setComplaintSearchQuery}/>
-                                                                    <CommandList>
-                                                                        {filteredComplaints.length === 0 && complaintSearchQuery.length > 0 ? (
-                                                                            <CommandItem onSelect={() => handleAddNewComplaint(complaintSearchQuery)}>
-                                                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                                                                Add new: "{complaintSearchQuery}"
-                                                                            </CommandItem>
-                                                                        ) : <CommandEmpty>No complaint found.</CommandEmpty>}
-                                                                        <CommandGroup>
-                                                                            {filteredComplaints.map((c) => (
-                                                                                <CommandItem key={c.id} value={c.name} onSelect={(currentValue) => {
-                                                                                    field.onChange(currentValue === field.value ? "" : currentValue);
-                                                                                    setIsComplaintPopoverOpen(false);
-                                                                                }}>
-                                                                                    <Check className={cn("mr-2 h-4 w-4", c.name === field.value ? "opacity-100" : "opacity-0")} />
-                                                                                    {c.name}
-                                                                                </CommandItem>
-                                                                            ))}
-                                                                        </CommandGroup>
-                                                                    </CommandList>
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )} />
+                                                                <SelectContent>
+                                                                    <SelectItem value="add_new" className="font-medium text-primary">
+                                                                        <PlusCircle className="inline-block mr-2 h-4 w-4" />
+                                                                        Add new complaint...
+                                                                    </SelectItem>
+                                                                    <Separator />
+                                                                    {chiefComplaints.map((complaint) => (
+                                                                        <SelectItem key={complaint.id} value={complaint.name}>
+                                                                            {complaint.name}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                                 <FormField control={clinicalExaminationForm.control} name="medicalHistory" render={({ field }) => (<FormItem><FormLabel>Medical History (Optional)</FormLabel><FormControl><Textarea placeholder="Any relevant medical history..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={clinicalExaminationForm.control} name="dentalHistory" render={({ field }) => (<FormItem><FormLabel>Dental History (Optional)</FormLabel><FormControl><Textarea placeholder="Previous dental treatments, issues..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                                                 <FormField control={clinicalExaminationForm.control} name="observationNotes" render={({ field }) => (<FormItem><FormLabel>Observation Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Clinical observations..." {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -927,6 +931,40 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                 <Button type="submit" disabled={isSubmittingPrescription}>
                                     {isSubmittingPrescription ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     Save Prescription
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={isNewComplaintDialogOpen} onOpenChange={setIsNewComplaintDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add New Chief Complaint</DialogTitle>
+                        <DialogDescription>
+                            Create a new complaint that can be reused for other patients.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...newComplaintForm}>
+                        <form onSubmit={newComplaintForm.handleSubmit(handleNewComplaintSubmit)} className="space-y-4 py-4">
+                             <FormField
+                                control={newComplaintForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Complaint Name</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., Bleeding Gums" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button type="button" variant="ghost" onClick={() => setIsNewComplaintDialogOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={newComplaintForm.formState.isSubmitting}>
+                                    {newComplaintForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Complaint
                                 </Button>
                             </DialogFooter>
                         </form>
