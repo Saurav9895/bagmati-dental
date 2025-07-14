@@ -3,8 +3,44 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to all collections for authenticated users
-    match /{document=**} {
+    
+    // Allow authenticated users to manage patient records
+    match /patients/{patientId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to manage appointments
+    match /appointments/{appointmentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to manage treatments
+    match /treatments/{treatmentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to manage expenses
+    match /expenses/{expenseId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow authenticated users to manage inventory
+    match /stock/{stockId} {
+        allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to manage chief complaints templates
+    match /chiefComplaints/{complaintId} {
+        allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to manage dental examination templates
+    match /dentalExaminations/{examinationId} {
+        allow read, write: if request.auth != null;
+    }
+
+    // Allow authenticated users to manage system counters (e.g., for patient registration)
+    match /counters/{counterId} {
       allow read, write: if request.auth != null;
     }
   }
