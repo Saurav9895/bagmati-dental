@@ -3,9 +3,9 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Label } from '@/components/ui/label';
 import { addChiefComplaint } from '@/app/actions/examinations';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const appointmentSchema = z.object({
@@ -63,6 +64,13 @@ const clinicalExaminationSchema = z.object({
 });
 type ClinicalExaminationFormValues = z.infer<typeof clinicalExaminationSchema>;
 
+const toothExaminationSchema = z.object({
+  dentalExaminationId: z.string().min(1, 'Please select a dental examination.'),
+  investigation: z.string().optional(),
+  diagnosisId: z.string().min(1, 'Please select a diagnosis.'),
+});
+type ToothExaminationFormValues = z.infer<typeof toothExaminationSchema>;
+
 
 const formatTime12h = (time24h: string): string => {
     if (!time24h) return '';
@@ -79,14 +87,14 @@ interface PatientDetailClientProps {
     treatments: Treatment[];
     appointments: Appointment[];
     chiefComplaints: ChiefComplaint[];
+    dentalExaminations: DentalExamination[];
 }
 
-export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints }: PatientDetailClientProps) {
+export function PatientDetailClient({ initialPatient, treatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints, dentalExaminations }: PatientDetailClientProps) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
     const [chiefComplaints, setChiefComplaints] = React.useState<ChiefComplaint[]>(initialChiefComplaints);
     
-    const [selectedTreatmentId, setSelectedTreatmentId] = React.useState<string | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
@@ -97,7 +105,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     const [isSubmittingAppointment, setIsSubmittingAppointment] = React.useState(false);
     const [editingAppointment, setEditingAppointment] = React.useState<Appointment | null>(null);
     
-    const [isTreatmentDialogOpen, setIsTreatmentDialogOpen] = React.useState(false);
+    const [isToothExamDialogOpen, setIsToothExamDialogOpen] = React.useState(false);
     const [selectedTooth, setSelectedTooth] = React.useState<number | string | null>(null);
     
     const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
@@ -137,6 +145,15 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
             dentalHistory: '',
             observationNotes: '',
         },
+    });
+
+    const toothExaminationForm = useForm<ToothExaminationFormValues>({
+        resolver: zodResolver(toothExaminationSchema),
+        defaultValues: {
+            dentalExaminationId: '',
+            investigation: '',
+            diagnosisId: '',
+        }
     });
     
     const handleClinicalExaminationSubmit = async (data: ClinicalExaminationFormValues) => {
@@ -267,20 +284,35 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
 
     const balanceDue = totalAmount - amountPaid - totalDiscount;
 
-    const handleAddTreatment = async () => {
-        if (!selectedTreatmentId) {
-            toast({ variant: 'destructive', title: 'Please select a treatment.' });
-            return;
-        }
-        const selectedTreatment = treatments.find(t => t.id === selectedTreatmentId);
-        if (!selectedTreatment) {
-            toast({ variant: 'destructive', title: 'Selected treatment not found.' });
+    const handleToothExaminationSubmit = async (data: ToothExaminationFormValues) => {
+        if (!data.diagnosisId) {
+            toast({ variant: 'destructive', title: 'Please select a diagnosis.' });
             return;
         }
 
+        const selectedTreatment = treatments.find(t => t.id === data.diagnosisId);
+        if (!selectedTreatment) {
+            toast({ variant: 'destructive', title: 'Selected diagnosis not found.' });
+            return;
+        }
+
+        const selectedExamination = dentalExaminations.find(e => e.id === data.dentalExaminationId);
+        if (!selectedExamination) {
+            toast({ variant: 'destructive', title: 'Selected dental examination not found.' });
+            return;
+        }
+        
+        const investigationNote = data.investigation ? `\nInvestigation: ${data.investigation}` : '';
+        const treatmentDescription = `Dental Examination: ${selectedExamination.name}${investigationNote}`;
+
         setIsSubmitting(true);
         try {
-            const treatmentWithPrice = { ...selectedTreatment, amount: selectedTreatment.defaultAmount || 0 };
+            const treatmentWithPrice: AssignedTreatment = { 
+                ...selectedTreatment, 
+                amount: selectedTreatment.defaultAmount || 0,
+                description: treatmentDescription,
+                dateAdded: new Date().toISOString(),
+            };
 
             const result = await addTreatmentToPatient(patient.id, treatmentWithPrice, selectedTooth ?? undefined);
             
@@ -288,9 +320,9 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                 const updatedPatient = { ...patient, ...(result.data as Partial<Patient>) };
                 setPatient(updatedPatient);
                 toast({ title: "Treatment added successfully!" });
-                setIsTreatmentDialogOpen(false);
-                setSelectedTreatmentId(undefined);
+                setIsToothExamDialogOpen(false);
                 setSelectedTooth(null);
+                toothExaminationForm.reset();
             } else {
                 toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
             }
@@ -329,7 +361,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
     
     const onToothClick = (tooth: number | string) => {
         setSelectedTooth(tooth);
-        setIsTreatmentDialogOpen(true);
+        setIsToothExamDialogOpen(true);
     }
     
     const assignedTreatmentsByTooth = React.useMemo(() => {
@@ -531,7 +563,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                     <Label htmlFor="primary-teeth" className="font-medium">Primary Teeth</Label>
                                                 </div>
                                             </div>
-                                            <CardDescription>Click on a tooth to assign a treatment.</CardDescription>
+                                            <CardDescription>Click on a tooth to record an examination.</CardDescription>
                                         </CardHeader>
                                         <CardContent>
                                              {showPrimaryTeeth ? (
@@ -568,6 +600,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                                                         <div>
                                                             <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
                                                             <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
+                                                            {t.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{t.description}</p>}
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-4">
@@ -789,34 +822,82 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
                     </Form>
                 </DialogContent>
             </Dialog>
-            <Dialog open={isTreatmentDialogOpen} onOpenChange={(open) => { if(!open) { setSelectedTooth(null); setSelectedTreatmentId(undefined); } setIsTreatmentDialogOpen(open); }}>
+            <Dialog open={isToothExamDialogOpen} onOpenChange={(open) => { if(!open) { setSelectedTooth(null); toothExaminationForm.reset(); } setIsToothExamDialogOpen(open); }}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Assign Treatment to Tooth #{selectedTooth}</DialogTitle>
-                        <DialogDescription>Select a treatment to assign to this tooth.</DialogDescription>
+                        <DialogTitle>Record Examination for Tooth #{selectedTooth}</DialogTitle>
                     </DialogHeader>
-                    <div className="py-4 space-y-4">
-                         <MultiSelectSearchBar
-                            options={treatments}
-                            selected={selectedTreatmentId ? [treatments.find(t=>t.id === selectedTreatmentId)!.name] : []}
-                            onChange={(selectedNames) => {
-                                if(selectedNames.length > 0) {
-                                    const lastSelectedName = selectedNames[selectedNames.length - 1];
-                                    const selected = treatments.find(t=> t.name === lastSelectedName);
-                                    setSelectedTreatmentId(selected?.id);
-                                } else {
-                                    setSelectedTreatmentId(undefined);
-                                }
-                            }}
-                            placeholder="Select a treatment"
-                            isMulti={false}
-                         />
-
-                        <Button onClick={handleAddTreatment} disabled={isSubmitting || !selectedTreatmentId} className="w-full">
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                            Assign Treatment
-                        </Button>
-                    </div>
+                    <Form {...toothExaminationForm}>
+                        <form onSubmit={toothExaminationForm.handleSubmit(handleToothExaminationSubmit)} className="space-y-4 py-4">
+                            <FormField
+                                control={toothExaminationForm.control}
+                                name="dentalExaminationId"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Dental Examination</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                        <SelectValue placeholder="Select an examination" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {dentalExaminations.map((exam) => (
+                                        <SelectItem key={exam.id} value={exam.id}>
+                                            {exam.name}
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={toothExaminationForm.control}
+                                name="investigation"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Investigation (Optional)</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="Enter any investigation notes..." {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={toothExaminationForm.control}
+                                name="diagnosisId"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Diagnosis (Treatment)</FormLabel>
+                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                        <SelectValue placeholder="Select a diagnosis" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {treatments.map((treatment) => (
+                                        <SelectItem key={treatment.id} value={treatment.id}>
+                                            {treatment.name}
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <DialogFooter>
+                                <Button onClick={handleAddTreatment} disabled={isSubmitting} className="w-full">
+                                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                    Add to Treatment Plan
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
                 </DialogContent>
             </Dialog>
              <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
@@ -1087,7 +1168,7 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                             className="w-full justify-between font-normal"
                         >
                             {selected.length > 0 && !isMulti ? selected[0] : placeholder}
-                            <History className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
                 )}
@@ -1161,4 +1242,3 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
         </Popover>
     );
 }
-
