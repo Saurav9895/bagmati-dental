@@ -24,12 +24,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   React.useEffect(() => {
-    // This effect applies the theme from localStorage on initial load.
-    const savedColor = localStorage.getItem('theme-primary-color');
-    if (savedColor) {
-      document.documentElement.style.setProperty('--primary', savedColor);
-    }
-    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
