@@ -1083,10 +1083,10 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                         onMouseDown={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
+                                            handleCreate();
                                         }}
-                                        onSelect={handleCreate}
                                         disabled={isCreating}
-                                        className="text-primary focus:text-primary cursor-pointer"
+                                        className="cursor-pointer"
                                     >
                                         {isCreating ? (
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
