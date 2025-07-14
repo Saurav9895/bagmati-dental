@@ -21,7 +21,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
-  defaultAmount: z.coerce.number().min(0, "Price must be a positive number.").optional(),
 });
 type TreatmentFormValues = z.infer<typeof treatmentSchema>;
 
@@ -32,7 +31,6 @@ type ComplaintFormValues = z.infer<typeof complaintSchema>;
 
 const examinationSchema = z.object({
   name: z.string().min(2, "Examination name must be at least 2 characters."),
-  defaultAmount: z.coerce.number().min(0, "Price must be a positive number.").optional(),
 });
 type ExaminationFormValues = z.infer<typeof examinationSchema>;
 
@@ -64,9 +62,9 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   const { toast } = useToast();
 
-  const treatmentForm = useForm<TreatmentFormValues>({ resolver: zodResolver(treatmentSchema), defaultValues: { name: "", defaultAmount: 0 } });
+  const treatmentForm = useForm<TreatmentFormValues>({ resolver: zodResolver(treatmentSchema), defaultValues: { name: "" } });
   const complaintForm = useForm<ComplaintFormValues>({ resolver: zodResolver(complaintSchema), defaultValues: { name: "" } });
-  const examinationForm = useForm<ExaminationFormValues>({ resolver: zodResolver(examinationSchema), defaultValues: { name: "", defaultAmount: 0 } });
+  const examinationForm = useForm<ExaminationFormValues>({ resolver: zodResolver(examinationSchema), defaultValues: { name: "" } });
 
   const filteredTreatments = React.useMemo(() => {
     if (!searchQuery) return treatments;
@@ -76,9 +74,9 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   React.useEffect(() => {
     if (isTreatmentFormOpen && editingTreatment) {
-      treatmentForm.reset({ name: editingTreatment.name, defaultAmount: editingTreatment.defaultAmount || 0 });
+      treatmentForm.reset({ name: editingTreatment.name });
     } else {
-      treatmentForm.reset({ name: "", defaultAmount: 0 });
+      treatmentForm.reset({ name: "" });
     }
   }, [isTreatmentFormOpen, editingTreatment, treatmentForm]);
   
@@ -92,9 +90,9 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   React.useEffect(() => {
     if (editingExamination) {
-      examinationForm.reset({ name: editingExamination.name, defaultAmount: editingExamination.defaultAmount || 0 });
+      examinationForm.reset({ name: editingExamination.name });
     } else {
-      examinationForm.reset({ name: "", defaultAmount: 0 });
+      examinationForm.reset({ name: "" });
     }
   }, [editingExamination, examinationForm]);
   
@@ -176,7 +174,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
             toast({ variant: "destructive", title: "Failed to add examination", description: result.error });
         }
         setIsAddingExamination(false);
-        examinationForm.reset({ name: '', defaultAmount: 0 });
+        examinationForm.reset({ name: '' });
     }
   };
 
@@ -306,22 +304,13 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             <Form {...examinationForm}>
                                 <form onSubmit={examinationForm.handleSubmit(onExaminationSubmit)} className="space-y-4 p-4 border rounded-md mb-4">
                                     <h3 className="font-medium">Add New Dental Examination</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <FormField control={examinationForm.control} name="name" render={({ field }) => (
-                                            <FormItem className="md:col-span-2">
-                                            <FormLabel>Examination Name</FormLabel>
-                                            <FormControl><Input placeholder="e.g., Standard Check-up" {...field} /></FormControl>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={examinationForm.control} name="defaultAmount" render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Default Price</FormLabel>
-                                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                    </div>
+                                    <FormField control={examinationForm.control} name="name" render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Examination Name</FormLabel>
+                                        <FormControl><Input placeholder="e.g., Standard Check-up" {...field} /></FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )} />
                                     <div className="flex justify-end gap-2">
                                         <Button type="button" variant="ghost" onClick={() => setIsAddingExamination(false)}>Cancel</Button>
                                         <Button type="submit" disabled={examinationForm.formState.isSubmitting}>
@@ -336,7 +325,6 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Name</TableHead>
-                                        <TableHead>Default Price</TableHead>
                                         <TableHead className="w-[80px] text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -344,7 +332,6 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                     {dentalExaminations.length > 0 ? dentalExaminations.map(exam => (
                                         <TableRow key={exam.id}>
                                             <TableCell>{exam.name}</TableCell>
-                                            <TableCell>Rs. {(exam.defaultAmount || 0).toFixed(2)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -356,7 +343,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                             </TableCell>
                                         </TableRow>
                                     )) : (
-                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">No examination templates defined.</TableCell></TableRow>
+                                        <TableRow><TableCell colSpan={2} className="h-24 text-center">No examination templates defined.</TableCell></TableRow>
                                     )}
                                 </TableBody>
                             </Table>
@@ -406,13 +393,6 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                 <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={treatmentForm.control} name="defaultAmount" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Default Price</FormLabel>
-                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
                             <DialogFooter>
                                 <Button type="submit" className="w-full" disabled={treatmentForm.formState.isSubmitting}>
                                     {treatmentForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Treatment'}
@@ -431,7 +411,6 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Treatment Name</TableHead>
-                                <TableHead>Default Price</TableHead>
                                 <TableHead className="w-[80px] text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -440,7 +419,6 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             filteredTreatments.map(treatment => (
                                 <TableRow key={treatment.id}>
                                     <TableCell className="font-medium">{treatment.name}</TableCell>
-                                    <TableCell>Rs. {(treatment.defaultAmount || 0).toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -463,7 +441,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={3} className="h-24 text-center">
+                                <TableCell colSpan={2} className="h-24 text-center">
                                     {searchQuery ? "No treatments found." : "No treatments created yet."}
                                 </TableCell>
                             </TableRow>
@@ -518,13 +496,6 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         <FormItem>
                         <FormLabel>Examination Name</FormLabel>
                         <FormControl><Input placeholder="e.g., Standard Check-up" {...field} /></FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={examinationForm.control} name="defaultAmount" render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Default Price</FormLabel>
-                        <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
                         <FormMessage />
                         </FormItem>
                     )} />

@@ -309,7 +309,7 @@ export function PatientDetailClient({ initialPatient, treatments, appointments: 
         try {
             const treatmentWithPrice: AssignedTreatment = { 
                 ...selectedTreatment, 
-                amount: selectedTreatment.defaultAmount || 0,
+                amount: 0,
                 description: treatmentDescription,
                 dateAdded: new Date().toISOString(),
             };
