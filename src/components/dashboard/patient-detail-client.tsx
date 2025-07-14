@@ -1080,12 +1080,12 @@ function MultiSelectSearchBar({ options, selected, onChange, onCreate, placehold
                                 ))}
                                 {showCreateOption && (
                                     <CommandItem
-                                        onSelect={handleCreate}
-                                        disabled={isCreating}
                                         onMouseDown={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
                                         }}
+                                        onSelect={handleCreate}
+                                        disabled={isCreating}
                                         className="text-primary focus:text-primary cursor-pointer"
                                     >
                                         {isCreating ? (
