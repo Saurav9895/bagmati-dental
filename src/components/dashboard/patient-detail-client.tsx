@@ -1,12 +1,11 @@
 
 
-
 'use client';
 
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +34,7 @@ import { addChiefComplaint } from '@/app/actions/examinations';
 import { addDentalExamination } from '@/app/actions/examinations';
 import { addTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 
 const appointmentSchema = z.object({
@@ -102,7 +102,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     
-    const [isAlertOpen, setIsAlertOpen] = React.useState(false);
     const [treatmentToDelete, setTreatmentToDelete] = React.useState<AssignedTreatment | null>(null);
     const [discountToDelete, setDiscountToDelete] = React.useState<Discount | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
@@ -127,6 +126,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     
     const [activeTab, setActiveTab] = React.useState("examination");
     const [editingTreatmentId, setEditingTreatmentId] = React.useState<string | null>(null);
+    const [prefillTreatment, setPrefillTreatment] = React.useState<Partial<AssignedTreatment> | null>(null);
 
     const { toast } = useToast();
 
@@ -284,22 +284,21 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         setIsAppointmentDialogOpen(true);
     };
 
-    const totalAmount = React.useMemo(() => {
-        if (!patient || !patient.assignedTreatments) return 0;
-        return patient.assignedTreatments.reduce((total, treatment) => total + (treatment.amount || 0), 0);
+    const { totalCost, totalPaid, totalDiscount, balanceDue } = React.useMemo(() => {
+        const totalCost = patient.assignedTreatments?.reduce((total, t) => {
+            const cost = t.cost || 0;
+            const discount = t.discountAmount || 0;
+            return total + (cost - discount);
+        }, 0) || 0;
+
+        const totalPaid = patient.payments?.reduce((total, payment) => total + payment.amount, 0) || 0;
+        
+        const totalOverallDiscount = patient.discounts?.reduce((total, d) => total + d.amount, 0) || 0;
+
+        const balanceDue = totalCost - totalPaid - totalOverallDiscount;
+        return { totalCost, totalPaid, totalDiscount: totalOverallDiscount, balanceDue };
     }, [patient]);
 
-    const amountPaid = React.useMemo(() => {
-        if (!patient || !patient.payments) return 0;
-        return patient.payments.reduce((total, payment) => total + payment.amount, 0);
-    }, [patient]);
-
-    const totalDiscount = React.useMemo(() => {
-        if (!patient || !patient.discounts) return 0;
-        return patient.discounts.reduce((total, discount) => total + discount.amount, 0);
-    }, [patient]);
-
-    const balanceDue = totalAmount - amountPaid - totalDiscount;
 
     const handleToothExaminationSubmit = async (data: ToothExaminationFormValues) => {
         if (!data.diagnosisId || !data.dentalExaminationId || !selectedTooth) {
@@ -347,26 +346,25 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         }
     };
     
-    const handleAddExaminationToTreatmentPlan = async (examination: ToothExamination) => {
+    const handleAddExaminationToTreatmentPlan = (examination: ToothExamination) => {
         const treatmentToAdd = treatments.find(t => t.name === examination.diagnosis);
         if (!treatmentToAdd) {
             toast({ variant: 'destructive', title: 'Treatment not found', description: `The treatment "${examination.diagnosis}" is not a recognized service.` });
             return;
         }
         
-        // Switch to the treatment tab and show the inline form
-        setActiveTab("treatment");
+        setActiveTab("pricing");
         
-        // Set the editing state to a new temporary treatment
-        setEditingTreatmentId("new");
+        setPrefillTreatment({
+            treatmentId: treatmentToAdd.id,
+            name: treatmentToAdd.name,
+            tooth: String(examination.tooth),
+        });
 
-        // Use a timeout to ensure the form is rendered before setting values
+        // Use a timeout to ensure the tab has switched before setting the editing ID
         setTimeout(() => {
-            const treatmentForm = document.getElementById("treatment-form-new");
-            if (treatmentForm) {
-                // This is now handled by the TreatmentFormRow's useEffect
-            }
-        }, 0);
+            setEditingTreatmentId("new");
+        }, 50);
     };
     
     const confirmRemoveTreatment = async () => {
@@ -475,15 +473,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const handleDiscountSubmit = async (data: DiscountFormValues) => {
         setIsSubmittingDiscount(true);
         
-        let amount = data.value;
-        if (data.type === 'Percentage') {
-            amount = (totalAmount * data.value) / 100;
-        }
-
-        const result = await addDiscountToPatient(patient.id, {
-            ...data,
-            amount,
-        });
+        const result = await addDiscountToPatient(patient.id, data);
 
         if (result.success && result.data) {
             setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
@@ -566,9 +556,10 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                     <TabsList className="grid w-full grid-cols-3 border-b p-0 h-auto bg-transparent rounded-none">
+                     <TabsList className="grid w-full grid-cols-4 border-b p-0 h-auto bg-transparent rounded-none">
                         <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
-                        <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
+                        <TabsTrigger value="pricing" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Pricing</TabsTrigger>
+                        <TabsTrigger value="history" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">History</TabsTrigger>
                         <TabsTrigger value="files" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Files</TabsTrigger>
                     </TabsList>
                     <div className="border-t -mt-px">
@@ -758,20 +749,20 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </TabsContent>
                             </Tabs>
                         </TabsContent>
-                        <TabsContent value="treatment" className="mt-6 space-y-6">
-                            <Card>
+                        <TabsContent value="pricing" className="mt-6 space-y-6">
+                             <Card>
                                 <CardHeader>
                                     <div className="flex justify-between items-center">
                                         <CardTitle className="flex items-center gap-2">
                                             <Heart className="h-5 w-5" />
                                             Treatment Plan
                                         </CardTitle>
-                                        <Button size="sm" onClick={() => setEditingTreatmentId("new")}>
+                                        <Button size="sm" onClick={() => { setPrefillTreatment(null); setEditingTreatmentId("new");}}>
                                             <PlusCircle className="mr-2 h-4 w-4" />
                                             Add Treatment
                                         </Button>
                                     </div>
-                                    <CardDescription>A list of all treatments assigned to this patient.</CardDescription>
+                                    <CardDescription>A list of all billable treatments assigned to this patient.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <TreatmentPlanTable
@@ -779,6 +770,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         allTreatments={treatments}
                                         editingId={editingTreatmentId}
                                         setEditingId={setEditingTreatmentId}
+                                        prefillData={prefillTreatment}
                                         onSave={async (data) => {
                                             let result;
                                             if (data.id === 'new') {
@@ -787,8 +779,10 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                     treatmentId: data.treatmentId,
                                                     name: data.name,
                                                     tooth: data.tooth,
-                                                    amount: data.amount,
-                                                    description: data.description,
+                                                    cost: data.cost,
+                                                    discountType: data.discountType,
+                                                    discountValue: data.discountValue,
+                                                    discountAmount: data.discountAmount,
                                                 };
                                                 result = await addTreatmentToPatient(patient.id, newTreatmentData);
                                             } else {
@@ -811,8 +805,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                     />
                                 </CardContent>
                             </Card>
-
-                            <Card>
+                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <CreditCard className="h-5 w-5" />
@@ -821,11 +814,11 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                     <div className="flex gap-2">
                                          <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
                                             <DialogTrigger asChild>
-                                                <Button variant="outline" size="sm"><Gift className="mr-2 h-4 w-4" /> Add Discount</Button>
+                                                <Button variant="outline" size="sm"><Gift className="mr-2 h-4 w-4" /> Add Overall Discount</Button>
                                             </DialogTrigger>
                                             <DialogContent>
                                                 <DialogHeader>
-                                                    <DialogTitle>Add Discount for {patient.name}</DialogTitle>
+                                                    <DialogTitle>Add Overall Discount for {patient.name}</DialogTitle>
                                                 </DialogHeader>
                                                 <Form {...discountForm}>
                                                     <form onSubmit={discountForm.handleSubmit(handleDiscountSubmit)} className="space-y-4 py-4">
@@ -871,30 +864,32 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 <CardContent>
                                     <div className="space-y-2 text-right font-medium">
                                         <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
-                                            <span>Rs. {totalAmount.toFixed(2)}</span>
+                                            <span className="text-muted-foreground mr-4">Total Amount:</span>
+                                            <span>Rs. {totalCost.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Total Discount:</span>
+                                            <span className="text-muted-foreground mr-4">Overall Discount:</span>
                                             <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-end items-center text-md">
                                             <span className="text-muted-foreground mr-4">Total Paid:</span>
-                                            <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
+                                            <span className="text-green-600">Rs. {totalPaid.toFixed(2)}</span>
                                         </div>
                                         <Separator className="my-2" />
                                         <div className="flex justify-end items-center text-lg font-bold">
                                             <span className="text-muted-foreground mr-4">Balance Due:</span>
-                                            {balanceDue <= 0 && totalAmount > 0 ? (
+                                            {balanceDue <= 0 && totalCost > 0 ? (
                                                 <span className="text-green-600">Fully Paid</span>
                                             ) : (
                                                 <span>Rs. {balanceDue.toFixed(2)}</span>
                                             )}
                                         </div>
                                     </div>
+                                    { (patient.discounts?.length ?? 0) > 0 &&
+                                    <>
                                     <Separator className="my-4" />
                                     <div>
-                                        <h4 className="text-base font-semibold mb-2">Applied Discounts</h4>
+                                        <h4 className="text-base font-semibold mb-2">Applied Overall Discounts</h4>
                                         <Table>
                                             <TableHeader>
                                                 <TableRow>
@@ -905,30 +900,27 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {patient.discounts && patient.discounts.length > 0 ? (
-                                                    patient.discounts.map(discount => (
-                                                        <TableRow key={discount.id}>
-                                                            <TableCell>{discount.reason}</TableCell>
-                                                            <TableCell>{discount.type === 'Percentage' ? `${discount.value}%` : `Fixed`}</TableCell>
-                                                            <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
-                                                            <TableCell>
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDiscountToDelete(discount)}>
-                                                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                                                </Button>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))
-                                                ) : (
-                                                    <TableRow>
-                                                        <TableCell colSpan={4} className="text-center h-24">No discounts applied yet.</TableCell>
+                                                {patient.discounts!.map(discount => (
+                                                    <TableRow key={discount.id}>
+                                                        <TableCell>{discount.reason}</TableCell>
+                                                        <TableCell>{discount.type === 'Percentage' ? `${discount.value}%` : `Fixed`}</TableCell>
+                                                        <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
+                                                        <TableCell>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDiscountToDelete(discount)}>
+                                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                            </Button>
+                                                        </TableCell>
                                                     </TableRow>
-                                                )}
+                                                ))}
                                             </TableBody>
                                         </Table>
                                     </div>
+                                    </>
+                                    }
                                 </CardContent>
                             </Card>
-
+                        </TabsContent>
+                        <TabsContent value="history" className="mt-6 space-y-6">
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -1154,7 +1146,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 )}
                             />
                             <DialogFooter>
-                                <Button type="submit" disabled={isSubmitting} className="w-full">
+                                <Button type="submit" disabled={isSubmitting}>
                                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                     Save
                                 </Button>
@@ -1275,9 +1267,10 @@ const treatmentPlanSchema = z.object({
   id: z.string(),
   treatmentId: z.string().min(1, 'Treatment type is required.'),
   name: z.string(),
-  tooth: z.union([z.string(), z.number()]).optional(),
-  amount: z.coerce.number().min(0, 'Cost must be a positive number.'),
-  description: z.string().optional(),
+  tooth: z.string().optional(),
+  cost: z.coerce.number().min(0, 'Cost must be a positive number.'),
+  discountType: z.enum(['Amount', 'Percentage']).optional(),
+  discountValue: z.coerce.number().min(0).optional(),
 });
 type TreatmentPlanFormValues = z.infer<typeof treatmentPlanSchema>;
 
@@ -1286,31 +1279,35 @@ interface TreatmentPlanTableProps {
     allTreatments: Treatment[];
     editingId: string | null;
     setEditingId: (id: string | null) => void;
+    prefillData: Partial<AssignedTreatment> | null;
     onSave: (data: AssignedTreatment) => void;
     onDelete: (id: string) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
+function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const { toast } = useToast();
 
-    const handleSave = async (formData: AssignedTreatment) => {
+    const handleSave = (formData: AssignedTreatment) => {
         if (!formData.treatmentId) {
             toast({ variant: 'destructive', title: 'Please select a treatment type.' });
             return;
         }
         onSave(formData);
     }
+    
+    const assignedTreatments = patient.assignedTreatments || [];
 
     return (
         <div className="border rounded-md">
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Treatment</TableHead>
+                        <TableHead className='min-w-[200px]'>Treatment</TableHead>
                         <TableHead>Tooth</TableHead>
                         <TableHead>Cost</TableHead>
-                        <TableHead>Notes</TableHead>
+                        <TableHead>Discount</TableHead>
+                        <TableHead>Total</TableHead>
                         <TableHead className="w-[100px] text-right">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -1321,9 +1318,10 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, o
                             onSave={handleSave}
                             onCancel={() => setEditingId(null)}
                             onCreateNewTreatment={onCreateNewTreatment}
+                            prefillData={prefillData}
                         />
                     )}
-                    {patient.assignedTreatments?.map((treatment) => (
+                    {assignedTreatments.map((treatment) => (
                         editingId === treatment.id ? (
                             <TreatmentFormRow
                                 key={treatment.id}
@@ -1337,8 +1335,16 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, o
                             <TableRow key={treatment.id}>
                                 <TableCell className="font-medium">{treatment.name}</TableCell>
                                 <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                <TableCell>Rs. {treatment.amount.toFixed(2)}</TableCell>
-                                <TableCell className="max-w-[200px] truncate">{treatment.description || 'N/A'}</TableCell>
+                                <TableCell>Rs. {treatment.cost.toFixed(2)}</TableCell>
+                                <TableCell>
+                                    {treatment.discountValue ? (
+                                        <span>
+                                            {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
+                                            <span className='text-muted-foreground'> (-Rs. {treatment.discountAmount?.toFixed(2)})</span>
+                                        </span>
+                                    ) : ('N/A')}
+                                </TableCell>
+                                <TableCell className='font-medium'>Rs. {(treatment.cost - (treatment.discountAmount || 0)).toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -1346,9 +1352,9 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, o
                             </TableRow>
                         )
                     ))}
-                     {(!patient.assignedTreatments || patient.assignedTreatments.length === 0) && editingId !== 'new' && (
+                     {assignedTreatments.length === 0 && editingId !== 'new' && (
                         <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                            <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
                         </TableRow>
                     )}
                 </TableBody>
@@ -1359,13 +1365,14 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, o
 
 interface TreatmentFormRowProps {
     initialData?: AssignedTreatment;
+    prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
     onSave: (data: AssignedTreatment) => void;
     onCancel: () => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
+function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
     const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<TreatmentPlanFormValues>({
         resolver: zodResolver(treatmentPlanSchema),
         defaultValues: {
@@ -1373,22 +1380,46 @@ function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCrea
             treatmentId: initialData?.treatmentId || '',
             name: initialData?.name || '',
             tooth: initialData?.tooth || '',
-            amount: initialData?.amount || undefined,
-            description: initialData?.description || '',
+            cost: initialData?.cost,
+            discountType: initialData?.discountType,
+            discountValue: initialData?.discountValue,
         }
     });
+    
+    React.useEffect(() => {
+        if (prefillData) {
+            setValue('treatmentId', prefillData.treatmentId || '');
+            setValue('name', prefillData.name || '');
+            setValue('tooth', prefillData.tooth || '');
+        }
+    }, [prefillData, setValue]);
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
+    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(', ') || []);
+    const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
+    
+    const { cost, discountType, discountValue } = watch();
 
     const onSubmit = (data: TreatmentPlanFormValues) => {
+        let discountAmount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                discountAmount = data.discountValue;
+            } else { // Percentage
+                discountAmount = (data.cost * data.discountValue) / 100;
+            }
+        }
+        
         onSave({
             id: data.id,
             treatmentId: data.treatmentId,
             name: data.name,
             tooth: data.tooth,
-            amount: data.amount,
-            description: data.description || '',
+            cost: data.cost,
             dateAdded: initialData?.dateAdded || new Date().toISOString(),
+            discountType: data.discountType,
+            discountValue: data.discountValue,
+            discountAmount: discountAmount
         });
     }
 
@@ -1401,10 +1432,22 @@ function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCrea
     };
     
     const toothValue = watch('tooth');
+    
+    const handleToothSelection = (tooth: string) => {
+        const newSelectedTeeth = selectedTeeth.includes(tooth)
+            ? selectedTeeth.filter(t => t !== tooth)
+            : [...selectedTeeth, tooth];
+        setSelectedTeeth(newSelectedTeeth);
+    }
+    
+    const handleSaveTeeth = () => {
+        setValue('tooth', selectedTeeth.join(', '));
+        setIsToothChartOpen(false);
+    }
 
     return (
-        <TableRow>
-            <TableCell>
+        <TableRow className="bg-muted/50">
+            <TableCell className='min-w-[200px]'>
                 <Controller
                     name="treatmentId"
                     control={control}
@@ -1427,30 +1470,64 @@ function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCrea
                  {errors.treatmentId && <p className="text-xs text-destructive mt-1">{errors.treatmentId.message}</p>}
             </TableCell>
             <TableCell>
-                <div className="flex items-center gap-2">
-                    <Input value={toothValue} onChange={(e) => setValue('tooth', e.target.value)} placeholder="e.g. 11" className="w-16" />
-                    <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
-                        <DialogTrigger asChild>
-                            <Button type="button" variant="outline" size="icon"><Heart className="h-4 w-4" /></Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl">
-                            <DialogHeader>
-                                <DialogTitle>Select a Tooth</DialogTitle>
-                            </DialogHeader>
-                            <ToothChart onToothClick={(tooth) => {
-                                setValue('tooth', tooth);
-                                setIsToothChartOpen(false);
-                            }} />
-                        </DialogContent>
-                    </Dialog>
+                <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
+                    <DialogTrigger asChild>
+                        <Button type="button" variant="outline" className="w-[120px] justify-start text-left font-normal truncate">
+                           {toothValue || 'Add Tooth'}
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <DialogTitle>Select Teeth</DialogTitle>
+                             <div className="flex items-center space-x-2 pt-2">
+                                <Checkbox 
+                                    id="form-primary-teeth" 
+                                    checked={showPrimaryTeeth}
+                                    onCheckedChange={(checked) => setShowPrimaryTeeth(Boolean(checked))}
+                                />
+                                <Label htmlFor="form-primary-teeth" className="font-medium">Show Primary Teeth</Label>
+                            </div>
+                        </DialogHeader>
+                        {showPrimaryTeeth ? (
+                            <PrimaryToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
+                        ) : (
+                            <ToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
+                        )}
+                        <DialogFooter>
+                            <Button onClick={handleSaveTeeth}>Save Selection</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </TableCell>
+            <TableCell>
+                <Controller name="cost" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />} />
+                {errors.cost && <p className="text-xs text-destructive mt-1">{errors.cost.message}</p>}
+            </TableCell>
+            <TableCell>
+                <div className='flex gap-1'>
+                     <Controller
+                        name="discountType"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <SelectTrigger className='w-[120px]'>
+                                    <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Amount">Amount (Rs)</SelectItem>
+                                    <SelectItem value="Percentage">Percentage (%)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    <Controller name="discountValue" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Value' className="w-24" value={field.value ?? ''} />} />
                 </div>
             </TableCell>
-            <TableCell>
-                <Controller name="amount" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Cost' className="w-28" />} />
-                {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount.message}</p>}
-            </TableCell>
-            <TableCell>
-                <Controller name="description" control={control} render={({ field }) => <Input {...field} placeholder="Notes..." />} />
+            <TableCell className="font-medium">
+                 Rs. {( (cost || 0) - (
+                    discountType === 'Amount' ? (discountValue || 0) :
+                    discountType === 'Percentage' ? ((cost || 0) * (discountValue || 0) / 100) : 0
+                 )).toFixed(2)}
             </TableCell>
             <TableCell className="text-right">
                 <Button variant="ghost" size="icon" onClick={handleSubmit(onSubmit)}><Save className="h-4 w-4" /></Button>

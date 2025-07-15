@@ -40,11 +40,10 @@ async function getAppointmentsForPatient(patientId: string): Promise<Appointment
 }
 
 
-export default async function PatientDetailPage({ params }: { params: { id: string } }) {
-  const resolvedParams = await params;
-  const patient = await getPatient(resolvedParams.id);
+export default async function PatientDetailPage({ params }: { params: { id:string } }) {
+  const patient = await getPatient(params.id);
   const treatments = await fetchAllTreatments();
-  const appointments = await getAppointmentsForPatient(resolvedParams.id);
+  const appointments = await getAppointmentsForPatient(params.id);
   const chiefComplaints = await getChiefComplaints();
   const dentalExaminations = await getDentalExaminations();
 

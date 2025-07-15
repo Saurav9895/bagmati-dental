@@ -27,6 +27,7 @@ interface ToothProps extends React.SVGProps<SVGGElement> {
   toothNumber: number | string;
   onClick: (toothNumber: number | string) => void;
   toothExaminations?: ToothExamination[];
+  selected?: boolean;
   color?: string;
   isUpper: boolean;
 }
@@ -39,6 +40,7 @@ const Tooth: React.FC<ToothProps> = ({
   toothNumber,
   onClick,
   toothExaminations,
+  selected,
   color,
   isUpper,
   ...props
@@ -74,8 +76,8 @@ const Tooth: React.FC<ToothProps> = ({
             d={realisticToothPath}
             transform="scale(1.2)"
             className={cn(
-              'transition-all duration-200 group-hover:fill-blue-200',
-              hasExamination ? '' : 'fill-gray-200'
+              'transition-all duration-200 group-hover:fill-primary/50 stroke-2',
+              selected ? 'stroke-primary' : 'stroke-transparent'
             )}
             style={{
               fill: color || (hasExamination ? '#fde047' : '#e5e7eb'), // yellow-200 or gray-200
@@ -105,6 +107,7 @@ const Tooth: React.FC<ToothProps> = ({
 interface ToothChartProps {
   onToothClick: (toothNumber: number | string) => void;
   toothExaminationsByTooth?: Map<number | string, ToothExamination[]>;
+  selectedTeeth?: string[];
 }
 
 // FDI Notation for permanent teeth
@@ -117,6 +120,7 @@ const lowerLeftFDI = Array.from({ length: 8 }, (_, i) => i + 31);  // 31, 32, ..
 export const ToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
   toothExaminationsByTooth,
+  selectedTeeth = [],
 }) => {
   const treatedTeeth = React.useMemo(
     () => Array.from(toothExaminationsByTooth?.keys() || []),
@@ -141,6 +145,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={true}
+              selected={selectedTeeth.includes(String(num))}
               transform={`translate(${250 - i * 32}, 5)`}
             />
           ))}
@@ -153,6 +158,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={true}
+              selected={selectedTeeth.includes(String(num))}
               transform={`translate(${305 + i * 32}, 5)`}
             />
           ))}
@@ -166,6 +172,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={false}
+              selected={selectedTeeth.includes(String(num))}
               transform={`translate(${250 - i * 32}, 75)`}
             />
           ))}
@@ -178,6 +185,7 @@ export const ToothChart: React.FC<ToothChartProps> = ({
               toothExaminations={toothExaminationsByTooth?.get(num)}
               color={getToothColor(num)}
               isUpper={false}
+              selected={selectedTeeth.includes(String(num))}
               transform={`translate(${305 + i * 32}, 75)`}
             />
           ))}
@@ -189,15 +197,16 @@ export const ToothChart: React.FC<ToothChartProps> = ({
 
 
 // Primary Teeth Chart with FDI notation
-const primaryUpperRight = ['55', '54', '53', '52', '51'].map(n => ({ num: n, label: n[0] + String.fromCharCode(65 + (5 - parseInt(n[1])))})) // 5E, 5D, 5C, 5B, 5A
-const primaryUpperLeft = ['61', '62', '63', '64', '65'].map(n => ({ num: n, label: n[0] + String.fromCharCode(65 + (parseInt(n[1]) - 1))})); // 6A, 6B, 6C, 6D, 6E
-const primaryLowerLeft = ['71', '72', '73', '74', '75'].map(n => ({ num: n, label: n[0] + String.fromCharCode(65 + (parseInt(n[1]) - 1))})); // 7A, 7B, 7C, 7D, 7E
-const primaryLowerRight = ['85', '84', '83', '82', '81'].map(n => ({ num: n, label: n[0] + String.fromCharCode(65 + (5 - parseInt(n[1])))})) // 8E, 8D, 8C, 8B, 8A
+const primaryUpperRight = ['55', '54', '53', '52', '51'];
+const primaryUpperLeft = ['61', '62', '63', '64', '65'];
+const primaryLowerLeft = ['71', '72', '73', '74', '75'];
+const primaryLowerRight = ['85', '84', '83', '82', '81'];
 
 
 export const PrimaryToothChart: React.FC<ToothChartProps> = ({
   onToothClick,
   toothExaminationsByTooth,
+  selectedTeeth = [],
 }) => {
   const treatedTeeth = React.useMemo(
     () => Array.from(toothExaminationsByTooth?.keys() || []),
@@ -214,51 +223,55 @@ export const PrimaryToothChart: React.FC<ToothChartProps> = ({
       <div className="flex justify-center overflow-x-auto p-4 bg-muted/30 rounded-lg">
         <svg viewBox="0 0 420 120" width="100%" style={{ minWidth: '400px' }}>
           {/* Upper Right Quadrant */}
-          {primaryUpperRight.map(({ num, label }, i) => (
+          {primaryUpperRight.map((num, i) => (
             <Tooth
               key={`upper-${num}`}
-              toothNumber={label}
-              onClick={() => onToothClick(label)}
-              toothExaminations={toothExaminationsByTooth?.get(label)}
-              color={getToothColor(label)}
+              toothNumber={num}
+              onClick={() => onToothClick(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
+              color={getToothColor(num)}
               isUpper={true}
+              selected={selectedTeeth.includes(num)}
               transform={`translate(${180 - i * 32}, 5)`}
             />
           ))}
           {/* Upper Left Quadrant */}
-          {primaryUpperLeft.map(({ num, label }, i) => (
+          {primaryUpperLeft.map((num, i) => (
             <Tooth
               key={`upper-${num}`}
-              toothNumber={label}
-              onClick={() => onToothClick(label)}
-              toothExaminations={toothExaminationsByTooth?.get(label)}
-              color={getToothColor(label)}
+              toothNumber={num}
+              onClick={() => onToothClick(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
+              color={getToothColor(num)}
               isUpper={true}
+              selected={selectedTeeth.includes(num)}
               transform={`translate(${215 + i * 32}, 5)`}
             />
           ))}
           
           {/* Lower Right Quadrant - Reversed */}
-          {primaryLowerRight.map(({ num, label }, i) => (
+          {primaryLowerRight.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
-              toothNumber={label}
-              onClick={() => onToothClick(label)}
-              toothExaminations={toothExaminationsByTooth?.get(label)}
-              color={getToothColor(label)}
+              toothNumber={num}
+              onClick={() => onToothClick(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
+              color={getToothColor(num)}
               isUpper={false}
+              selected={selectedTeeth.includes(num)}
               transform={`translate(${180 - i * 32}, 75)`}
             />
           ))}
           {/* Lower Left Quadrant - Reversed */}
-          {primaryLowerLeft.map(({ num, label }, i) => (
+          {primaryLowerLeft.map((num, i) => (
             <Tooth
               key={`lower-${num}`}
-              toothNumber={label}
-              onClick={() => onToothClick(label)}
-              toothExaminations={toothExaminationsByTooth?.get(label)}
-              color={getToothColor(label)}
+              toothNumber={num}
+              onClick={() => onToothClick(num)}
+              toothExaminations={toothExaminationsByTooth?.get(num)}
+              color={getToothColor(num)}
               isUpper={false}
+              selected={selectedTeeth.includes(num)}
               transform={`translate(${215 + i * 32}, 75)`}
             />
           ))}

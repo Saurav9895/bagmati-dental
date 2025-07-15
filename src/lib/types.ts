@@ -1,6 +1,5 @@
 
 
-
 export type ClinicalExamination = {
   id: string;
   date: string;
@@ -11,13 +10,15 @@ export type ClinicalExamination = {
 };
 
 export type AssignedTreatment = {
-  id: string; // This will be a unique ID for the assigned treatment instance
-  treatmentId: string; // ID of the base treatment
+  id: string; 
+  treatmentId: string; 
   name: string;
-  description: string;
-  amount: number;
+  cost: number;
   dateAdded: string;
-  tooth?: number | string;
+  tooth?: string;
+  discountType?: 'Amount' | 'Percentage';
+  discountValue?: number;
+  discountAmount?: number;
 };
 
 export type Prescription = {

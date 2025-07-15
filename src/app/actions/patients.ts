@@ -160,7 +160,7 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
     }
 }
 
-export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'dateAdded'>) {
+export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'dateAdded' | 'amount'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {
@@ -171,9 +171,18 @@ export async function addDiscountToPatient(patientId: string, discount: Omit<Dis
 
             const patientData = patientDoc.data() as Patient;
             
+            const totalCost = patientData.assignedTreatments?.reduce((sum, t) => sum + t.cost, 0) || 0;
+            let discountAmount = 0;
+            if (discount.type === 'Percentage') {
+                discountAmount = (totalCost * discount.value) / 100;
+            } else {
+                discountAmount = discount.value;
+            }
+
             const newDiscount: Discount = {
                 id: crypto.randomUUID(),
                 ...discount,
+                amount: discountAmount,
                 dateAdded: new Date().toISOString(),
             };
 
