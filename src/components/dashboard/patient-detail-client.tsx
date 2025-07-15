@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -1392,7 +1392,7 @@ interface TreatmentFormRowProps {
 }
 
 function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<TreatmentPlanFormValues>({
+    const methods = useForm<TreatmentPlanFormValues>({
         resolver: zodResolver(treatmentPlanSchema),
         defaultValues: {
             id: initialData?.id || 'new',
@@ -1405,6 +1405,8 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
             discountValue: initialData?.discountValue,
         }
     });
+
+    const { control, handleSubmit, setValue, watch, formState: { errors } } = methods;
     
     React.useEffect(() => {
         if (prefillData) {
@@ -1493,112 +1495,132 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     }
 
     return (
-        <TableRow className="bg-muted/50 align-top">
-            <TableCell className='min-w-[200px] pt-4'>
-                <Controller
-                    name="treatmentId"
-                    control={control}
-                    render={({ field }) => (
-                         <SingleSelectDropdown
-                            options={allTreatments}
-                            selected={field.value}
-                            onChange={(id) => {
-                                handleTreatmentChange(id);
-                                field.onChange(id);
-                            }}
-                            onCreate={async (name) => {
-                                const newTreatment = await onCreateNewTreatment(name);
-                                if (newTreatment) {
-                                    handleTreatmentChange(newTreatment.id);
-                                    field.onChange(newTreatment.id);
-                                }
-                                return newTreatment;
-                            }}
-                            placeholder="Select treatment"
-                        />
-                    )}
-                />
-                 {errors.treatmentId && <p className="text-xs text-destructive mt-1">{errors.treatmentId.message}</p>}
-            </TableCell>
-            <TableCell className="pt-4">
-                <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
-                    <DialogTrigger asChild>
-                        <Button type="button" variant="outline" className="w-[120px] justify-start text-left font-normal truncate">
-                           {toothValue || 'Add Tooth'}
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl">
-                        <DialogHeader>
-                            <DialogTitle>Select Teeth</DialogTitle>
-                             <div className="flex items-center space-x-2 pt-2">
-                                <Checkbox 
-                                    id="form-primary-teeth" 
-                                    checked={showPrimaryTeeth}
-                                    onCheckedChange={(checked) => setShowPrimaryTeeth(Boolean(checked))}
-                                />
-                                <Label htmlFor="form-primary-teeth" className="font-medium">Show Primary Teeth</Label>
-                            </div>
-                        </DialogHeader>
-                        {showPrimaryTeeth ? (
-                            <PrimaryToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
-                        ) : (
-                            <ToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
-                        )}
-                        <DialogFooter>
-                            <Button onClick={handleSaveTeeth}>Save Selection</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </TableCell>
-            <TableCell className="pt-2">
-                <Controller name="cost" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />} />
-                {errors.cost && <p className="text-xs text-destructive mt-1">{errors.cost.message}</p>}
-                {tooth && tooth.split(',').length > 1 && (
-                     <Controller
-                        name="multiplyCost"
+        <FormProvider {...methods}>
+            <TableRow className="bg-muted/50 align-top">
+                <TableCell className='min-w-[200px] pt-4'>
+                    <FormField
+                        name="treatmentId"
                         control={control}
                         render={({ field }) => (
-                            <FormItem className="flex items-center space-x-2 mt-2">
-                                <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                </FormControl>
-                                <Label htmlFor="multiply-cost" className="text-xs font-normal">Multiply cost by # of teeth</Label>
+                            <FormItem>
+                                <SingleSelectDropdown
+                                    options={allTreatments}
+                                    selected={field.value}
+                                    onChange={(id) => {
+                                        handleTreatmentChange(id);
+                                        field.onChange(id);
+                                    }}
+                                    onCreate={async (name) => {
+                                        const newTreatment = await onCreateNewTreatment(name);
+                                        if (newTreatment) {
+                                            handleTreatmentChange(newTreatment.id);
+                                            field.onChange(newTreatment.id);
+                                        }
+                                        return newTreatment;
+                                    }}
+                                    placeholder="Select treatment"
+                                />
+                                <FormMessage />
                             </FormItem>
                         )}
                     />
-                )}
-            </TableCell>
-            <TableCell className="pt-2">
-                <div className='flex gap-1'>
-                     <Controller
-                        name="discountType"
-                        control={control}
-                        render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                                <SelectTrigger className='w-[120px]'>
-                                    <SelectValue placeholder="Type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Amount">Amount (Rs)</SelectItem>
-                                    <SelectItem value="Percentage">Percentage (%)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                    <Controller name="discountValue" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Value' className="w-24" value={field.value ?? ''} />} />
-                </div>
-            </TableCell>
-            <TableCell className="font-medium pt-4">
-                 Rs. {calculateTotal().toFixed(2)}
-            </TableCell>
-            <TableCell className="text-right pt-4">
-                <Button variant="ghost" size="icon" onClick={handleSubmit(onSubmit)}><Save className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
-            </TableCell>
-        </TableRow>
+                </TableCell>
+                <TableCell className="pt-4">
+                    <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline" className="w-[120px] justify-start text-left font-normal truncate">
+                            {toothValue || 'Add Tooth'}
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl">
+                            <DialogHeader>
+                                <DialogTitle>Select Teeth</DialogTitle>
+                                <div className="flex items-center space-x-2 pt-2">
+                                    <Checkbox 
+                                        id="form-primary-teeth" 
+                                        checked={showPrimaryTeeth}
+                                        onCheckedChange={(checked) => setShowPrimaryTeeth(Boolean(checked))}
+                                    />
+                                    <Label htmlFor="form-primary-teeth" className="font-medium">Show Primary Teeth</Label>
+                                </div>
+                            </DialogHeader>
+                            {showPrimaryTeeth ? (
+                                <PrimaryToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
+                            ) : (
+                                <ToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
+                            )}
+                            <DialogFooter>
+                                <Button onClick={handleSaveTeeth}>Save Selection</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </TableCell>
+                <TableCell className="pt-2">
+                    <FormField name="cost" control={control} render={({ field }) => (
+                        <FormItem>
+                            <FormControl>
+                                <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />
+                            </FormControl>
+                             <FormMessage />
+                        </FormItem>
+                    )} />
+                    {tooth && tooth.split(',').length > 1 && (
+                        <FormField
+                            name="multiplyCost"
+                            control={control}
+                            render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2 mt-2">
+                                    <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="text-xs font-normal">Multiply cost by # of teeth</FormLabel>
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                </TableCell>
+                <TableCell className="pt-2">
+                    <div className='flex gap-1'>
+                        <FormField
+                            name="discountType"
+                            control={control}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger className='w-[120px]'>
+                                                <SelectValue placeholder="Type" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Amount">Amount (Rs)</SelectItem>
+                                            <SelectItem value="Percentage">Percentage (%)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )}
+                        />
+                         <FormField name="discountValue" control={control} render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input {...field} type="number" placeholder='Value' className="w-24" value={field.value ?? ''} />
+                                </FormControl>
+                            </FormItem>
+                         )} />
+                    </div>
+                </TableCell>
+                <TableCell className="font-medium pt-4">
+                    Rs. {calculateTotal().toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right pt-4">
+                    <Button variant="ghost" size="icon" onClick={handleSubmit(onSubmit)}><Save className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+                </TableCell>
+            </TableRow>
+        </FormProvider>
     );
 }
 
@@ -1810,4 +1832,5 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
