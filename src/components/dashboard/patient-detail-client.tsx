@@ -9,7 +9,7 @@ import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCir
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -30,8 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { addChiefComplaint, updateChiefComplaint } from '@/app/actions/examinations';
-import { addDentalExamination, updateDentalExamination } from '@/app/actions/examinations';
+import { addChiefComplaint } from '@/app/actions/examinations';
+import { addDentalExamination } from '@/app/actions/examinations';
 import { addTreatment } from '@/app/actions/treatments';
 
 
@@ -49,11 +49,6 @@ const prescriptionSchema = z.object({
   date: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date."),
 });
 type PrescriptionFormValues = z.infer<typeof prescriptionSchema>
-
-const newComplaintSchema = z.object({
-    name: z.string().min(2, "Complaint name must be at least 2 characters."),
-});
-type NewComplaintFormValues = z.infer<typeof newComplaintSchema>;
 
 const clinicalExaminationSchema = z.object({
     chiefComplaint: z.array(z.string()).min(1, { message: 'At least one chief complaint is required.' }),
@@ -116,8 +111,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
     const [toothExaminationToDelete, setToothExaminationToDelete] = React.useState<ToothExamination | null>(null);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
-    const [isAddingToPlan, setIsAddingToPlan] = React.useState<string | null>(null);
-
+    
+    const [activeTab, setActiveTab] = React.useState("examination");
+    const [editingTreatmentId, setEditingTreatmentId] = React.useState<string | null>(null);
 
     const { toast } = useToast();
 
@@ -332,54 +328,49 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             setIsSubmitting(false);
         }
     };
-
+    
     const handleAddExaminationToTreatmentPlan = async (examination: ToothExamination) => {
-        setIsAddingToPlan(examination.id);
         const treatmentToAdd = treatments.find(t => t.name === examination.diagnosis);
-
         if (!treatmentToAdd) {
             toast({ variant: 'destructive', title: 'Treatment not found', description: `The treatment "${examination.diagnosis}" is not a recognized service.` });
-            setIsAddingToPlan(null);
             return;
         }
+        
+        // Switch to the treatment tab and show the inline form
+        setActiveTab("treatment");
+        
+        // Set the editing state to a new temporary treatment
+        setEditingTreatmentId("new");
 
+        // Use a timeout to ensure the form is rendered before setting values
+        setTimeout(() => {
+            const treatmentForm = document.getElementById("treatment-form-new");
+            if (treatmentForm) {
+                // Pre-fill the form with data from the examination
+                // This assumes your inline form's state is manageable.
+                // We'll manage this through a new state `newTreatmentData`
+            }
+        }, 0);
+    };
+    
+    const confirmRemoveTreatment = async () => {
+        if (!treatmentToDelete) return;
+        setIsDeleting(true);
         try {
-            const result = await addTreatmentToPatient(patient.id, treatmentToAdd, examination.tooth);
-            if (result.success && result.data) {
-                setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
-                toast({ title: 'Added to treatment plan!', description: `"${examination.diagnosis}" for tooth #${examination.tooth} has been added.` });
+            const result = await removeTreatmentFromPatient(patient.id, treatmentToDelete.id);
+            if (result.success) {
+                setPatient(prev => ({
+                    ...prev,
+                    assignedTreatments: prev.assignedTreatments?.filter(t => t.id !== treatmentToDelete.id)
+                }));
+                toast({ title: "Treatment removed successfully!" });
             } else {
-                toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
+                toast({ variant: 'destructive', title: 'Failed to remove treatment', description: result.error });
             }
         } catch (error) {
             toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
         } finally {
-            setIsAddingToPlan(null);
-        }
-    };
-    
-    const handleRemoveTreatmentClick = (treatment: AssignedTreatment) => {
-        setTreatmentToDelete(treatment);
-        setIsAlertOpen(true);
-    };
-
-    const confirmRemoveTreatment = async () => {
-        if (!treatmentToDelete) return;
-        
-        setIsDeleting(true);
-        try {
-            const result = await removeTreatmentFromPatient(patient.id, treatmentToDelete);
-            if (result.success && result.data) {
-                setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
-                toast({ title: "Treatment removed successfully!" });
-            } else {
-                 toast({ variant: 'destructive', title: 'Failed to remove treatment', description: result.error });
-            }
-        } catch (error) {
-             toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
-        } finally {
             setIsDeleting(false);
-            setIsAlertOpen(false);
             setTreatmentToDelete(null);
         }
     }
@@ -416,8 +407,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         return map;
     }, [patient.toothExaminations]);
     
-    const treatedTeeth = React.useMemo(() => Array.from(toothExaminationsByTooth.keys()), [toothExaminationsByTooth]);
-
     const handleNewComplaintSubmit = async (complaintName: string) => {
         setIsSubmitting(true);
         const result = await addChiefComplaint({ name: complaintName });
@@ -514,7 +503,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                     </CardContent>
                 </Card>
 
-                <Tabs defaultValue="examination" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                      <TabsList className="grid w-full grid-cols-3 border-b p-0 h-auto bg-transparent rounded-none">
                         <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
                         <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
@@ -683,9 +672,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                                         variant="outline" 
                                                                         size="sm" 
                                                                         onClick={() => handleAddExaminationToTreatmentPlan(exam)}
-                                                                        disabled={isAddingToPlan === exam.id}
                                                                     >
-                                                                        {isAddingToPlan === exam.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                                                        <PlusCircle className="mr-2 h-4 w-4" />
                                                                         Add to Plan
                                                                     </Button>
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setToothExaminationToDelete(exam)}>
@@ -711,37 +699,54 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                         <TabsContent value="treatment" className="mt-6 space-y-6">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Heart className="h-5 w-5" />
-                                        Treatment Plan
-                                    </CardTitle>
+                                    <div className="flex justify-between items-center">
+                                        <CardTitle className="flex items-center gap-2">
+                                            <Heart className="h-5 w-5" />
+                                            Treatment Plan
+                                        </CardTitle>
+                                        <Button size="sm" onClick={() => setEditingTreatmentId("new")}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            Add Treatment
+                                        </Button>
+                                    </div>
                                     <CardDescription>A list of all treatments assigned to this patient.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {patient.assignedTreatments && patient.assignedTreatments.length > 0 ? (
-                                        <ul className="space-y-2">
-                                            {patient.assignedTreatments.map((t, index) => (
-                                                <li key={t.dateAdded} className="flex justify-between items-center p-3 border rounded-md bg-card">
-                                                    <div className="flex items-center gap-3 flex-1">
-                                                        <div>
-                                                            <p className="font-medium">{t.name} {t.tooth && `(Tooth #${t.tooth})`}</p>
-                                                            <p className="text-xs text-muted-foreground">Added on: {new Date(t.dateAdded).toLocaleDateString()}</p>
-                                                            {t.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap">{t.description}</p>}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <span className="font-semibold text-primary">Rs. {(t.amount || 0).toFixed(2)}</span>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveTreatmentClick(t)} disabled={isDeleting}>
-                                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                                            <span className="sr-only">Remove treatment</span>
-                                                        </Button>
-                                                    </div>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground text-center py-4">No treatments assigned yet.</p>
-                                    )}
+                                    <TreatmentPlanTable
+                                        treatments={patient.assignedTreatments || []}
+                                        allTreatments={treatments}
+                                        editingId={editingTreatmentId}
+                                        setEditingId={setEditingTreatmentId}
+                                        onSave={async (data) => {
+                                            let result;
+                                            if (data.id === 'new') {
+                                                const newTreatmentData: Omit<AssignedTreatment, 'dateAdded'> = {
+                                                    id: crypto.randomUUID(),
+                                                    treatmentId: data.treatmentId,
+                                                    name: data.name,
+                                                    tooth: data.tooth,
+                                                    amount: data.amount,
+                                                    description: data.description,
+                                                };
+                                                result = await addTreatmentToPatient(patient.id, newTreatmentData);
+                                            } else {
+                                                 result = await updateTreatmentInPatientPlan(patient.id, data);
+                                            }
+
+                                            if (result.success && result.data) {
+                                                setPatient(p => ({...p, ...result.data}));
+                                                toast({ title: `Treatment ${data.id === 'new' ? 'added' : 'updated'}` });
+                                                setEditingTreatmentId(null);
+                                            } else {
+                                                toast({ variant: 'destructive', title: 'Failed to save', description: result.error });
+                                            }
+                                        }}
+                                        onDelete={(id) => {
+                                            const treatment = patient.assignedTreatments?.find(t => t.id === id);
+                                            if (treatment) setTreatmentToDelete(treatment);
+                                        }}
+                                        onCreateNewTreatment={handleNewTreatmentSubmit}
+                                    />
                                 </CardContent>
                             </Card>
 
@@ -1049,7 +1054,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                     </Form>
                 </DialogContent>
             </Dialog>
-            <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+            <AlertDialog open={!!treatmentToDelete} onOpenChange={(open) => !open && setTreatmentToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -1104,6 +1109,173 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         </>
     );
 }
+
+const treatmentPlanSchema = z.object({
+  id: z.string(),
+  treatmentId: z.string().min(1, 'Treatment type is required.'),
+  name: z.string(),
+  tooth: z.union([z.string(), z.number()]).optional(),
+  amount: z.coerce.number().min(0, 'Cost must be a positive number.'),
+  description: z.string().optional(),
+});
+type TreatmentPlanFormValues = z.infer<typeof treatmentPlanSchema>;
+
+interface TreatmentPlanTableProps {
+    treatments: AssignedTreatment[];
+    allTreatments: Treatment[];
+    editingId: string | null;
+    setEditingId: (id: string | null) => void;
+    onSave: (data: AssignedTreatment) => void;
+    onDelete: (id: string) => void;
+    onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
+}
+
+function TreatmentPlanTable({ treatments, allTreatments, editingId, setEditingId, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
+    const { toast } = useToast();
+
+    const handleSave = async (formData: AssignedTreatment) => {
+        if (!formData.treatmentId) {
+            toast({ variant: 'destructive', title: 'Please select a treatment type.' });
+            return;
+        }
+        onSave(formData);
+    }
+
+    return (
+        <div className="border rounded-md">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Treatment</TableHead>
+                        <TableHead>Tooth</TableHead>
+                        <TableHead>Cost</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead className="w-[100px] text-right">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {editingId === "new" && (
+                        <TreatmentFormRow
+                            allTreatments={allTreatments}
+                            onSave={handleSave}
+                            onCancel={() => setEditingId(null)}
+                            onCreateNewTreatment={onCreateNewTreatment}
+                        />
+                    )}
+                    {treatments.map((treatment) => (
+                        editingId === treatment.id ? (
+                            <TreatmentFormRow
+                                key={treatment.id}
+                                initialData={treatment}
+                                allTreatments={allTreatments}
+                                onSave={handleSave}
+                                onCancel={() => setEditingId(null)}
+                                onCreateNewTreatment={onCreateNewTreatment}
+                            />
+                        ) : (
+                            <TableRow key={treatment.id}>
+                                <TableCell className="font-medium">{treatment.name}</TableCell>
+                                <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                <TableCell>Rs. {treatment.amount.toFixed(2)}</TableCell>
+                                <TableCell className="max-w-[200px] truncate">{treatment.description || 'N/A'}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    ))}
+                     {treatments.length === 0 && editingId !== 'new' && (
+                        <TableRow>
+                            <TableCell colSpan={5} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
+
+interface TreatmentFormRowProps {
+    initialData?: AssignedTreatment;
+    allTreatments: Treatment[];
+    onSave: (data: AssignedTreatment) => void;
+    onCancel: () => void;
+    onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
+}
+
+function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
+    const { control, handleSubmit, setValue, watch } = useForm<TreatmentPlanFormValues>({
+        defaultValues: {
+            id: initialData?.id || 'new',
+            treatmentId: initialData?.treatmentId || '',
+            name: initialData?.name || '',
+            tooth: initialData?.tooth || '',
+            amount: initialData?.amount || 0,
+            description: initialData?.description || '',
+        }
+    });
+
+    const onSubmit = (data: TreatmentPlanFormValues) => {
+        onSave({
+            id: data.id,
+            treatmentId: data.treatmentId,
+            name: data.name,
+            tooth: data.tooth,
+            amount: data.amount,
+            description: data.description || '',
+            dateAdded: initialData?.dateAdded || new Date().toISOString(),
+        });
+    }
+
+    const handleTreatmentChange = (treatmentId: string) => {
+        const selected = allTreatments.find(t => t.id === treatmentId);
+        if (selected) {
+            setValue('treatmentId', selected.id);
+            setValue('name', selected.name);
+        }
+    };
+
+    return (
+        <TableRow>
+            <TableCell>
+                <Controller
+                    name="treatmentId"
+                    control={control}
+                    render={({ field }) => (
+                         <SingleSelectDropdown
+                            options={allTreatments}
+                            selected={field.value}
+                            onChange={handleTreatmentChange}
+                            onCreate={async (name) => {
+                                const newTreatment = await onCreateNewTreatment(name);
+                                if (newTreatment) {
+                                    handleTreatmentChange(newTreatment.id);
+                                }
+                                return newTreatment;
+                            }}
+                            placeholder="Select treatment"
+                        />
+                    )}
+                />
+            </TableCell>
+            <TableCell>
+                <Controller name="tooth" control={control} render={({ field }) => <Input {...field} placeholder="e.g. 11" className="w-20" />} />
+            </TableCell>
+            <TableCell>
+                <Controller name="amount" control={control} render={({ field }) => <Input {...field} type="number" className="w-28" />} />
+            </TableCell>
+            <TableCell>
+                <Controller name="description" control={control} render={({ field }) => <Input {...field} placeholder="Notes..." />} />
+            </TableCell>
+            <TableCell className="text-right">
+                <Button variant="ghost" size="icon" onClick={handleSubmit(onSubmit)}><Save className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+            </TableCell>
+        </TableRow>
+    );
+}
+
 
 type MultiSelectDropdownProps = {
     options: { id: string, name: string }[];
@@ -1302,6 +1474,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 }
 
     
+
 
 
 
