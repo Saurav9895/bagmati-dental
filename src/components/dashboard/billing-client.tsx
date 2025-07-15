@@ -33,7 +33,8 @@ type PaymentFormValues = z.infer<typeof paymentSchema>;
 
 const discountSchema = z.object({
     reason: z.string().min(2, "Reason must be at least 2 characters."),
-    amount: z.coerce.number().positive("Amount must be a positive number."),
+    type: z.enum(['Amount', 'Percentage']),
+    value: z.coerce.number().positive("Value must be a positive number."),
 });
 
 type DiscountFormValues = z.infer<typeof discountSchema>;
@@ -63,7 +64,7 @@ export function BillingClient() {
 
   const discountForm = useForm<DiscountFormValues>({
     resolver: zodResolver(discountSchema),
-    defaultValues: { reason: "", amount: 0 },
+    defaultValues: { reason: "", type: "Amount", value: 0 },
   });
 
   React.useEffect(() => {
@@ -109,7 +110,7 @@ export function BillingClient() {
         method: 'Cash',
         date: new Date().toISOString().split('T')[0],
     });
-    discountForm.reset({ reason: "", amount: 0 });
+    discountForm.reset({ reason: "", type: "Amount", value: 0 });
   };
 
   const onSubmitPayment = async (data: PaymentFormValues) => {
@@ -135,11 +136,26 @@ export function BillingClient() {
     }
   };
 
+  const totalAmount = React.useMemo(() => {
+    if (!selectedPatient || !selectedPatient.assignedTreatments) return 0;
+    return selectedPatient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
+  }, [selectedPatient]);
+
   const onSubmitDiscount = async (data: DiscountFormValues) => {
     if (!selectedPatient) return;
 
+    let amount = data.value;
+    if (data.type === 'Percentage') {
+        amount = (totalAmount * data.value) / 100;
+    }
+
     try {
-        const result = await addDiscountToPatient(selectedPatient.id, data);
+        const result = await addDiscountToPatient(selectedPatient.id, { 
+            reason: data.reason, 
+            type: data.type,
+            value: data.value,
+            amount: amount,
+        });
         if (result.success && result.data) {
             setSelectedPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
             toast({ title: "Discount added successfully!" });
@@ -162,7 +178,7 @@ export function BillingClient() {
     if (!discountToDelete || !selectedPatient) return;
 
     try {
-        const result = await removeDiscountFromPatient(selectedPatient.id, discountToDelete);
+        const result = await removeDiscountFromPatient(selectedPatient.id, discountToDelete.id);
         if (result.success && result.data) {
             setSelectedPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
             toast({ title: "Discount removed" });
@@ -176,11 +192,6 @@ export function BillingClient() {
         setDiscountToDelete(null);
     }
   };
-
-  const totalAmount = React.useMemo(() => {
-    if (!selectedPatient || !selectedPatient.assignedTreatments) return 0;
-    return selectedPatient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
-  }, [selectedPatient]);
 
   const amountPaid = React.useMemo(() => {
     if (!selectedPatient || !selectedPatient.payments) return 0;
@@ -264,13 +275,28 @@ export function BillingClient() {
                                         <FormMessage />
                                         </FormItem>
                                     )} />
-                                     <FormField control={discountForm.control} name="amount" render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Amount</FormLabel>
-                                        <FormControl><Input type="number" placeholder="50.00" {...field} /></FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )} />
+                                     <div className="grid grid-cols-2 gap-4">
+                                        <FormField control={discountForm.control} name="type" render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Type</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="Amount">Amount</SelectItem>
+                                                    <SelectItem value="Percentage">Percentage</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={discountForm.control} name="value" render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Value</FormLabel>
+                                            <FormControl><Input type="number" placeholder="50" {...field} /></FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                     </div>
                                     <DialogFooter>
                                         <Button type="submit" disabled={discountForm.formState.isSubmitting}>
                                             {discountForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -299,7 +325,7 @@ export function BillingClient() {
                       <TableBody>
                           {selectedPatient.assignedTreatments && selectedPatient.assignedTreatments.length > 0 ? (
                               selectedPatient.assignedTreatments.map(treatment => (
-                                  <TableRow key={treatment.dateAdded}>
+                                  <TableRow key={treatment.id}>
                                       <TableCell className="font-medium">{treatment.name}</TableCell>
                                       <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
                                       <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
@@ -344,17 +370,19 @@ export function BillingClient() {
                                 <TableRow>
                                     <TableHead>Reason</TableHead>
                                     <TableHead>Date Added</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead className="text-right">Discount</TableHead>
                                     <TableHead className="w-[50px]"><span className='sr-only'>Actions</span></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {selectedPatient.discounts && selectedPatient.discounts.length > 0 ? (
                                     selectedPatient.discounts.map(discount => (
-                                        <TableRow key={discount.dateAdded}>
+                                        <TableRow key={discount.id}>
                                             <TableCell>{discount.reason}</TableCell>
                                             <TableCell>{new Date(discount.dateAdded).toLocaleDateString()}</TableCell>
-                                            <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right">
+                                                {discount.type === 'Percentage' ? `${discount.value}%` : `Rs. ${discount.amount.toFixed(2)}`}
+                                            </TableCell>
                                             <TableCell>
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRemoveDiscountClick(discount)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -471,7 +499,7 @@ export function BillingClient() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently remove the discount of Rs. {discountToDelete?.amount.toFixed(2)} for "{discountToDelete?.reason}".
+                    This will permanently remove the discount of "{discountToDelete?.reason}".
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -485,3 +513,5 @@ export function BillingClient() {
     </>
   );
 }
+
+    

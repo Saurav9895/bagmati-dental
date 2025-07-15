@@ -1,15 +1,16 @@
 
 
+
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -33,6 +34,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuChe
 import { addChiefComplaint } from '@/app/actions/examinations';
 import { addDentalExamination } from '@/app/actions/examinations';
 import { addTreatment } from '@/app/actions/treatments';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 
 
 const appointmentSchema = z.object({
@@ -65,6 +67,13 @@ const toothExaminationSchema = z.object({
 });
 type ToothExaminationFormValues = z.infer<typeof toothExaminationSchema>;
 
+const discountSchema = z.object({
+    reason: z.string().min(2, "Reason must be at least 2 characters."),
+    type: z.enum(['Amount', 'Percentage']),
+    value: z.coerce.number().positive("Value must be a positive number."),
+});
+type DiscountFormValues = z.infer<typeof discountSchema>;
+
 
 const formatTime12h = (time24h: string): string => {
     if (!time24h) return '';
@@ -95,6 +104,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     
     const [isAlertOpen, setIsAlertOpen] = React.useState(false);
     const [treatmentToDelete, setTreatmentToDelete] = React.useState<AssignedTreatment | null>(null);
+    const [discountToDelete, setDiscountToDelete] = React.useState<Discount | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
     const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
@@ -106,6 +116,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     
     const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = React.useState(false);
     const [isSubmittingPrescription, setIsSubmittingPrescription] = React.useState(false);
+
+    const [isDiscountDialogOpen, setIsDiscountDialogOpen] = React.useState(false);
+    const [isSubmittingDiscount, setIsSubmittingDiscount] = React.useState(false);
 
     const [isExaminationDialogOpen, setIsExaminationDialogOpen] = React.useState(false);
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
@@ -153,6 +166,11 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             investigation: '',
             diagnosisId: '',
         }
+    });
+
+    const discountForm = useForm<DiscountFormValues>({
+        resolver: zodResolver(discountSchema),
+        defaultValues: { reason: '', type: 'Amount', value: 0 }
     });
     
     const handleClinicalExaminationSubmit = async (data: ClinicalExaminationFormValues) => {
@@ -346,9 +364,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         setTimeout(() => {
             const treatmentForm = document.getElementById("treatment-form-new");
             if (treatmentForm) {
-                // Pre-fill the form with data from the examination
-                // This assumes your inline form's state is manageable.
-                // We'll manage this through a new state `newTreatmentData`
+                // This is now handled by the TreatmentFormRow's useEffect
             }
         }, 0);
     };
@@ -453,6 +469,52 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
             setIsSubmitting(false);
             return null;
+        }
+    };
+
+    const handleDiscountSubmit = async (data: DiscountFormValues) => {
+        setIsSubmittingDiscount(true);
+        
+        let amount = data.value;
+        if (data.type === 'Percentage') {
+            amount = (totalAmount * data.value) / 100;
+        }
+
+        const result = await addDiscountToPatient(patient.id, {
+            ...data,
+            amount,
+        });
+
+        if (result.success && result.data) {
+            setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
+            toast({ title: "Discount applied successfully!" });
+            setIsDiscountDialogOpen(false);
+            discountForm.reset({ reason: '', type: 'Amount', value: 0 });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to apply discount', description: result.error });
+        }
+        setIsSubmittingDiscount(false);
+    }
+    
+    const confirmDeleteDiscount = async () => {
+        if (!discountToDelete) return;
+        setIsDeleting(true);
+        try {
+            const result = await removeDiscountFromPatient(patient.id, discountToDelete.id);
+            if (result.success) {
+                setPatient(prev => ({
+                    ...prev,
+                    discounts: prev.discounts?.filter(d => d.id !== discountToDelete.id)
+                }));
+                toast({ title: "Discount removed." });
+            } else {
+                toast({ variant: 'destructive', title: 'Failed to remove discount', description: result.error });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
+        } finally {
+            setIsDeleting(false);
+            setDiscountToDelete(null);
         }
     };
 
@@ -713,7 +775,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </CardHeader>
                                 <CardContent>
                                     <TreatmentPlanTable
-                                        treatments={patient.assignedTreatments || []}
+                                        patient={patient}
                                         allTreatments={treatments}
                                         editingId={editingTreatmentId}
                                         setEditingId={setEditingTreatmentId}
@@ -750,37 +812,119 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </CardContent>
                             </Card>
 
-                             <Card>
+                            <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <CreditCard className="h-5 w-5" />
                                         <CardTitle>Billing Summary</CardTitle>
                                     </div>
-                                     <Button asChild size="sm">
-                                        <Link href="/dashboard/billing">Go to Billing</Link>
-                                    </Button>
+                                    <div className="flex gap-2">
+                                         <Dialog open={isDiscountDialogOpen} onOpenChange={setIsDiscountDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm"><Gift className="mr-2 h-4 w-4" /> Add Discount</Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Add Discount for {patient.name}</DialogTitle>
+                                                </DialogHeader>
+                                                <Form {...discountForm}>
+                                                    <form onSubmit={discountForm.handleSubmit(handleDiscountSubmit)} className="space-y-4 py-4">
+                                                        <FormField control={discountForm.control} name="reason" render={({ field }) => (
+                                                            <FormItem><FormLabel>Reason</FormLabel><FormControl><Input placeholder="e.g., Seasonal Promotion" {...field} /></FormControl><FormMessage /></FormItem>
+                                                        )} />
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <FormField control={discountForm.control} name="type" render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>Type</FormLabel>
+                                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="Amount">Amount</SelectItem>
+                                                                            <SelectItem value="Percentage">Percentage</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )} />
+                                                            <FormField control={discountForm.control} name="value" render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>Value</FormLabel>
+                                                                    <FormControl><Input type="number" placeholder="50" {...field} /></FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )} />
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <Button type="submit" disabled={isSubmittingDiscount}>
+                                                                {isSubmittingDiscount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Discount
+                                                            </Button>
+                                                        </DialogFooter>
+                                                    </form>
+                                                </Form>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Button asChild size="sm">
+                                            <Link href="/dashboard/billing">Go to Full Billing Page</Link>
+                                        </Button>
+                                    </div>
                                 </CardHeader>
-                                <CardContent className="space-y-2 text-right font-medium">
-                                    <div className="flex justify-end items-center text-md">
-                                        <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
-                                        <span>Rs. {totalAmount.toFixed(2)}</span>
+                                <CardContent>
+                                    <div className="space-y-2 text-right font-medium">
+                                        <div className="flex justify-end items-center text-md">
+                                            <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                                            <span>Rs. {totalAmount.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-end items-center text-md">
+                                            <span className="text-muted-foreground mr-4">Total Discount:</span>
+                                            <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-end items-center text-md">
+                                            <span className="text-muted-foreground mr-4">Total Paid:</span>
+                                            <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
+                                        </div>
+                                        <Separator className="my-2" />
+                                        <div className="flex justify-end items-center text-lg font-bold">
+                                            <span className="text-muted-foreground mr-4">Balance Due:</span>
+                                            {balanceDue <= 0 && totalAmount > 0 ? (
+                                                <span className="text-green-600">Fully Paid</span>
+                                            ) : (
+                                                <span>Rs. {balanceDue.toFixed(2)}</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex justify-end items-center text-md">
-                                        <span className="text-muted-foreground mr-4">Total Discount:</span>
-                                        <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
-                                    </div>
-                                    <div className="flex justify-end items-center text-md">
-                                        <span className="text-muted-foreground mr-4">Total Paid:</span>
-                                        <span className="text-green-600">Rs. {amountPaid.toFixed(2)}</span>
-                                    </div>
-                                    <Separator className="my-2" />
-                                    <div className="flex justify-end items-center text-lg font-bold">
-                                        <span className="text-muted-foreground mr-4">Balance Due:</span>
-                                        {balanceDue <= 0 && totalAmount > 0 ? (
-                                            <span className="text-green-600">Fully Paid</span>
-                                        ) : (
-                                            <span>Rs. {balanceDue.toFixed(2)}</span>
-                                        )}
+                                    <Separator className="my-4" />
+                                    <div>
+                                        <h4 className="text-base font-semibold mb-2">Applied Discounts</h4>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Reason</TableHead>
+                                                    <TableHead>Discount</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                    <TableHead className="w-[50px]"><span className='sr-only'>Actions</span></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {patient.discounts && patient.discounts.length > 0 ? (
+                                                    patient.discounts.map(discount => (
+                                                        <TableRow key={discount.id}>
+                                                            <TableCell>{discount.reason}</TableCell>
+                                                            <TableCell>{discount.type === 'Percentage' ? `${discount.value}%` : `Fixed`}</TableCell>
+                                                            <TableCell className="text-right">-Rs. {discount.amount.toFixed(2)}</TableCell>
+                                                            <TableCell>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDiscountToDelete(discount)}>
+                                                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))
+                                                ) : (
+                                                    <TableRow>
+                                                        <TableCell colSpan={4} className="text-center h-24">No discounts applied yet.</TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1072,6 +1216,23 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+             <AlertDialog open={!!discountToDelete} onOpenChange={(open) => !open && setDiscountToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove the discount: <span className="font-bold">{discountToDelete?.reason}</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDiscountToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteDiscount} disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Continue
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <AlertDialog open={!!examinationToDelete} onOpenChange={(open) => !open && setExaminationToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -1121,7 +1282,7 @@ const treatmentPlanSchema = z.object({
 type TreatmentPlanFormValues = z.infer<typeof treatmentPlanSchema>;
 
 interface TreatmentPlanTableProps {
-    treatments: AssignedTreatment[];
+    patient: Patient;
     allTreatments: Treatment[];
     editingId: string | null;
     setEditingId: (id: string | null) => void;
@@ -1130,7 +1291,7 @@ interface TreatmentPlanTableProps {
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentPlanTable({ treatments, allTreatments, editingId, setEditingId, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
+function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const { toast } = useToast();
 
     const handleSave = async (formData: AssignedTreatment) => {
@@ -1162,7 +1323,7 @@ function TreatmentPlanTable({ treatments, allTreatments, editingId, setEditingId
                             onCreateNewTreatment={onCreateNewTreatment}
                         />
                     )}
-                    {treatments.map((treatment) => (
+                    {patient.assignedTreatments?.map((treatment) => (
                         editingId === treatment.id ? (
                             <TreatmentFormRow
                                 key={treatment.id}
@@ -1185,7 +1346,7 @@ function TreatmentPlanTable({ treatments, allTreatments, editingId, setEditingId
                             </TableRow>
                         )
                     ))}
-                     {treatments.length === 0 && editingId !== 'new' && (
+                     {(!patient.assignedTreatments || patient.assignedTreatments.length === 0) && editingId !== 'new' && (
                         <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center">No treatments assigned yet.</TableCell>
                         </TableRow>
@@ -1205,16 +1366,19 @@ interface TreatmentFormRowProps {
 }
 
 function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch } = useForm<TreatmentPlanFormValues>({
+    const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<TreatmentPlanFormValues>({
+        resolver: zodResolver(treatmentPlanSchema),
         defaultValues: {
             id: initialData?.id || 'new',
             treatmentId: initialData?.treatmentId || '',
             name: initialData?.name || '',
             tooth: initialData?.tooth || '',
-            amount: initialData?.amount || 0,
+            amount: initialData?.amount || undefined,
             description: initialData?.description || '',
         }
     });
+
+    const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
 
     const onSubmit = (data: TreatmentPlanFormValues) => {
         onSave({
@@ -1235,6 +1399,8 @@ function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCrea
             setValue('name', selected.name);
         }
     };
+    
+    const toothValue = watch('tooth');
 
     return (
         <TableRow>
@@ -1258,12 +1424,30 @@ function TreatmentFormRow({ initialData, allTreatments, onSave, onCancel, onCrea
                         />
                     )}
                 />
+                 {errors.treatmentId && <p className="text-xs text-destructive mt-1">{errors.treatmentId.message}</p>}
             </TableCell>
             <TableCell>
-                <Controller name="tooth" control={control} render={({ field }) => <Input {...field} placeholder="e.g. 11" className="w-20" />} />
+                <div className="flex items-center gap-2">
+                    <Input value={toothValue} onChange={(e) => setValue('tooth', e.target.value)} placeholder="e.g. 11" className="w-16" />
+                    <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline" size="icon"><Heart className="h-4 w-4" /></Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl">
+                            <DialogHeader>
+                                <DialogTitle>Select a Tooth</DialogTitle>
+                            </DialogHeader>
+                            <ToothChart onToothClick={(tooth) => {
+                                setValue('tooth', tooth);
+                                setIsToothChartOpen(false);
+                            }} />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </TableCell>
             <TableCell>
-                <Controller name="amount" control={control} render={({ field }) => <Input {...field} type="number" className="w-28" />} />
+                <Controller name="amount" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Cost' className="w-28" />} />
+                {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount.message}</p>}
             </TableCell>
             <TableCell>
                 <Controller name="description" control={control} render={({ field }) => <Input {...field} placeholder="Notes..." />} />
@@ -1481,3 +1665,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
 
+
+
+    

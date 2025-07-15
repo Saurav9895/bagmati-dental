@@ -160,7 +160,7 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
     }
 }
 
-export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'dateAdded'>) {
+export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'dateAdded'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {
@@ -172,6 +172,7 @@ export async function addDiscountToPatient(patientId: string, discount: Omit<Dis
             const patientData = patientDoc.data() as Patient;
             
             const newDiscount: Discount = {
+                id: crypto.randomUUID(),
                 ...discount,
                 dateAdded: new Date().toISOString(),
             };
@@ -198,7 +199,7 @@ export async function addDiscountToPatient(patientId: string, discount: Omit<Dis
     }
 }
 
-export async function removeDiscountFromPatient(patientId: string, discountToRemove: Discount) {
+export async function removeDiscountFromPatient(patientId: string, discountId: string) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {
@@ -211,7 +212,7 @@ export async function removeDiscountFromPatient(patientId: string, discountToRem
             const currentDiscounts = patientData.discounts || [];
 
             const updatedDiscounts = currentDiscounts.filter(
-                d => d.dateAdded !== discountToRemove.dateAdded
+                d => d.id !== discountId
             );
 
             transaction.update(patientRef, { discounts: updatedDiscounts });
@@ -338,3 +339,5 @@ export async function removeToothExamination(patientId: string, examinationId: s
         return { success: false, error: (e as Error).message || "An unexpected error occurred." };
     }
 }
+
+    

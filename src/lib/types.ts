@@ -1,5 +1,6 @@
 
 
+
 export type ClinicalExamination = {
   id: string;
   date: string;
@@ -83,8 +84,11 @@ export type Payment = {
 };
 
 export type Discount = {
+  id: string;
   reason: string;
-  amount: number;
+  type: 'Amount' | 'Percentage';
+  value: number; // The raw value (e.g., 10 for 10% or 100 for 100 Rs)
+  amount: number; // The calculated discount amount in currency
   dateAdded: string;
 };
 
@@ -119,3 +123,5 @@ export type DentalExamination = {
   name: string;
   createdAt?: any;
 };
+
+    
