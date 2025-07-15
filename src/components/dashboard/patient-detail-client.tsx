@@ -286,17 +286,20 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
     const { totalCost, totalPaid, totalDiscount, balanceDue } = React.useMemo(() => {
         const totalCost = patient.assignedTreatments?.reduce((total, t) => {
-            const cost = t.cost || 0;
-            const discount = t.discountAmount || 0;
-            return total + (cost - discount);
+            return total + (t.cost || 0);
         }, 0) || 0;
 
         const totalPaid = patient.payments?.reduce((total, payment) => total + payment.amount, 0) || 0;
         
         const totalOverallDiscount = patient.discounts?.reduce((total, d) => total + d.amount, 0) || 0;
+        
+        const perTreatmentDiscount = patient.assignedTreatments?.reduce((total, t) => {
+             return total + (t.discountAmount || 0);
+        }, 0) || 0;
 
-        const balanceDue = totalCost - totalPaid - totalOverallDiscount;
-        return { totalCost, totalPaid, totalDiscount: totalOverallDiscount, balanceDue };
+
+        const balanceDue = totalCost - totalPaid - totalOverallDiscount - perTreatmentDiscount;
+        return { totalCost, totalPaid, totalDiscount: totalOverallDiscount + perTreatmentDiscount, balanceDue };
     }, [patient]);
 
 
@@ -353,7 +356,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             return;
         }
         
-        setActiveTab("pricing");
+        setActiveTab("treatment");
         
         setPrefillTreatment({
             treatmentId: treatmentToAdd.id,
@@ -556,8 +559,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                     <TabsList className="grid w-full grid-cols-4 border-b p-0 h-auto bg-transparent rounded-none">
+                     <TabsList className="grid w-full grid-cols-5 border-b p-0 h-auto bg-transparent rounded-none">
                         <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
+                        <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
                         <TabsTrigger value="pricing" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Pricing</TabsTrigger>
                         <TabsTrigger value="history" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">History</TabsTrigger>
                         <TabsTrigger value="files" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Files</TabsTrigger>
@@ -749,8 +753,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </TabsContent>
                             </Tabs>
                         </TabsContent>
-                        <TabsContent value="pricing" className="mt-6 space-y-6">
-                             <Card>
+                        <TabsContent value="treatment" className="mt-6 space-y-6">
+                            <Card>
                                 <CardHeader>
                                     <div className="flex justify-between items-center">
                                         <CardTitle className="flex items-center gap-2">
@@ -805,6 +809,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                     />
                                 </CardContent>
                             </Card>
+                        </TabsContent>
+                        <TabsContent value="pricing" className="mt-6 space-y-6">
                              <Card>
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -868,7 +874,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             <span>Rs. {totalCost.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Overall Discount:</span>
+                                            <span className="text-muted-foreground mr-4">Total Discount:</span>
                                             <span className="text-destructive">-Rs. {totalDiscount.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-end items-center text-md">
@@ -1391,11 +1397,12 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
             setValue('treatmentId', prefillData.treatmentId || '');
             setValue('name', prefillData.name || '');
             setValue('tooth', prefillData.tooth || '');
+            const treatment = allTreatments.find(t => t.id === prefillData.treatmentId);
         }
-    }, [prefillData, setValue]);
+    }, [prefillData, setValue, allTreatments]);
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
-    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(', ') || []);
+    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(', ').filter(Boolean) || []);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
     
     const { cost, discountType, discountValue } = watch();
@@ -1455,11 +1462,15 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                          <SingleSelectDropdown
                             options={allTreatments}
                             selected={field.value}
-                            onChange={handleTreatmentChange}
+                            onChange={(id) => {
+                                handleTreatmentChange(id);
+                                field.onChange(id);
+                            }}
                             onCreate={async (name) => {
                                 const newTreatment = await onCreateNewTreatment(name);
                                 if (newTreatment) {
                                     handleTreatmentChange(newTreatment.id);
+                                    field.onChange(newTreatment.id);
                                 }
                                 return newTreatment;
                             }}
@@ -1745,3 +1756,4 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
