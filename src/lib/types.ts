@@ -16,6 +16,7 @@ export type AssignedTreatment = {
   cost: number;
   dateAdded: string;
   tooth?: string;
+  multiplyCost?: boolean;
   discountType?: 'Amount' | 'Percentage';
   discountValue?: number;
   discountAmount?: number;

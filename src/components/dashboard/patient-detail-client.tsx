@@ -30,9 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { addChiefComplaint } from '@/app/actions/examinations';
-import { addDentalExamination } from '@/app/actions/examinations';
-import { addTreatment } from '@/app/actions/treatments';
+import { addChiefComplaint, updateChiefComplaint, deleteChiefComplaint, addDentalExamination, updateDentalExamination, deleteDentalExamination } from '@/app/actions/examinations';
+import { addTreatment, updateTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
@@ -286,7 +285,12 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
     const { totalCost, totalPaid, totalDiscount, balanceDue } = React.useMemo(() => {
         const totalCost = patient.assignedTreatments?.reduce((total, t) => {
-            return total + (t.cost || 0);
+            let cost = t.cost || 0;
+            if (t.multiplyCost && t.tooth) {
+                const toothCount = t.tooth.split(',').length;
+                cost *= toothCount;
+            }
+            return total + cost;
         }, 0) || 0;
 
         const totalPaid = patient.payments?.reduce((total, payment) => total + payment.amount, 0) || 0;
@@ -784,6 +788,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                     name: data.name,
                                                     tooth: data.tooth,
                                                     cost: data.cost,
+                                                    multiplyCost: data.multiplyCost,
                                                     discountType: data.discountType,
                                                     discountValue: data.discountValue,
                                                     discountAmount: data.discountAmount,
@@ -1275,6 +1280,7 @@ const treatmentPlanSchema = z.object({
   name: z.string(),
   tooth: z.string().optional(),
   cost: z.coerce.number().min(0, 'Cost must be a positive number.'),
+  multiplyCost: z.boolean().optional(),
   discountType: z.enum(['Amount', 'Percentage']).optional(),
   discountValue: z.coerce.number().min(0).optional(),
 });
@@ -1327,8 +1333,15 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             prefillData={prefillData}
                         />
                     )}
-                    {assignedTreatments.map((treatment) => (
-                        editingId === treatment.id ? (
+                    {assignedTreatments.map((treatment) => {
+                        let totalCost = treatment.cost;
+                        if (treatment.multiplyCost && treatment.tooth) {
+                            const toothCount = treatment.tooth.split(',').length;
+                            totalCost *= toothCount;
+                        }
+                        const finalCost = totalCost - (treatment.discountAmount || 0);
+
+                        return editingId === treatment.id ? (
                             <TreatmentFormRow
                                 key={treatment.id}
                                 initialData={treatment}
@@ -1350,14 +1363,14 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         </span>
                                     ) : ('N/A')}
                                 </TableCell>
-                                <TableCell className='font-medium'>Rs. {(treatment.cost - (treatment.discountAmount || 0)).toFixed(2)}</TableCell>
+                                <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 </TableCell>
                             </TableRow>
                         )
-                    ))}
+                    })}
                      {assignedTreatments.length === 0 && editingId !== 'new' && (
                         <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
@@ -1387,6 +1400,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
             name: initialData?.name || '',
             tooth: initialData?.tooth || '',
             cost: initialData?.cost,
+            multiplyCost: initialData?.multiplyCost || false,
             discountType: initialData?.discountType,
             discountValue: initialData?.discountValue,
         }
@@ -1405,15 +1419,22 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(', ').filter(Boolean) || []);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
     
-    const { cost, discountType, discountValue } = watch();
+    const { cost, discountType, discountValue, multiplyCost, tooth } = watch();
 
     const onSubmit = (data: TreatmentPlanFormValues) => {
+        let singleCost = data.cost || 0;
+        let totalCost = singleCost;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').length;
+            totalCost = singleCost * toothCount;
+        }
+
         let discountAmount = 0;
         if (data.discountType && data.discountValue) {
             if (data.discountType === 'Amount') {
                 discountAmount = data.discountValue;
             } else { // Percentage
-                discountAmount = (data.cost * data.discountValue) / 100;
+                discountAmount = (totalCost * data.discountValue) / 100;
             }
         }
         
@@ -1423,6 +1444,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
             name: data.name,
             tooth: data.tooth,
             cost: data.cost,
+            multiplyCost: data.multiplyCost,
             dateAdded: initialData?.dateAdded || new Date().toISOString(),
             discountType: data.discountType,
             discountValue: data.discountValue,
@@ -1452,9 +1474,27 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
         setIsToothChartOpen(false);
     }
 
+    const calculateTotal = () => {
+        let totalCost = cost || 0;
+        if (multiplyCost && tooth) {
+            const toothCount = tooth.split(',').length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (discountType && discountValue) {
+            if (discountType === 'Amount') {
+                totalDiscount = discountValue;
+            } else {
+                totalDiscount = (totalCost * discountValue) / 100;
+            }
+        }
+        return totalCost - totalDiscount;
+    }
+
     return (
-        <TableRow className="bg-muted/50">
-            <TableCell className='min-w-[200px]'>
+        <TableRow className="bg-muted/50 align-top">
+            <TableCell className='min-w-[200px] pt-4'>
                 <Controller
                     name="treatmentId"
                     control={control}
@@ -1480,7 +1520,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                 />
                  {errors.treatmentId && <p className="text-xs text-destructive mt-1">{errors.treatmentId.message}</p>}
             </TableCell>
-            <TableCell>
+            <TableCell className="pt-4">
                 <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
                     <DialogTrigger asChild>
                         <Button type="button" variant="outline" className="w-[120px] justify-start text-left font-normal truncate">
@@ -1510,17 +1550,34 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                     </DialogContent>
                 </Dialog>
             </TableCell>
-            <TableCell>
+            <TableCell className="pt-2">
                 <Controller name="cost" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />} />
                 {errors.cost && <p className="text-xs text-destructive mt-1">{errors.cost.message}</p>}
+                {tooth && tooth.split(',').length > 1 && (
+                     <Controller
+                        name="multiplyCost"
+                        control={control}
+                        render={({ field }) => (
+                            <FormItem className="flex items-center space-x-2 mt-2">
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <Label htmlFor="multiply-cost" className="text-xs font-normal">Multiply cost by # of teeth</Label>
+                            </FormItem>
+                        )}
+                    />
+                )}
             </TableCell>
-            <TableCell>
+            <TableCell className="pt-2">
                 <div className='flex gap-1'>
                      <Controller
                         name="discountType"
                         control={control}
                         render={({ field }) => (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                                 <SelectTrigger className='w-[120px]'>
                                     <SelectValue placeholder="Type" />
                                 </SelectTrigger>
@@ -1534,13 +1591,10 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                     <Controller name="discountValue" control={control} render={({ field }) => <Input {...field} type="number" placeholder='Value' className="w-24" value={field.value ?? ''} />} />
                 </div>
             </TableCell>
-            <TableCell className="font-medium">
-                 Rs. {( (cost || 0) - (
-                    discountType === 'Amount' ? (discountValue || 0) :
-                    discountType === 'Percentage' ? ((cost || 0) * (discountValue || 0) / 100) : 0
-                 )).toFixed(2)}
+            <TableCell className="font-medium pt-4">
+                 Rs. {calculateTotal().toFixed(2)}
             </TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right pt-4">
                 <Button variant="ghost" size="icon" onClick={handleSubmit(onSubmit)}><Save className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
             </TableCell>

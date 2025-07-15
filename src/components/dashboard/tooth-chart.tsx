@@ -63,6 +63,14 @@ const Tooth: React.FC<ToothProps> = ({
       <p>Click to record an examination.</p>
     </div>
   );
+  
+  let fillColor = '#e5e7eb'; // default gray-200
+  if (selected) {
+    fillColor = 'hsl(var(--primary))';
+  } else if (hasExamination) {
+    fillColor = color || '#fde047'; // yellow-200
+  }
+
 
   return (
     <Tooltip>
@@ -77,10 +85,10 @@ const Tooth: React.FC<ToothProps> = ({
             transform="scale(1.2)"
             className={cn(
               'transition-all duration-200 group-hover:fill-primary/50 stroke-2',
-              selected ? 'stroke-primary' : 'stroke-transparent'
+               'stroke-transparent'
             )}
             style={{
-              fill: color || (hasExamination ? '#fde047' : '#e5e7eb'), // yellow-200 or gray-200
+              fill: fillColor,
             }}
           />
           <text
@@ -89,7 +97,7 @@ const Tooth: React.FC<ToothProps> = ({
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="10"
-            fill="#374151" // gray-700
+            fill={selected ? 'white' : '#374151'} // gray-700
             className="pointer-events-none select-none font-sans font-semibold"
           >
             {toothNumber}
