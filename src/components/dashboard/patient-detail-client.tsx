@@ -1418,7 +1418,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     }, [prefillData, setValue, allTreatments]);
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
-    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(', ').filter(Boolean) || []);
+    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(',').filter(Boolean) || []);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
     
     const { cost, discountType, discountValue, multiplyCost, tooth } = watch();
@@ -1464,10 +1464,11 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     
     const toothValue = watch('tooth');
     
-    const handleToothSelection = (tooth: string) => {
-        const newSelectedTeeth = selectedTeeth.includes(tooth)
-            ? selectedTeeth.filter(t => t !== tooth)
-            : [...selectedTeeth, tooth];
+    const handleToothSelection = (tooth: string | number) => {
+        const toothStr = String(tooth);
+        const newSelectedTeeth = selectedTeeth.includes(toothStr)
+            ? selectedTeeth.filter(t => t !== toothStr)
+            : [...selectedTeeth, toothStr];
         setSelectedTeeth(newSelectedTeeth);
     }
     
@@ -1534,7 +1535,24 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl">
                             <DialogHeader>
-                                <DialogTitle>Select Teeth</DialogTitle>
+                                <div className='flex justify-between items-center'>
+                                    <DialogTitle>Select Teeth</DialogTitle>
+                                    <FormField
+                                        name="multiplyCost"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <FormItem className="flex items-center gap-2 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">Multiply cost by # of teeth</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
                                 <div className="flex items-center space-x-2 pt-2">
                                     <Checkbox 
                                         id="form-primary-teeth" 
@@ -1564,23 +1582,6 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                              <FormMessage />
                         </FormItem>
                     )} />
-                    {tooth && tooth.split(',').length > 1 && (
-                        <FormField
-                            name="multiplyCost"
-                            control={control}
-                            render={({ field }) => (
-                                <FormItem className="flex items-center space-x-2 mt-2">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="text-xs font-normal">Multiply cost by # of teeth</FormLabel>
-                                </FormItem>
-                            )}
-                        />
-                    )}
                 </TableCell>
                 <TableCell className="pt-2">
                     <div className='flex gap-1'>
@@ -1832,5 +1833,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
