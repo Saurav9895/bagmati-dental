@@ -30,8 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '../ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { addChiefComplaint } from '@/app/actions/examinations';
-import { addDentalExamination } from '@/app/actions/examinations';
+import { addChiefComplaint, updateChiefComplaint } from '@/app/actions/examinations';
+import { addDentalExamination, updateDentalExamination } from '@/app/actions/examinations';
 import { addTreatment } from '@/app/actions/treatments';
 
 
@@ -116,6 +116,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const [examinationToDelete, setExaminationToDelete] = React.useState<ClinicalExamination | null>(null);
     const [toothExaminationToDelete, setToothExaminationToDelete] = React.useState<ToothExamination | null>(null);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
+    const [isAddingToPlan, setIsAddingToPlan] = React.useState<string | null>(null);
 
 
     const { toast } = useToast();
@@ -331,6 +332,31 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             setIsSubmitting(false);
         }
     };
+
+    const handleAddExaminationToTreatmentPlan = async (examination: ToothExamination) => {
+        setIsAddingToPlan(examination.id);
+        const treatmentToAdd = treatments.find(t => t.name === examination.diagnosis);
+
+        if (!treatmentToAdd) {
+            toast({ variant: 'destructive', title: 'Treatment not found', description: `The treatment "${examination.diagnosis}" is not a recognized service.` });
+            setIsAddingToPlan(null);
+            return;
+        }
+
+        try {
+            const result = await addTreatmentToPatient(patient.id, treatmentToAdd, examination.tooth);
+            if (result.success && result.data) {
+                setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
+                toast({ title: 'Added to treatment plan!', description: `"${examination.diagnosis}" for tooth #${examination.tooth} has been added.` });
+            } else {
+                toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'An unexpected error occurred', description: (error as Error).message });
+        } finally {
+            setIsAddingToPlan(null);
+        }
+    };
     
     const handleRemoveTreatmentClick = (treatment: AssignedTreatment) => {
         setTreatmentToDelete(treatment);
@@ -393,41 +419,50 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const treatedTeeth = React.useMemo(() => Array.from(toothExaminationsByTooth.keys()), [toothExaminationsByTooth]);
 
     const handleNewComplaintSubmit = async (complaintName: string) => {
+        setIsSubmitting(true);
         const result = await addChiefComplaint({ name: complaintName });
         if (result.success && result.data) {
             const newComplaint = result.data;
             setChiefComplaints(prev => [...prev, newComplaint].sort((a, b) => a.name.localeCompare(b.name)));
             
             toast({ title: 'New complaint added!' });
+            setIsSubmitting(false);
             return newComplaint;
         } else {
             toast({ variant: 'destructive', title: 'Failed to add complaint', description: result.error });
+            setIsSubmitting(false);
             return null;
         }
     };
 
     const handleNewDentalExaminationSubmit = async (examName: string) => {
+        setIsSubmitting(true);
         const result = await addDentalExamination({ name: examName });
         if (result.success && result.data) {
             const newExam = result.data;
             setDentalExaminations(prev => [...prev, newExam].sort((a,b) => a.name.localeCompare(b.name)));
             toast({ title: 'New dental examination added!' });
+            setIsSubmitting(false);
             return newExam;
         } else {
             toast({ variant: 'destructive', title: 'Failed to add examination', description: result.error });
+            setIsSubmitting(false);
             return null;
         }
     };
     
     const handleNewTreatmentSubmit = async (treatmentName: string) => {
+        setIsSubmitting(true);
         const result = await addTreatment({ name: treatmentName });
         if (result.success && result.data) {
             const newTreatment = result.data;
             setTreatments(prev => [...prev, newTreatment].sort((a, b) => a.name.localeCompare(b.name)));
             toast({ title: 'New treatment added!' });
+            setIsSubmitting(false);
             return newTreatment;
         } else {
             toast({ variant: 'destructive', title: 'Failed to add treatment', description: result.error });
+            setIsSubmitting(false);
             return null;
         }
     };
@@ -526,6 +561,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                                     onChange={field.onChange}
                                                                     onCreate={handleNewComplaintSubmit}
                                                                     placeholder="Select complaints..."
+                                                                    disabled={isSubmitting}
                                                                 />
                                                                 <FormMessage />
                                                             </FormItem>
@@ -626,7 +662,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                         <TableHead>Date</TableHead>
                                                         <TableHead>Examination</TableHead>
                                                         <TableHead>Diagnosis</TableHead>
-                                                        <TableHead className="w-[50px]"><span className="sr-only">Actions</span></TableHead>
+                                                        <TableHead className="text-right">Actions</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -642,7 +678,16 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                                     {exam.investigation && <div className="text-xs text-muted-foreground">{exam.investigation}</div>}
                                                                 </TableCell>
                                                                 <TableCell>{exam.diagnosis}</TableCell>
-                                                                <TableCell>
+                                                                <TableCell className="text-right space-x-2">
+                                                                    <Button 
+                                                                        variant="outline" 
+                                                                        size="sm" 
+                                                                        onClick={() => handleAddExaminationToTreatmentPlan(exam)}
+                                                                        disabled={isAddingToPlan === exam.id}
+                                                                    >
+                                                                        {isAddingToPlan === exam.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                                                        Add to Plan
+                                                                    </Button>
                                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setToothExaminationToDelete(exam)}>
                                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                                     </Button>
@@ -922,6 +967,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             onChange={field.onChange}
                                             onCreate={handleNewDentalExaminationSubmit}
                                             placeholder="Select an examination"
+                                            disabled={isSubmitting}
                                         />
                                         <FormMessage />
                                     </FormItem>
@@ -952,6 +998,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         onChange={field.onChange}
                                         onCreate={handleNewTreatmentSubmit}
                                         placeholder="Select a diagnosis"
+                                        disabled={isSubmitting}
                                     />
                                     <FormMessage />
                                 </FormItem>
@@ -1065,9 +1112,10 @@ type MultiSelectDropdownProps = {
     onCreate?: (name: string) => Promise<{id: string, name: string} | null>;
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 };
 
-function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholder, className }: MultiSelectDropdownProps) {
+function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholder, className, disabled = false }: MultiSelectDropdownProps) {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
@@ -1098,7 +1146,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
     return (
         <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
+                <Button variant="outline" className={cn("w-full justify-between font-normal", className)} disabled={disabled}>
                     <span className="truncate">{selectedValue}</span>
                     <History className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -1169,9 +1217,10 @@ type SingleSelectDropdownProps = {
     onCreate?: (name: string) => Promise<{id: string, name: string} | null>;
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 };
 
-function SingleSelectDropdown({ options, selected, onChange, onCreate, placeholder, className }: SingleSelectDropdownProps) {
+function SingleSelectDropdown({ options, selected, onChange, onCreate, placeholder, className, disabled = false }: SingleSelectDropdownProps) {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [isCreating, setIsCreating] = React.useState(false);
@@ -1201,7 +1250,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
     return (
         <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
+                <Button variant="outline" className={cn("w-full justify-between font-normal", className)} disabled={disabled}>
                     <span className="truncate">{selectedValue}</span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -1253,6 +1302,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 }
 
     
+
 
 
 
