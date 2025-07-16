@@ -3,7 +3,27 @@
 
 import { db } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
-import { doc, runTransaction, arrayUnion } from 'firebase/firestore';
+import { doc, runTransaction, arrayUnion, updateDoc } from 'firestore/lite';
+
+export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        await updateDoc(patientRef, patientData);
+
+        const patientDoc = await getDoc(patientRef);
+        if (!patientDoc.exists()) {
+            throw new Error("Patient document does not exist!");
+        }
+        const updatedPatient = { id: patientDoc.id, ...patientDoc.data() } as Patient;
+        const { createdAt, ...serializablePatientData } = updatedPatient;
+
+        return { success: true, data: serializablePatientData };
+    } catch (e) {
+        console.error("Failed to update patient details: ", e);
+        return { success: false, error: (e as Error).message };
+    }
+}
+
 
 export async function addTreatmentToPatient(patientId: string, treatmentData: Omit<AssignedTreatment, 'dateAdded'>) {
   const patientRef = doc(db, 'patients', patientId);
@@ -160,7 +180,7 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
     }
 }
 
-export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'dateAdded' | 'amount'>) {
+export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'amount'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {

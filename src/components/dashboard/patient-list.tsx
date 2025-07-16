@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -53,7 +54,7 @@ export function PatientList() {
 
   const form = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: { name: "", email: "", phone: "", dob: "", age: 0, address: "" },
+    defaultValues: { name: "", email: "", phone: "", dob: "", age: undefined, address: "" },
   });
   
   const filteredPatients = React.useMemo(() => {
@@ -98,11 +99,11 @@ export function PatientList() {
         ...editingPatient,
         dob: editingPatient.dob || '',
         email: editingPatient.email || '',
-        age: editingPatient.age || 0,
+        age: editingPatient.age || undefined,
         gender: editingPatient.gender,
       });
     } else {
-      form.reset({ name: "", email: "", phone: "", dob: "", age: 0, address: "" });
+      form.reset({ name: "", email: "", phone: "", dob: "", age: undefined, address: "" });
     }
   }, [editingPatient, form]);
 

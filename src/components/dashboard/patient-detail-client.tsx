@@ -9,7 +9,7 @@ import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCir
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -35,6 +35,17 @@ import { addTreatment, updateTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
+
+const patientSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters."),
+  email: z.string().email("Invalid email address.").or(z.literal('')).optional(),
+  phone: z.string().min(10, "Phone number seems too short."),
+  dob: z.string().optional(),
+  age: z.coerce.number().int().positive("Age must be a positive number."),
+  gender: z.enum(['Male', 'Female', 'Other'], { required_error: 'Please select a gender.'}),
+  address: z.string().min(5, "Address must be at least 5 characters."),
+});
+type PatientFormValues = z.infer<typeof patientSchema>;
 
 const appointmentSchema = z.object({
     procedure: z.string().min(2, "Procedure must be at least 2 characters."),
@@ -137,7 +148,34 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const [editingTreatmentId, setEditingTreatmentId] = React.useState<string | null>(null);
     const [prefillTreatment, setPrefillTreatment] = React.useState<Partial<AssignedTreatment> | null>(null);
 
+    const [isPatientFormOpen, setIsPatientFormOpen] = React.useState(false);
+
     const { toast } = useToast();
+    
+    const patientForm = useForm<PatientFormValues>({
+        resolver: zodResolver(patientSchema),
+        defaultValues: {
+            name: patient.name,
+            email: patient.email || '',
+            phone: patient.phone,
+            dob: patient.dob || '',
+            age: patient.age,
+            gender: patient.gender,
+            address: patient.address,
+        }
+    });
+
+    React.useEffect(() => {
+        patientForm.reset({
+            name: patient.name,
+            email: patient.email || '',
+            phone: patient.phone,
+            dob: patient.dob || '',
+            age: patient.age,
+            gender: patient.gender,
+            address: patient.address,
+        });
+    }, [patient, patientForm]);
 
     const appointmentForm = useForm<AppointmentFormValues>({
         resolver: zodResolver(appointmentSchema),
@@ -190,6 +228,17 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         resolver: zodResolver(discountSchema),
         defaultValues: { reason: '', type: 'Amount', value: undefined }
     });
+    
+    const handlePatientFormSubmit = async (data: PatientFormValues) => {
+        const result = await updatePatientDetails(patient.id, data);
+        if (result.success && result.data) {
+            setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>) }));
+            toast({ title: "Patient details updated successfully!" });
+            setIsPatientFormOpen(false);
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to update details', description: result.error });
+        }
+    };
     
     const handleClinicalExaminationSubmit = async (data: ClinicalExaminationFormValues) => {
         setIsSubmitting(true);
@@ -582,8 +631,90 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 </div>
 
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>Contact Information</CardTitle>
+                        <Dialog open={isPatientFormOpen} onOpenChange={setIsPatientFormOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm"><Edit className="mr-2 h-4 w-4" /> Edit Details</Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                    <DialogTitle>Edit Patient Details</DialogTitle>
+                                </DialogHeader>
+                                <Form {...patientForm}>
+                                    <form onSubmit={patientForm.handleSubmit(handlePatientFormSubmit)} className="space-y-6 py-4">
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                            <FormField control={patientForm.control} name="name" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Full Name</FormLabel>
+                                                    <FormControl><Input placeholder="John Doe" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={patientForm.control} name="email" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Email (Optional)</FormLabel>
+                                                    <FormControl><Input placeholder="john.doe@example.com" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={patientForm.control} name="phone" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Phone</FormLabel>
+                                                    <FormControl><Input placeholder="123-456-7890" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={patientForm.control} name="dob" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Date of Birth (Optional)</FormLabel>
+                                                    <FormControl><Input type="date" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={patientForm.control} name="age" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Age</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="30" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={patientForm.control} name="gender" render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Gender</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select a gender" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="Male">Male</SelectItem>
+                                                            <SelectItem value="Female">Female</SelectItem>
+                                                            <SelectItem value="Other">Other</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={patientForm.control} name="address" render={({ field }) => (
+                                                <FormItem className="md:col-span-2">
+                                                    <FormLabel>Address</FormLabel>
+                                                    <FormControl><Input placeholder="123 Main St, Anytown, USA" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                        </div>
+                                        <DialogFooter>
+                                            <Button type="submit" disabled={patientForm.formState.isSubmitting}>
+                                                {patientForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                                Save Changes
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-4">
@@ -1977,6 +2108,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
