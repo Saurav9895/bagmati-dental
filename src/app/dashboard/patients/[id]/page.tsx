@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PatientDetailClient } from '@/components/dashboard/patient-detail-client';
 import { getTreatments as fetchAllTreatments } from '@/app/actions/treatments';
 import { getChiefComplaints, getDentalExaminations } from '@/app/actions/examinations';
+import { getOpdCharge } from '@/app/actions/settings';
 
 async function getPatient(id: string): Promise<Patient | null> {
   const docRef = doc(db, 'patients', id);
@@ -46,6 +47,7 @@ export default async function PatientDetailPage({ params }: { params: { id:strin
   const appointments = await getAppointmentsForPatient(params.id);
   const chiefComplaints = await getChiefComplaints();
   const dentalExaminations = await getDentalExaminations();
+  const opdChargeSetting = await getOpdCharge();
 
   if (!patient) {
     return (
@@ -71,5 +73,6 @@ export default async function PatientDetailPage({ params }: { params: { id:strin
     appointments={appointments} 
     chiefComplaints={chiefComplaints} 
     dentalExaminations={dentalExaminations}
+    opdChargeSetting={opdChargeSetting}
   />;
 }

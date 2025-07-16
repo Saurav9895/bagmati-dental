@@ -1,15 +1,16 @@
 
 
+
 'use client';
 
 import * as React from 'react';
 import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount, Payment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle, FileDigit } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails, applyOpdChargeToPatient } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -108,9 +109,10 @@ interface PatientDetailClientProps {
     appointments: Appointment[];
     chiefComplaints: ChiefComplaint[];
     dentalExaminations: DentalExamination[];
+    opdChargeSetting: { amount: number } | null;
 }
 
-export function PatientDetailClient({ initialPatient, treatments: initialTreatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints, dentalExaminations: initialDentalExaminations }: PatientDetailClientProps) {
+export function PatientDetailClient({ initialPatient, treatments: initialTreatments, appointments: initialAppointments, chiefComplaints: initialChiefComplaints, dentalExaminations: initialDentalExaminations, opdChargeSetting }: PatientDetailClientProps) {
     const [patient, setPatient] = React.useState<Patient>(initialPatient);
     const [appointments, setAppointments] = React.useState<Appointment[]>(initialAppointments);
     const [treatments, setTreatments] = React.useState<Treatment[]>(initialTreatments);
@@ -615,6 +617,19 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         }
     };
 
+    const handleApplyOpdCharge = async () => {
+      if (!opdChargeSetting || patient.opdChargeApplied) return;
+      setIsSubmitting(true);
+      const result = await applyOpdChargeToPatient(patient.id, opdChargeSetting.amount);
+      if (result.success && result.data) {
+        setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>), opdChargeApplied: true }));
+        toast({ title: "OPD Charge Applied" });
+      } else {
+        toast({ variant: 'destructive', title: 'Failed to apply charge', description: result.error });
+      }
+      setIsSubmitting(false);
+    };
+
     return (
         <>
             <div className="space-y-6">
@@ -625,9 +640,17 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                             Patient Details {patient.registrationNumber && `- Registration #${patient.registrationNumber}`}
                         </p>
                     </div>
-                    <Button asChild variant="outline">
-                        <Link href="/dashboard/patients">Back to List</Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                         {opdChargeSetting && !patient.opdChargeApplied && (
+                            <Button onClick={handleApplyOpdCharge} disabled={isSubmitting}>
+                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                                Add OPD Charge (Rs. {opdChargeSetting.amount})
+                            </Button>
+                        )}
+                        <Button asChild variant="outline">
+                            <Link href="/dashboard/patients">Back to List</Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>
@@ -2108,6 +2131,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
