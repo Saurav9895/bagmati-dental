@@ -1,6 +1,7 @@
 
 
 
+
 export type ClinicalExamination = {
   id: string;
   date: string;
@@ -51,7 +52,6 @@ export type Patient = {
   lastVisit: string;
   address: string;
   registrationNumber?: string;
-  opdChargeApplied?: boolean;
   assignedTreatments?: AssignedTreatment[];
   payments?: Payment[];
   discounts?: Discount[];
@@ -129,4 +129,3 @@ export type DentalExamination = {
 };
 
     
-

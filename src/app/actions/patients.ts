@@ -369,33 +369,4 @@ export async function removeToothExamination(patientId: string, examinationId: s
         return { success: false, error: (e as Error).message || "An unexpected error occurred." };
     }
 }
-
-export async function applyOpdChargeToPatient(patientId: string, opdCharge: number) {
-  const patientRef = doc(db, 'patients', patientId);
-
-  try {
-    const opdTreatment: Omit<AssignedTreatment, 'dateAdded'> = {
-      id: `opd-${crypto.randomUUID()}`,
-      treatmentId: 'opd_charge',
-      name: 'OPD Charge',
-      cost: opdCharge,
-    };
     
-    const result = await addTreatmentToPatient(patientId, opdTreatment);
-
-    if (result.success) {
-      // Also mark that OPD charge has been applied to this patient
-      await updateDoc(patientRef, {
-        opdChargeApplied: true,
-      });
-      return { success: true, data: result.data };
-    } else {
-      throw new Error(result.error || 'Failed to add OPD charge as treatment.');
-    }
-  } catch (e) {
-    console.error("Failed to apply OPD charge: ", e);
-    return { success: false, error: (e as Error).message };
-  }
-}
-    
-

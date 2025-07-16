@@ -1,6 +1,7 @@
 
 
 
+
 'use client';
 
 import * as React from 'react';
@@ -10,7 +11,7 @@ import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCir
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails, applyOpdChargeToPatient } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -354,7 +355,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     };
 
     const { totalCost, totalPaid, totalDiscount, balanceDue, paymentLedger } = React.useMemo(() => {
-        const totalCost = patient.assignedTreatments?.reduce((total, t) => {
+        const opdCost = opdChargeSetting?.amount || 0;
+        const treatmentsCost = patient.assignedTreatments?.reduce((total, t) => {
             let cost = t.cost || 0;
             if (t.multiplyCost && t.tooth) {
                 const toothCount = t.tooth.split(',').filter(Boolean).length;
@@ -362,6 +364,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             }
             return total + cost;
         }, 0) || 0;
+        
+        const totalCost = opdCost + treatmentsCost;
 
         const totalPaid = patient.payments?.reduce((total, payment) => total + payment.amount, 0) || 0;
         
@@ -388,7 +392,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
 
         return { totalCost, totalPaid, totalDiscount: grandTotalDiscount, balanceDue, paymentLedger };
-    }, [patient]);
+    }, [patient, opdChargeSetting]);
 
 
     const handleToothExaminationSubmit = async (data: ToothExaminationFormValues) => {
@@ -617,19 +621,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         }
     };
 
-    const handleApplyOpdCharge = async () => {
-      if (!opdChargeSetting || patient.opdChargeApplied) return;
-      setIsSubmitting(true);
-      const result = await applyOpdChargeToPatient(patient.id, opdChargeSetting.amount);
-      if (result.success && result.data) {
-        setPatient(prev => ({ ...prev, ...(result.data as Partial<Patient>), opdChargeApplied: true }));
-        toast({ title: "OPD Charge Applied" });
-      } else {
-        toast({ variant: 'destructive', title: 'Failed to apply charge', description: result.error });
-      }
-      setIsSubmitting(false);
-    };
-
     return (
         <>
             <div className="space-y-6">
@@ -641,12 +632,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                         {opdChargeSetting && !patient.opdChargeApplied && (
-                            <Button onClick={handleApplyOpdCharge} disabled={isSubmitting}>
-                                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                                Add OPD Charge (Rs. {opdChargeSetting.amount})
-                            </Button>
-                        )}
                         <Button asChild variant="outline">
                             <Link href="/dashboard/patients">Back to List</Link>
                         </Button>
@@ -1016,6 +1001,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             if (treatment) setTreatmentToDelete(treatment);
                                         }}
                                         onCreateNewTreatment={handleNewTreatmentSubmit}
+                                        opdCharge={opdChargeSetting?.amount}
                                     />
                                 </CardContent>
                             </Card>
@@ -1587,9 +1573,10 @@ interface TreatmentPlanTableProps {
     onSave: (data: AssignedTreatment) => void;
     onDelete: (id: string) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
+    opdCharge?: number;
 }
 
-function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
+function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment, opdCharge }: TreatmentPlanTableProps) {
     const { toast } = useToast();
 
     const handleSave = (formData: AssignedTreatment) => {
@@ -1620,6 +1607,16 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                     </TableRow>
                 </TableHeader>
                 <TableBody>
+                     {opdCharge !== undefined && (
+                        <TableRow className="bg-muted/30">
+                            <TableCell className="font-medium">OPD Charge</TableCell>
+                            <TableCell>N/A</TableCell>
+                            <TableCell>Rs. {opdCharge.toFixed(2)}</TableCell>
+                            <TableCell>N/A</TableCell>
+                            <TableCell className="font-medium">Rs. {opdCharge.toFixed(2)}</TableCell>
+                            <TableCell></TableCell>
+                        </TableRow>
+                    )}
                     {editingId === "new" && (
                         <TreatmentFormRow
                             allTreatments={allTreatments}
@@ -1667,7 +1664,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             </TableRow>
                         )
                     })}
-                     {assignedTreatments.length === 0 && editingId !== 'new' && (
+                     {assignedTreatments.length === 0 && editingId !== 'new' && opdCharge === undefined && (
                         <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
                         </TableRow>
@@ -2131,6 +2128,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
