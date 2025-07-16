@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
-import { doc, runTransaction, arrayUnion, updateDoc } from 'firestore/lite';
+import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
 
 export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
     const patientRef = doc(db, 'patients', patientId);
