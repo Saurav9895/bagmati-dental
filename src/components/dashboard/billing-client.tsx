@@ -39,8 +39,11 @@ const discountSchema = z.object({
 
 type DiscountFormValues = z.infer<typeof discountSchema>;
 
+interface BillingClientProps {
+    opdChargeSetting: { amount: number } | null;
+}
 
-export function BillingClient() {
+export function BillingClient({ opdChargeSetting }: BillingClientProps) {
   const [allPatients, setAllPatients] = React.useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = React.useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(null);
@@ -136,7 +139,7 @@ export function BillingClient() {
     }
   };
 
-  const totalAmount = React.useMemo(() => {
+  const treatmentsCost = React.useMemo(() => {
     if (!selectedPatient || !selectedPatient.assignedTreatments) return 0;
     return selectedPatient.assignedTreatments.reduce((total, treatment) => {
       let cost = treatment.cost || 0;
@@ -147,6 +150,10 @@ export function BillingClient() {
       return total + cost;
     }, 0);
   }, [selectedPatient]);
+  
+  const opdCost = opdChargeSetting?.amount || 0;
+  const totalAmount = opdCost + treatmentsCost;
+
 
   const onSubmitDiscount = async (data: DiscountFormValues) => {
     if (!selectedPatient) return;
@@ -354,8 +361,19 @@ export function BillingClient() {
                   </Table>
                   <Separator className="my-4" />
                    <div className="space-y-2 text-right font-medium">
+                        {opdCost > 0 && (
+                            <div className="flex justify-end items-center text-md">
+                                <span className="text-muted-foreground mr-4">OPD Charge:</span>
+                                <span>Rs. {opdCost.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-end items-center text-md">
-                            <span className="text-muted-foreground mr-4">Total Amount:</span>
+                            <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                            <span>Rs. {treatmentsCost.toFixed(2)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-end items-center text-md font-bold">
+                            <span className="text-muted-foreground mr-4">Gross Total:</span>
                             <span>Rs. {totalAmount.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-end items-center text-md">

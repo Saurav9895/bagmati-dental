@@ -1,7 +1,10 @@
 import { BillingClient } from '@/components/dashboard/billing-client';
+import { getOpdCharge } from '@/app/actions/settings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function BillingPage() {
+export default async function BillingPage() {
+  const opdChargeSetting = await getOpdCharge();
+  
   return (
     <Card>
       <CardHeader>
@@ -9,7 +12,7 @@ export default function BillingPage() {
         <CardDescription>Search for a patient to view their treatments and generate an invoice.</CardDescription>
       </CardHeader>
       <CardContent>
-        <BillingClient />
+        <BillingClient opdChargeSetting={opdChargeSetting} />
       </CardContent>
     </Card>
   );
