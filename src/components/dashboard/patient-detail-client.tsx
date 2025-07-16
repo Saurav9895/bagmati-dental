@@ -2,6 +2,7 @@
 
 
 
+
 'use client';
 
 import * as React from 'react';
@@ -17,10 +18,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormProvider } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, Controller, FormProvider } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -354,7 +355,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         setIsAppointmentDialogOpen(true);
     };
 
-    const { totalCost, totalPaid, totalDiscount, balanceDue, paymentLedger } = React.useMemo(() => {
+    const { totalCost, totalPaid, totalDiscount, balanceDue, paymentLedger, opdCost, treatmentsCost } = React.useMemo(() => {
         const opdCost = opdChargeSetting?.amount || 0;
         const treatmentsCost = patient.assignedTreatments?.reduce((total, t) => {
             let cost = t.cost || 0;
@@ -391,7 +392,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 
-        return { totalCost, totalPaid, totalDiscount: grandTotalDiscount, balanceDue, paymentLedger };
+        return { totalCost, totalPaid, totalDiscount: grandTotalDiscount, balanceDue, paymentLedger, opdCost, treatmentsCost };
     }, [patient, opdChargeSetting]);
 
 
@@ -1016,8 +1017,19 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2 text-right font-medium">
+                                        {opdChargeSetting && opdChargeSetting.amount > 0 && (
+                                            <div className="flex justify-end items-center text-md">
+                                                <span className="text-muted-foreground mr-4">OPD Charge:</span>
+                                                <span>Rs. {opdChargeSetting.amount.toFixed(2)}</span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-end items-center text-md">
-                                            <span className="text-muted-foreground mr-4">Total Amount:</span>
+                                            <span className="text-muted-foreground mr-4">Total Treatment Cost:</span>
+                                            <span>Rs. {treatmentsCost.toFixed(2)}</span>
+                                        </div>
+                                        <Separator className="my-2" />
+                                        <div className="flex justify-end items-center text-md font-bold">
+                                            <span className="text-muted-foreground mr-4">Gross Total:</span>
                                             <span>Rs. {totalCost.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-end items-center text-md">
@@ -1816,7 +1828,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                                     }}
                                     placeholder="Select treatment"
                                 />
-                                <FormMessage />
+                                {errors.treatmentId && <FormMessage>{errors.treatmentId.message}</FormMessage>}
                             </FormItem>
                         )}
                     />
@@ -1874,7 +1886,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                             <FormControl>
                                 <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />
                             </FormControl>
-                             <FormMessage />
+                             {errors.cost && <FormMessage>{errors.cost.message}</FormMessage>}
                         </FormItem>
                     )} />
                 </TableCell>
@@ -2128,6 +2140,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
