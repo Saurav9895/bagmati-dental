@@ -138,7 +138,14 @@ export function BillingClient() {
 
   const totalAmount = React.useMemo(() => {
     if (!selectedPatient || !selectedPatient.assignedTreatments) return 0;
-    return selectedPatient.assignedTreatments.reduce((total, treatment) => total + treatment.amount, 0);
+    return selectedPatient.assignedTreatments.reduce((total, treatment) => {
+      let cost = treatment.cost || 0;
+      if (treatment.multiplyCost && treatment.tooth) {
+        const toothCount = treatment.tooth.split(',').length;
+        cost *= toothCount;
+      }
+      return total + cost;
+    }, 0);
   }, [selectedPatient]);
 
   const onSubmitDiscount = async (data: DiscountFormValues) => {
@@ -199,8 +206,15 @@ export function BillingClient() {
   }, [selectedPatient]);
 
   const totalDiscount = React.useMemo(() => {
-    if (!selectedPatient || !selectedPatient.discounts) return 0;
-    return selectedPatient.discounts.reduce((total, discount) => total + discount.amount, 0);
+    if (!selectedPatient) return 0;
+    
+    const overallDiscount = selectedPatient.discounts?.reduce((total, d) => total + d.amount, 0) || 0;
+    
+    const perTreatmentDiscount = selectedPatient.assignedTreatments?.reduce((total, t) => {
+        return total + (t.discountAmount || 0);
+    }, 0) || 0;
+
+    return overallDiscount + perTreatmentDiscount;
   }, [selectedPatient]);
 
   const balanceDue = totalAmount - amountPaid - totalDiscount;
@@ -328,7 +342,7 @@ export function BillingClient() {
                                   <TableRow key={treatment.id}>
                                       <TableCell className="font-medium">{treatment.name}</TableCell>
                                       <TableCell>{new Date(treatment.dateAdded).toLocaleDateString()}</TableCell>
-                                      <TableCell className="text-right">Rs. {treatment.amount.toFixed(2)}</TableCell>
+                                      <TableCell className="text-right">Rs. {treatment.cost.toFixed(2)}</TableCell>
                                   </TableRow>
                               ))
                           ) : (
