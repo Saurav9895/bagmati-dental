@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const treatmentSchema = z.object({
   name: z.string().min(2, "Treatment name must be at least 2 characters."),
+  cost: z.coerce.number().min(0, "Cost must be a positive number.").optional(),
 });
 type TreatmentFormValues = z.infer<typeof treatmentSchema>;
 
@@ -75,9 +76,9 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
 
   React.useEffect(() => {
     if (isTreatmentFormOpen && editingTreatment) {
-      treatmentForm.reset({ name: editingTreatment.name });
+      treatmentForm.reset({ name: editingTreatment.name, cost: editingTreatment.cost });
     } else {
-      treatmentForm.reset({ name: "" });
+      treatmentForm.reset({ name: "", cost: undefined });
     }
   }, [isTreatmentFormOpen, editingTreatment, treatmentForm]);
   
@@ -394,6 +395,13 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                                 <FormMessage />
                                 </FormItem>
                             )} />
+                             <FormField control={treatmentForm.control} name="cost" render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Default Cost (Optional)</FormLabel>
+                                <FormControl><Input type="number" placeholder="1500" {...field} value={field.value ?? ''} /></FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )} />
                             <DialogFooter>
                                 <Button type="submit" className="w-full" disabled={treatmentForm.formState.isSubmitting}>
                                     {treatmentForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Treatment'}
@@ -412,6 +420,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Treatment Name</TableHead>
+                                <TableHead>Default Cost</TableHead>
                                 <TableHead className="w-[80px] text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -420,6 +429,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             filteredTreatments.map(treatment => (
                                 <TableRow key={treatment.id}>
                                     <TableCell className="font-medium">{treatment.name}</TableCell>
+                                    <TableCell>{treatment.cost ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -442,7 +452,7 @@ export function TreatmentList({ initialTreatments, initialChiefComplaints, initi
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={2} className="h-24 text-center">
+                                <TableCell colSpan={3} className="h-24 text-center">
                                     {searchQuery ? "No treatments found." : "No treatments created yet."}
                                 </TableCell>
                             </TableRow>

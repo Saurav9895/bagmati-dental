@@ -3,6 +3,7 @@
 
 
 
+
 'use client';
 
 import * as React from 'react';
@@ -1002,7 +1003,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             if (treatment) setTreatmentToDelete(treatment);
                                         }}
                                         onCreateNewTreatment={handleNewTreatmentSubmit}
-                                        opdCharge={opdChargeSetting?.amount}
                                     />
                                 </CardContent>
                             </Card>
@@ -1017,10 +1017,10 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-2 text-right font-medium">
-                                        {opdChargeSetting && opdChargeSetting.amount > 0 && (
+                                        {opdCost > 0 && (
                                             <div className="flex justify-end items-center text-md">
                                                 <span className="text-muted-foreground mr-4">OPD Charge:</span>
-                                                <span>Rs. {opdChargeSetting.amount.toFixed(2)}</span>
+                                                <span>Rs. {opdCost.toFixed(2)}</span>
                                             </div>
                                         )}
                                         <div className="flex justify-end items-center text-md">
@@ -1585,10 +1585,9 @@ interface TreatmentPlanTableProps {
     onSave: (data: AssignedTreatment) => void;
     onDelete: (id: string) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
-    opdCharge?: number;
 }
 
-function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment, opdCharge }: TreatmentPlanTableProps) {
+function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const { toast } = useToast();
 
     const handleSave = (formData: AssignedTreatment) => {
@@ -1619,16 +1618,6 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                     {opdCharge !== undefined && (
-                        <TableRow className="bg-muted/30">
-                            <TableCell className="font-medium">OPD Charge</TableCell>
-                            <TableCell>N/A</TableCell>
-                            <TableCell>Rs. {opdCharge.toFixed(2)}</TableCell>
-                            <TableCell>N/A</TableCell>
-                            <TableCell className="font-medium">Rs. {opdCharge.toFixed(2)}</TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
-                    )}
                     {editingId === "new" && (
                         <TreatmentFormRow
                             allTreatments={allTreatments}
@@ -1676,7 +1665,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             </TableRow>
                         )
                     })}
-                     {assignedTreatments.length === 0 && editingId !== 'new' && opdCharge === undefined && (
+                     {assignedTreatments.length === 0 && editingId !== 'new' && (
                         <TableRow>
                             <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
                         </TableRow>
@@ -1715,17 +1704,19 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     
     React.useEffect(() => {
         if (prefillData) {
+            const selected = allTreatments.find(t => t.id === prefillData.treatmentId);
             methods.reset({
                 ...methods.getValues(),
                 treatmentId: prefillData.treatmentId || '',
                 name: prefillData.name || '',
                 tooth: prefillData.tooth || '',
+                cost: selected?.cost
             });
         }
-    }, [prefillData, methods]);
+    }, [prefillData, methods, allTreatments]);
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
-    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(',').filter(Boolean) || []);
+    const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(',').filter(Boolean) || prefillData?.tooth?.split(',').filter(Boolean) || []);
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
     
     const { cost, discountType, discountValue, multiplyCost, tooth } = watch();
@@ -1766,6 +1757,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
         if (selected) {
             setValue('treatmentId', selected.id);
             setValue('name', selected.name);
+            setValue('cost', selected.cost);
         }
     };
     
@@ -2039,7 +2031,7 @@ function MultiSelectDropdown({ options, selected, onChange, onCreate, placeholde
 
 
 type SingleSelectDropdownProps = {
-    options: { id: string, name: string }[];
+    options: { id: string, name: string, cost?: number }[];
     selected: string;
     onChange: (selectedId: string) => void;
     onCreate?: (name: string) => Promise<{id: string, name: string} | null>;
@@ -2140,6 +2132,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 

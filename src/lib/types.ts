@@ -2,6 +2,7 @@
 
 
 
+
 export type ClinicalExamination = {
   id: string;
   date: string;
@@ -77,6 +78,7 @@ export type Appointment = {
 export type Treatment = {
   id:string;
   name: string;
+  cost?: number;
   createdAt?: any;
 };
 
