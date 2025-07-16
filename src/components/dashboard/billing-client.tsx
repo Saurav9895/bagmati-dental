@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -152,7 +153,7 @@ export function BillingClient({ opdChargeSetting }: BillingClientProps) {
   }, [selectedPatient]);
   
   const opdCost = opdChargeSetting?.amount || 0;
-  const totalAmount = opdCost + treatmentsCost;
+  const totalAmount = selectedPatient ? opdCost + treatmentsCost : 0;
 
 
   const onSubmitDiscount = async (data: DiscountFormValues) => {
