@@ -38,5 +38,9 @@ service cloud.firestore {
     match /dentalExaminations/{documentId} {
       allow read, write: if true;
     }
+
+    match /settings/{documentId} {
+      allow read, write: if true;
+    }
   }
 }
