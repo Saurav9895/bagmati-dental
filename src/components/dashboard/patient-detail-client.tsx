@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 'use client';
 
 import * as React from 'react';
@@ -1538,7 +1530,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 </DialogContent>
             </Dialog>
             <Dialog open={!!viewingFile} onOpenChange={(open) => !open && setViewingFile(null)}>
-                <DialogContent className="max-w-3xl">
+                <DialogContent className="sm:max-w-5xl">
                     <DialogHeader>
                         <DialogTitle>{viewingFile?.name}</DialogTitle>
                         <DialogDescription>
@@ -1546,8 +1538,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4">
-                        {viewingFile?.type === 'Image' ? (
-                            <Image src={viewingFile.url} alt={viewingFile.name} width={800} height={600} className="rounded-md w-full h-auto object-contain" />
+                        {viewingFile?.type.startsWith('image/') ? (
+                            <Image src={viewingFile.url} alt={viewingFile.name} width={1200} height={800} className="rounded-md w-full h-auto object-contain" />
                         ) : (
                             <object data={viewingFile?.url} type="application/pdf" width="100%" height="500px">
                                 <p>Your browser does not support PDFs. <a href={viewingFile?.url}>Download the file instead</a>.</p>
@@ -2287,15 +2279,3 @@ function FileUploadZone({ patientId, onUploadSuccess }: FileUploadZoneProps) {
     );
 }
     
-
-
-
-
-
-
-
-
-
-
-
-
