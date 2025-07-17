@@ -154,7 +154,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const [prefillTreatment, setPrefillTreatment] = React.useState<Partial<AssignedTreatment> | null>(null);
 
     const [isPatientFormOpen, setIsPatientFormOpen] = React.useState(false);
-    const [viewingFile, setViewingFile] = React.useState<PatientFile | null>(null);
 
     const { toast } = useToast();
     
@@ -1348,7 +1347,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center shrink-0">
-                                                            <Button variant="ghost" size="icon" onClick={() => setViewingFile(file)}><Eye className="h-4 w-4" /></Button>
+                                                            <Button asChild variant="ghost" size="icon">
+                                                                <a href={file.url} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4" /></a>
+                                                            </Button>
                                                             <Button variant="ghost" size="icon" onClick={() => setFileToDelete(file)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                                         </div>
                                                     </CardContent>
@@ -1527,25 +1528,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                             </DialogFooter>
                         </form>
                     </Form>
-                </DialogContent>
-            </Dialog>
-            <Dialog open={!!viewingFile} onOpenChange={(open) => !open && setViewingFile(null)}>
-                <DialogContent className="sm:max-w-5xl">
-                    <DialogHeader>
-                        <DialogTitle>{viewingFile?.name}</DialogTitle>
-                        <DialogDescription>
-                            Uploaded on {viewingFile && format(new Date(viewingFile.uploadedAt), 'PPP')}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                        {viewingFile?.type.startsWith('image/') ? (
-                            <Image src={viewingFile.url} alt={viewingFile.name} width={1200} height={800} className="rounded-md w-full h-auto object-contain" />
-                        ) : (
-                            <object data={viewingFile?.url} type="application/pdf" width="100%" height="500px">
-                                <p>Your browser does not support PDFs. <a href={viewingFile?.url}>Download the file instead</a>.</p>
-                            </object>
-                        )}
-                    </div>
                 </DialogContent>
             </Dialog>
             <AlertDialog open={!!treatmentToDelete} onOpenChange={(open) => !open && setTreatmentToDelete(null)}>
