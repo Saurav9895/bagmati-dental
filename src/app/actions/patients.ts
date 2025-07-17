@@ -389,8 +389,11 @@ export async function addFileToPatient(patientId: string, file: Omit<PatientFile
             const updatedFiles = [...currentFiles, newFile];
             transaction.update(patientRef, { files: updatedFiles });
             
+            const { createdAt, ...serializablePatientData } = patientData;
+            
             return {
-                ...patientData,
+                ...serializablePatientData,
+                id: patientId,
                 files: updatedFiles,
             };
         });
@@ -417,8 +420,11 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
             const updatedFiles = currentFiles.filter(f => f.id !== fileId);
             transaction.update(patientRef, { files: updatedFiles });
             
+            const { createdAt, ...serializablePatientData } = patientData;
+
             return {
-                ...patientData,
+                ...serializablePatientData,
+                id: patientId,
                 files: updatedFiles,
             };
         });
