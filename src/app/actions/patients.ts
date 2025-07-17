@@ -2,9 +2,10 @@
 
 'use server';
 
-import { db } from '@/lib/firebase';
-import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
+import { db, storage } from '@/lib/firebase';
+import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination, PatientFile } from '@/lib/types';
 import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
+import { deleteObject, ref } from 'firebase/storage';
 
 export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
     const patientRef = doc(db, 'patients', patientId);
@@ -370,3 +371,66 @@ export async function removeToothExamination(patientId: string, examinationId: s
     }
 }
     
+export async function addFileToPatient(patientId: string, file: Omit<PatientFile, 'id' | 'uploadedAt'>) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+            const patientData = patientDoc.data() as Patient;
+            const newFile: PatientFile = {
+                id: crypto.randomUUID(),
+                ...file,
+                uploadedAt: new Date().toISOString(),
+            };
+            const currentFiles = patientData.files || [];
+            const updatedFiles = [...currentFiles, newFile];
+            transaction.update(patientRef, { files: updatedFiles });
+            
+            return {
+                ...patientData,
+                files: updatedFiles,
+            };
+        });
+        return { success: true, data: updatedPatientData as Patient };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
+
+export async function removeFileFromPatient(patientId: string, fileId: string) {
+    const patientRef = doc(db, 'patients', patientId);
+    try {
+        let fileToDelete: PatientFile | undefined;
+        const updatedPatientData = await runTransaction(db, async (transaction) => {
+            const patientDoc = await transaction.get(patientRef);
+            if (!patientDoc.exists()) {
+                throw new Error("Patient document does not exist!");
+            }
+            const patientData = patientDoc.data() as Patient;
+            const currentFiles = patientData.files || [];
+            fileToDelete = currentFiles.find(f => f.id === fileId);
+
+            const updatedFiles = currentFiles.filter(f => f.id !== fileId);
+            transaction.update(patientRef, { files: updatedFiles });
+            
+            return {
+                ...patientData,
+                files: updatedFiles,
+            };
+        });
+
+        if (fileToDelete) {
+            const storageRef = ref(storage, fileToDelete.storagePath);
+            await deleteObject(storageRef);
+        }
+
+        return { success: true, data: updatedPatientData as Patient };
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
+    }
+}
