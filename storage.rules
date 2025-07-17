@@ -2,9 +2,9 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Secure rule: Allow access only to files within the 'patients' directory
+    // Secure rule: Allow access only to files directly within a patient's directory
     // for authenticated users. The 'write' permission includes create, update, and delete.
-    match /patients/{patientId}/{allPaths=**} {
+    match /patients/{patientId}/{fileId} {
       allow read, write: if request.auth != null;
     }
   }
