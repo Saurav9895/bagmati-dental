@@ -2,7 +2,8 @@
 
 'use server';
 
-import { db, storage, adminStorage } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
+import { adminStorage } from '@/lib/firebase-admin';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination, PatientFile } from '@/lib/types';
 import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
 import { ref, deleteObject } from "firebase/storage";
