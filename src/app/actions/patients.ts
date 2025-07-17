@@ -1,6 +1,6 @@
 
 
-'use server';
+'use client';
 
 import { db } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
