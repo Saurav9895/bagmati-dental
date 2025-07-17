@@ -2,10 +2,10 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Grant read, write, and delete access for any file within a patient's folder
-    // to any authenticated user.
-    match /patients/{patientId}/{fileName} {
-      allow read, write, delete: if request.auth != null;
+    // Grant read, create, update, and delete access to any authenticated user,
+    // but only for files within the 'patients' directory.
+    match /patients/{patientId}/{allPaths=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
