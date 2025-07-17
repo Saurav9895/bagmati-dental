@@ -2,7 +2,7 @@
 
 'use server';
 
-import { db, storage } from '@/lib/firebase';
+import { db, storage, adminStorage } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination, PatientFile } from '@/lib/types';
 import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
 import { ref, deleteObject } from "firebase/storage";
@@ -436,8 +436,11 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
 
         if (fileToDelete) {
              try {
-                const fileRef = ref(storage, fileToDelete.storagePath);
-                await deleteObject(fileRef);
+                if (!adminStorage) {
+                    throw new Error("Admin Storage not initialized. Check server configuration.");
+                }
+                const fileRef = adminStorage.bucket().file(fileToDelete.storagePath);
+                await fileRef.delete();
             } catch (storageError) {
                 console.error("Failed to delete file from storage:", storageError);
                 // Re-add the file to the patient document to maintain consistency
@@ -447,7 +450,7 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
                     storagePath: fileToDelete.storagePath,
                     type: fileToDelete.type,
                 });
-                throw new Error("Failed to delete file from storage. The file record has been restored.");
+                throw new Error("Failed to delete file from the storage. The file record has been restored.");
             }
         }
 

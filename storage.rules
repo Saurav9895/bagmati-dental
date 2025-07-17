@@ -2,10 +2,11 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Grant read and write (create, update, delete) access to authenticated users
-    // only on files within a specific patient's folder.
+    // Allow clients to read files, but restrict writes/deletes.
+    // Deletions should be handled by a trusted server environment (Firebase Admin SDK).
     match /patients/{patientId}/{fileId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if false; // Disallow client-side writes for more security. Uploads are handled by server.
     }
   }
 }
