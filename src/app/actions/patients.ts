@@ -2,10 +2,10 @@
 
 'use server';
 
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination, PatientFile } from '@/lib/types';
 import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
-import { deleteFile } from '@/ai/flows/delete-file';
+import { ref, deleteObject } from "firebase/storage";
 
 export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
     const patientRef = doc(db, 'patients', patientId);
@@ -435,12 +435,11 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
         });
 
         if (fileToDelete) {
-            // Call the secure backend flow to delete the file from storage
-            const deleteResult = await deleteFile(fileToDelete.storagePath);
-            if (!deleteResult.success) {
-                // If storage deletion fails, we should ideally roll back the Firestore change.
-                // For simplicity here, we'll just log the error and return a failure.
-                console.error("Failed to delete file from storage:", deleteResult.error);
+             try {
+                const fileRef = ref(storage, fileToDelete.storagePath);
+                await deleteObject(fileRef);
+            } catch (storageError) {
+                console.error("Failed to delete file from storage:", storageError);
                 // Re-add the file to the patient document to maintain consistency
                 await addFileToPatient(patientId, {
                     name: fileToDelete.name,
@@ -448,7 +447,7 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
                     storagePath: fileToDelete.storagePath,
                     type: fileToDelete.type,
                 });
-                throw new Error(deleteResult.error || "Failed to delete file from storage.");
+                throw new Error("Failed to delete file from storage. The file record has been restored.");
             }
         }
 
