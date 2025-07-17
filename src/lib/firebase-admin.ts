@@ -9,13 +9,18 @@ if (!serviceAccount) {
   console.error('Firebase service account key not found. Make sure FIREBASE_SERVICE_ACCOUNT_KEY environment variable is set.');
 }
 
-const adminApp = !getApps().length && serviceAccount
-  ? initializeApp({
-      credential: cert(serviceAccount),
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    })
-  : getApp();
+const adminApp =
+  getApps().find((app) => app.name === 'admin') ||
+  (serviceAccount
+    ? initializeApp(
+        {
+          credential: cert(serviceAccount),
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        },
+        'admin'
+      )
+    : null);
 
-const adminStorage = serviceAccount ? getStorage(adminApp) : null;
+const adminStorage = adminApp ? getStorage(adminApp) : null;
 
 export { adminApp, adminStorage };
