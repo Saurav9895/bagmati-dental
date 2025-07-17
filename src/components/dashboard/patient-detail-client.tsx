@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormProvider } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm, Controller } from 'react-hook-form';
@@ -1772,7 +1772,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     }
 
     return (
-        <FormProvider {...methods}>
+        <Form {...methods}>
             <TableRow className="bg-muted/50 align-top">
                 <TableCell className='min-w-[200px] pt-4'>
                     <FormField
@@ -1897,7 +1897,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                     <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
                 </TableCell>
             </TableRow>
-        </FormProvider>
+        </Form>
     );
 }
 
