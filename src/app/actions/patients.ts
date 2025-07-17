@@ -2,11 +2,9 @@
 
 'use server';
 
-import { db, storage } from '@/lib/firebase';
-import { adminStorage } from '@/lib/firebase-admin';
-import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination, PatientFile } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
 import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
-import { ref, deleteObject } from "firebase/storage";
 
 export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
     const patientRef = doc(db, 'patients', patientId);
@@ -373,91 +371,3 @@ export async function removeToothExamination(patientId: string, examinationId: s
     }
 }
     
-export async function addFileToPatient(patientId: string, file: Omit<PatientFile, 'id' | 'uploadedAt'>) {
-    const patientRef = doc(db, 'patients', patientId);
-    try {
-        const updatedPatientData = await runTransaction(db, async (transaction) => {
-            const patientDoc = await transaction.get(patientRef);
-            if (!patientDoc.exists()) {
-                throw new Error("Patient document does not exist!");
-            }
-            const patientData = patientDoc.data() as Patient;
-            const newFile: PatientFile = {
-                id: crypto.randomUUID(),
-                ...file,
-                uploadedAt: new Date().toISOString(),
-            };
-            const currentFiles = patientData.files || [];
-            const updatedFiles = [...currentFiles, newFile];
-            transaction.update(patientRef, { files: updatedFiles });
-            
-            const { createdAt, ...serializablePatientData } = patientData;
-            
-            return {
-                ...serializablePatientData,
-                id: patientId,
-                files: updatedFiles,
-            };
-        });
-        return { success: true, data: updatedPatientData as Patient };
-    } catch (e) {
-        console.error("Transaction failed: ", e);
-        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
-    }
-}
-
-export async function removeFileFromPatient(patientId: string, fileId: string) {
-    const patientRef = doc(db, 'patients', patientId);
-    try {
-        let fileToDelete: PatientFile | undefined;
-        const updatedPatientData = await runTransaction(db, async (transaction) => {
-            const patientDoc = await transaction.get(patientRef);
-            if (!patientDoc.exists()) {
-                throw new Error("Patient document does not exist!");
-            }
-            const patientData = patientDoc.data() as Patient;
-            const currentFiles = patientData.files || [];
-            fileToDelete = currentFiles.find(f => f.id === fileId);
-
-            if (!fileToDelete) {
-                throw new Error("File not found in patient record.");
-            }
-
-            const updatedFiles = currentFiles.filter(f => f.id !== fileId);
-            transaction.update(patientRef, { files: updatedFiles });
-            
-            const { createdAt, ...serializablePatientData } = patientData;
-
-            return {
-                ...serializablePatientData,
-                id: patientId,
-                files: updatedFiles,
-            };
-        });
-
-        if (fileToDelete) {
-             try {
-                if (!adminStorage) {
-                    throw new Error("Admin Storage not initialized. Check server configuration.");
-                }
-                const fileRef = adminStorage.bucket().file(fileToDelete.storagePath);
-                await fileRef.delete();
-            } catch (storageError) {
-                console.error("Failed to delete file from storage:", storageError);
-                // Re-add the file to the patient document to maintain consistency
-                await addFileToPatient(patientId, {
-                    name: fileToDelete.name,
-                    url: fileToDelete.url,
-                    storagePath: fileToDelete.storagePath,
-                    type: fileToDelete.type,
-                });
-                throw new Error("Failed to delete file from the storage. The file record has been restored.");
-            }
-        }
-
-        return { success: true, data: updatedPatientData as Patient };
-    } catch (e) {
-        console.error("Transaction failed: ", e);
-        return { success: false, error: (e as Error).message || "An unexpected error occurred." };
-    }
-}

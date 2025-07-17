@@ -2,14 +2,13 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount, Payment, PatientFile } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount, Payment } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, FileText, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Upload, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle, FileDigit, Eye, Download } from 'lucide-react';
-import Image from 'next/image';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails, addFileToPatient, removeFileFromPatient } from '@/app/actions/patients';
+import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails } from '@/app/actions/patients';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -34,9 +33,6 @@ import { addChiefComplaint, updateChiefComplaint, deleteChiefComplaint, addDenta
 import { addTreatment, updateTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { storage } from '@/lib/firebase';
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Progress } from '../ui/progress';
 
 
 const patientSchema = z.object({
@@ -125,7 +121,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     
     const [treatmentToDelete, setTreatmentToDelete] = React.useState<AssignedTreatment | null>(null);
     const [discountToDelete, setDiscountToDelete] = React.useState<Discount | null>(null);
-    const [fileToDelete, setFileToDelete] = React.useState<PatientFile | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
     const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
@@ -622,20 +617,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             setDiscountToDelete(null);
         }
     };
-    
-    const handleConfirmDeleteFile = async () => {
-        if (!fileToDelete) return;
-        setIsDeleting(true);
-        const result = await removeFileFromPatient(patient.id, fileToDelete.id);
-        if (result.success && result.data) {
-            setPatient(result.data);
-            toast({ title: "File deleted." });
-        } else {
-            toast({ variant: 'destructive', title: 'Failed to delete file', description: result.error });
-        }
-        setIsDeleting(false);
-        setFileToDelete(null);
-    };
 
     return (
         <>
@@ -769,12 +750,11 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                     <TabsList className="grid w-full grid-cols-5 border-b p-0 h-auto bg-transparent rounded-none">
+                     <TabsList className="grid w-full grid-cols-4 border-b p-0 h-auto bg-transparent rounded-none">
                         <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
                         <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
                         <TabsTrigger value="pricing" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Pricing</TabsTrigger>
                         <TabsTrigger value="history" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">History</TabsTrigger>
-                        <TabsTrigger value="files" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Files</TabsTrigger>
                     </TabsList>
                     <div className="border-t -mt-px">
                         <TabsContent value="examination" className="mt-6">
@@ -1322,48 +1302,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </CardContent>
                             </Card>
                         </TabsContent>
-                        <TabsContent value="files" className="mt-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Patient Files</CardTitle>
-                                    <CardDescription>Manage patient documents, X-rays, and other files.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <FileUploadZone patientId={patient.id} onUploadSuccess={(newFile) => {
-                                        setPatient(prev => ({...prev, files: [...(prev.files || []), newFile]}));
-                                    }}/>
-                                    <Separator className="my-6" />
-                                    <h3 className="text-lg font-medium mb-4">Uploaded Files</h3>
-                                    {patient.files && patient.files.length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {patient.files.sort((a,b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()).map(file => (
-                                                <Card key={file.id}>
-                                                    <CardContent className="p-4 flex items-center justify-between gap-4">
-                                                        <div className="flex items-center gap-4 truncate">
-                                                            <FileText className="h-6 w-6 shrink-0 text-primary" />
-                                                            <div className="truncate">
-                                                                <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
-                                                                <p className="text-xs text-muted-foreground">{format(new Date(file.uploadedAt), 'PP')}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center shrink-0">
-                                                            <Button asChild variant="ghost" size="icon">
-                                                                <a href={file.url} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4" /></a>
-                                                            </Button>
-                                                            <Button variant="ghost" size="icon" onClick={() => setFileToDelete(file)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-8 text-sm text-muted-foreground">
-                                            No files uploaded for this patient.
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
                     </div>
                 </Tabs>
             </div>
@@ -1595,23 +1533,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                         <AlertDialogAction onClick={handleConfirmDeleteToothExamination} disabled={isDeleting}>
                             {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Continue
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-            <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
-                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently delete the file <span className="font-bold">{fileToDelete?.name}</span>. This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDeleteFile} disabled={isDeleting}>
-                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Delete
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -2174,90 +2095,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
                 </div>
             </DropdownMenuContent>
         </DropdownMenu>
-    );
-}
-
-interface FileUploadZoneProps {
-  patientId: string;
-  onUploadSuccess: (file: PatientFile) => void;
-}
-
-function FileUploadZone({ patientId, onUploadSuccess }: FileUploadZoneProps) {
-    const [file, setFile] = React.useState<File | null>(null);
-    const [uploadProgress, setUploadProgress] = React.useState(0);
-    const [isUploading, setIsUploading] = React.useState(false);
-    const { toast } = useToast();
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setFile(e.target.files[0]);
-        }
-    };
-
-    const handleUpload = () => {
-        if (!file) {
-            toast({ variant: 'destructive', title: 'No file selected.' });
-            return;
-        }
-
-        setIsUploading(true);
-        const fileId = crypto.randomUUID();
-        const filePath = `patients/${patientId}/${fileId}-${file.name}`;
-        const fileRef = storageRef(storage, filePath);
-        const uploadTask = uploadBytesResumable(fileRef, file);
-
-        uploadTask.on(
-            'state_changed',
-            (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                setUploadProgress(progress);
-            },
-            (error) => {
-                setIsUploading(false);
-                toast({ variant: 'destructive', title: 'Upload failed', description: error.message });
-            },
-            async () => {
-                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                const fileData = {
-                    name: file.name,
-                    url: downloadURL,
-                    storagePath: filePath,
-                    type: file.type.startsWith('image/') ? 'Image' : 'Document',
-                };
-                
-                const result = await addFileToPatient(patientId, fileData);
-
-                if (result.success && result.data.files) {
-                    const newFile = result.data.files.find(f => f.storagePath === filePath);
-                    if(newFile) onUploadSuccess(newFile);
-                    toast({ title: 'File uploaded successfully!' });
-                } else {
-                    toast({ variant: 'destructive', title: 'Failed to save file reference', description: result.error });
-                }
-                
-                setIsUploading(false);
-                setFile(null);
-                setUploadProgress(0);
-            }
-        );
-    };
-    
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center gap-4">
-                <Input type="file" onChange={handleFileChange} disabled={isUploading} className="max-w-xs" />
-                <Button onClick={handleUpload} disabled={isUploading || !file}>
-                    {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                    Upload File
-                </Button>
-            </div>
-            {isUploading && (
-                <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">{file?.name}</p>
-                    <Progress value={uploadProgress} className="w-full" />
-                </div>
-            )}
-        </div>
     );
 }
     
