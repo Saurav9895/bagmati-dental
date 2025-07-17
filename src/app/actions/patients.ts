@@ -2,10 +2,10 @@
 
 'use server';
 
-import { db, storage } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination, PatientFile } from '@/lib/types';
 import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
-import { deleteObject, ref } from 'firebase/storage';
+import { deleteFile } from '@/ai/flows/delete-file';
 
 export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
     const patientRef = doc(db, 'patients', patientId);
@@ -175,7 +175,8 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
                 payments: updatedPayments
             };
         });
-        return { success: true, data: updatedPatientData };
+        const { createdAt, ...serializableData } = updatedPatientData;
+        return { success: true, data: serializableData as Patient };
     } catch (e) {
         console.error("Transaction failed: ", e);
         return { success: false, error: (e as Error).message || "An unexpected error occurred." };
@@ -417,6 +418,10 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
             const currentFiles = patientData.files || [];
             fileToDelete = currentFiles.find(f => f.id === fileId);
 
+            if (!fileToDelete) {
+                throw new Error("File not found in patient record.");
+            }
+
             const updatedFiles = currentFiles.filter(f => f.id !== fileId);
             transaction.update(patientRef, { files: updatedFiles });
             
@@ -430,8 +435,21 @@ export async function removeFileFromPatient(patientId: string, fileId: string) {
         });
 
         if (fileToDelete) {
-            const storageRef = ref(storage, fileToDelete.storagePath);
-            await deleteObject(storageRef);
+            // Call the secure backend flow to delete the file from storage
+            const deleteResult = await deleteFile(fileToDelete.storagePath);
+            if (!deleteResult.success) {
+                // If storage deletion fails, we should ideally roll back the Firestore change.
+                // For simplicity here, we'll just log the error and return a failure.
+                console.error("Failed to delete file from storage:", deleteResult.error);
+                // Re-add the file to the patient document to maintain consistency
+                await addFileToPatient(patientId, {
+                    name: fileToDelete.name,
+                    url: fileToDelete.url,
+                    storagePath: fileToDelete.storagePath,
+                    type: fileToDelete.type,
+                });
+                throw new Error(deleteResult.error || "Failed to delete file from storage.");
+            }
         }
 
         return { success: true, data: updatedPatientData as Patient };
