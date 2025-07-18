@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormProvider, useFormContext, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -31,6 +31,9 @@ import { addChiefComplaint, updateChiefComplaint, deleteChiefComplaint, addDenta
 import { addTreatment, updateTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 
 const patientSchema = z.object({
@@ -1604,7 +1607,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                     <TableRow key={treatment.id}>
                                         <TableCell className="font-medium">{treatment.name}</TableCell>
                                         <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                        <TableCell>Rs. {typeof baseCost === 'number' ? baseCost.toFixed(2) : 'N/A'}</TableCell>
+                                        <TableCell>Rs. {typeof treatment.cost === 'number' ? treatment.cost.toFixed(2) : 'N/A'}</TableCell>
                                         <TableCell>
                                             {treatment.discountValue ? (
                                                 <span>
@@ -2053,3 +2056,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
 
+
+
+    
