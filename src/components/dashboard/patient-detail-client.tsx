@@ -3,13 +3,14 @@
 'use client';
 
 import * as React from 'react';
-import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount, Payment } from '@/lib/types';
+import type { Patient, Treatment, Appointment, AssignedTreatment, Prescription, ChiefComplaint, ClinicalExamination, DentalExamination, ToothExamination, Discount, Payment, PatientFile } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Mail, Phone, Calendar as CalendarIcon, MapPin, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle, Eye } from 'lucide-react';
+import { Mail, Phone, Calendar as CalendarIcon, MapPin, Heart, PlusCircle, Loader2, Trash2, CreditCard, Edit, User as UserIcon, ScrollText, Check, ClipboardPlus, History, X, Search, ChevronsUpDown, Save, Gift, AlertCircle, Eye, Upload, File as FileIcon, Download } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { addTreatmentToPatient, removeTreatmentFromPatient, addPrescriptionToPatient, saveToothExamination, removeToothExamination, updateTreatmentInPatientPlan, addDiscountToPatient, removeDiscountFromPatient, addPaymentToPatient, updatePatientDetails } from '@/app/actions/patients';
+import { addFileToPatient, removeFileFromPatient } from '@/app/actions/files';
 import { addClinicalExaminationToPatient, removeClinicalExaminationFromPatient } from '@/app/actions/clinical-examinations';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
@@ -19,7 +20,7 @@ import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Badge } from '../ui/badge';
 import { ToothChart, COLOR_PALETTE, PrimaryToothChart } from './tooth-chart';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,8 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 const patientSchema = z.object({
@@ -122,6 +125,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     
     const [treatmentToDelete, setTreatmentToDelete] = React.useState<AssignedTreatment | null>(null);
     const [discountToDelete, setDiscountToDelete] = React.useState<Discount | null>(null);
+    const [fileToDelete, setFileToDelete] = React.useState<PatientFile | null>(null);
     const [isDeleting, setIsDeleting] = React.useState(false);
 
     const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = React.useState(false);
@@ -150,6 +154,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const [prefillTreatment, setPrefillTreatment] = React.useState<Partial<AssignedTreatment> | null>(null);
 
     const [isPatientFormOpen, setIsPatientFormOpen] = React.useState(false);
+
+    const [isUploading, setIsUploading] = React.useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const { toast } = useToast();
     
@@ -621,6 +628,64 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         }
     };
 
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const storageRef = ref(storage, `patient_files/${patient.id}/${file.name}`);
+            const uploadResult = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+
+            const fileData: Omit<PatientFile, 'id'> = {
+                name: file.name,
+                url: downloadURL,
+                type: file.type,
+                size: file.size,
+                uploadedAt: new Date().toISOString(),
+            };
+
+            const result = await addFileToPatient(patient.id, fileData);
+
+            if (result.success && result.data) {
+                setPatient(result.data as Patient);
+                toast({ title: 'File uploaded successfully!' });
+            } else {
+                toast({ variant: 'destructive', title: 'Failed to save file metadata', description: result.error });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'File upload failed', description: (error as Error).message });
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
+    
+    const handleConfirmDeleteFile = async () => {
+        if (!fileToDelete) return;
+        setIsDeleting(true);
+        const result = await removeFileFromPatient(patient.id, fileToDelete);
+        if (result.success && result.data) {
+            setPatient(result.data as Patient);
+            toast({ title: "File deleted." });
+        } else {
+            toast({ variant: 'destructive', title: 'Failed to delete file', description: result.error });
+        }
+        setIsDeleting(false);
+        setFileToDelete(null);
+    };
+
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
     return (
         <>
             <div className="space-y-6">
@@ -753,11 +818,12 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 </Card>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                     <TabsList className="grid w-full grid-cols-4 border-b p-0 h-auto bg-transparent rounded-none">
+                     <TabsList className="grid w-full grid-cols-5 border-b p-0 h-auto bg-transparent rounded-none">
                         <TabsTrigger value="examination" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Examination</TabsTrigger>
                         <TabsTrigger value="treatment" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Treatment</TabsTrigger>
                         <TabsTrigger value="pricing" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Pricing</TabsTrigger>
                         <TabsTrigger value="history" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">History</TabsTrigger>
+                        <TabsTrigger value="files" className="border-b-2 border-transparent rounded-none data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent -mb-px">Files</TabsTrigger>
                     </TabsList>
                     <div className="border-t -mt-px">
                         <TabsContent value="examination" className="mt-6">
@@ -1296,6 +1362,72 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 </CardContent>
                             </Card>
                         </TabsContent>
+                        <TabsContent value="files" className="mt-6 space-y-6">
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <FileIcon className="h-5 w-5" />
+                                            Patient Files
+                                        </CardTitle>
+                                        <CardDescription>Manage patient-related documents like X-rays, reports, etc.</CardDescription>
+                                    </div>
+                                    <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                        {isUploading ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Upload className="mr-2 h-4 w-4" />
+                                        )}
+                                        Upload File
+                                    </Button>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>File Name</TableHead>
+                                                <TableHead>Size</TableHead>
+                                                <TableHead>Date Uploaded</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {patient.files && patient.files.length > 0 ? (
+                                                patient.files.map((file) => (
+                                                    <TableRow key={file.id}>
+                                                        <TableCell className="font-medium">{file.name}</TableCell>
+                                                        <TableCell>{formatFileSize(file.size)}</TableCell>
+                                                        <TableCell>{formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}</TableCell>
+                                                        <TableCell className="text-right space-x-2">
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <a href={file.url} target="_blank" rel="noopener noreferrer">
+                                                                    <Download className="mr-2 h-4 w-4" /> View
+                                                                </a>
+                                                            </Button>
+                                                            <Button variant="destructive" size="sm" onClick={() => setFileToDelete(file)}>
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            ) : (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="h-24 text-center">
+                                                        No files uploaded for this patient yet.
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
                     </div>
                 </Tabs>
             </div>
@@ -1497,6 +1629,23 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+             <AlertDialog open={!!fileToDelete} onOpenChange={(open) => !open && setFileToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the file <span className="font-bold">{fileToDelete?.name}</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setFileToDelete(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmDeleteFile} disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <AlertDialog open={!!examinationToDelete} onOpenChange={(open) => !open && setExaminationToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -1560,35 +1709,11 @@ interface TreatmentPlanTableProps {
 
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const assignedTreatments = patient.assignedTreatments || [];
-    const formMethods = useForm();
-
-    const handleSave = async (data: TreatmentPlanFormValues) => {
-        let totalCost = data.cost || 0;
-        if (data.multiplyCost && data.tooth) {
-            const toothCount = data.tooth.split(',').filter(Boolean).length;
-            totalCost *= toothCount;
-        }
-
-        let totalDiscount = 0;
-        if (data.discountType && data.discountValue) {
-            if (data.discountType === 'Amount') {
-                totalDiscount = data.discountValue;
-            } else {
-                totalDiscount = (totalCost * data.discountValue) / 100;
-            }
-        }
-        
-        onSave({
-            ...data,
-            dateAdded: new Date().toISOString(),
-            cost: data.cost ?? 0,
-            discountAmount: totalDiscount
-        });
-    }
+    const methods = useForm();
 
     return (
-        <FormProvider {...formMethods}>
-            <form onSubmit={formMethods.handleSubmit(handleSave as any)}>
+        <FormProvider {...methods}>
+            <form onSubmit={methods.handleSubmit(onSave as any)}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1608,6 +1733,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
+                                    onSave={onSave}
                                 />
                             )}
                             {assignedTreatments.map((treatment) => {
@@ -1626,6 +1752,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         allTreatments={allTreatments}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
+                                        onSave={onSave}
                                     />
                                 ) : (
                                     <TableRow key={treatment.id}>
@@ -1666,11 +1793,12 @@ interface TreatmentFormRowProps {
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
     onCancel: () => void;
+    onSave: (data: AssignedTreatment) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset, formState } = useFormContext<TreatmentPlanFormValues>();
+function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onSave, onCreateNewTreatment }: TreatmentFormRowProps) {
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
         const isNew = !initialData;
@@ -1742,6 +1870,30 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
     const handleSaveTeeth = () => {
         setValue('tooth', selectedTeeth.join(', '));
         setIsToothChartOpen(false);
+    }
+    
+    const handleFormSubmit = (data: TreatmentPlanFormValues) => {
+        let totalCost = data.cost || 0;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').filter(Boolean).length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                totalDiscount = data.discountValue;
+            } else {
+                totalDiscount = (totalCost * data.discountValue) / 100;
+            }
+        }
+        
+        onSave({
+            ...data,
+            dateAdded: new Date().toISOString(),
+            cost: data.cost ?? 0,
+            discountAmount: totalDiscount
+        });
     }
 
     return (
@@ -1865,7 +2017,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
                 Rs. {calculateTotal().toFixed(2)}
             </TableCell>
             <TableCell className="text-right pt-4">
-                <Button type="submit" variant="ghost" size="icon"><Save className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(handleFormSubmit)}><Save className="h-4 w-4" /></Button>
                 <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
             </TableCell>
         </TableRow>
@@ -2088,5 +2240,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 

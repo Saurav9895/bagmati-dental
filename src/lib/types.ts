@@ -1,4 +1,14 @@
 
+
+export type PatientFile = {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  uploadedAt: string;
+};
+
 export type ClinicalExamination = {
   id: string;
   date: string;
@@ -55,6 +65,7 @@ export type Patient = {
   prescriptions?: Prescription[];
   clinicalExaminations?: ClinicalExamination[];
   toothExaminations?: ToothExamination[];
+  files?: PatientFile[];
   createdAt?: any;
 };
 

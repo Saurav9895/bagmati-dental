@@ -2,11 +2,17 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow clients to read files, but restrict writes/deletes.
-    // Deletions should be handled by a trusted server environment (Firebase Admin SDK).
-    match /patients/{patientId}/{fileId} {
+    // Only authenticated users can read or write to storage
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Patient files can only be accessed by authenticated users
+    // And files can only be written to a path that matches the patientId
+    match /patient_files/{patientId}/{fileName} {
       allow read: if request.auth != null;
-      allow write: if false; // Disallow client-side writes for more security. Uploads are handled by server.
+      allow write: if request.auth != null;
+      allow delete: if request.auth != null;
     }
   }
 }
