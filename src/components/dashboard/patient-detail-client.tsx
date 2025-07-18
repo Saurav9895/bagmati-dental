@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, Controller, FormProvider } from 'react-hook-form';
+import { useForm, Controller, FormProvider, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -1566,6 +1566,7 @@ interface TreatmentPlanTableProps {
 
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const { toast } = useToast();
+    const methods = useForm<TreatmentPlanFormValues>();
 
     const handleSave = (formData: AssignedTreatment) => {
         if (!formData.treatmentId) {
@@ -1582,74 +1583,78 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
     const assignedTreatments = patient.assignedTreatments || [];
 
     return (
-        <div className="border rounded-md">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className='min-w-[200px]'>Treatment</TableHead>
-                        <TableHead>Tooth</TableHead>
-                        <TableHead>Cost</TableHead>
-                        <TableHead>Discount</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead className="w-[100px] text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {editingId === "new" && (
-                        <TreatmentFormRow
-                            allTreatments={allTreatments}
-                            onSave={handleSave}
-                            onCancel={() => setEditingId(null)}
-                            onCreateNewTreatment={onCreateNewTreatment}
-                            prefillData={prefillData}
-                        />
-                    )}
-                    {assignedTreatments.map((treatment) => {
-                        let totalCost = treatment.cost;
-                        if (treatment.multiplyCost && treatment.tooth) {
-                            const toothCount = treatment.tooth.split(',').filter(Boolean).length;
-                            totalCost *= toothCount;
-                        }
-                        const finalCost = totalCost - (treatment.discountAmount || 0);
-
-                        return editingId === treatment.id ? (
-                            <TreatmentFormRow
-                                key={treatment.id}
-                                initialData={treatment}
-                                allTreatments={allTreatments}
-                                onSave={handleSave}
-                                onCancel={() => setEditingId(null)}
-                                onCreateNewTreatment={onCreateNewTreatment}
-                            />
-                        ) : (
-                            <TableRow key={treatment.id}>
-                                <TableCell className="font-medium">{treatment.name}</TableCell>
-                                <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                <TableCell>Rs. {treatment.cost.toFixed(2)}</TableCell>
-                                <TableCell>
-                                    {treatment.discountValue ? (
-                                        <span>
-                                            {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
-                                            <span className='text-muted-foreground'> (-Rs. {treatment.discountAmount?.toFixed(2)})</span>
-                                        </span>
-                                    ) : ('N/A')}
-                                </TableCell>
-                                <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                </TableCell>
+        <FormProvider {...methods}>
+            <form onSubmit={methods.handleSubmit(onSave as any)}>
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className='min-w-[200px]'>Treatment</TableHead>
+                                <TableHead>Tooth</TableHead>
+                                <TableHead>Cost</TableHead>
+                                <TableHead>Discount</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead className="w-[100px] text-right">Actions</TableHead>
                             </TableRow>
-                        )
-                    })}
-                     {assignedTreatments.length === 0 && editingId !== 'new' && (
-                        <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+                        </TableHeader>
+                        <TableBody>
+                            {editingId === "new" && (
+                                <TreatmentFormRow
+                                    allTreatments={allTreatments}
+                                    onSave={handleSave}
+                                    onCancel={() => setEditingId(null)}
+                                    onCreateNewTreatment={onCreateNewTreatment}
+                                    prefillData={prefillData}
+                                />
+                            )}
+                            {assignedTreatments.map((treatment) => {
+                                let totalCost = treatment.cost;
+                                if (treatment.multiplyCost && treatment.tooth) {
+                                    const toothCount = treatment.tooth.split(',').filter(Boolean).length;
+                                    totalCost *= toothCount;
+                                }
+                                const finalCost = totalCost - (treatment.discountAmount || 0);
+
+                                return editingId === treatment.id ? (
+                                    <TreatmentFormRow
+                                        key={treatment.id}
+                                        initialData={treatment}
+                                        allTreatments={allTreatments}
+                                        onSave={handleSave}
+                                        onCancel={() => setEditingId(null)}
+                                        onCreateNewTreatment={onCreateNewTreatment}
+                                    />
+                                ) : (
+                                    <TableRow key={treatment.id}>
+                                        <TableCell className="font-medium">{treatment.name}</TableCell>
+                                        <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                        <TableCell>Rs. {treatment.cost.toFixed(2)}</TableCell>
+                                        <TableCell>
+                                            {treatment.discountValue ? (
+                                                <span>
+                                                    {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
+                                                    <span className='text-muted-foreground'> (-Rs. {treatment.discountAmount?.toFixed(2)})</span>
+                                                </span>
+                                            ) : ('N/A')}
+                                        </TableCell>
+                                        <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                            {assignedTreatments.length === 0 && editingId !== 'new' && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </form>
+        </FormProvider>
     );
 }
 
@@ -1663,9 +1668,10 @@ interface TreatmentFormRowProps {
 }
 
 function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const methods = useForm<TreatmentPlanFormValues>({
-        resolver: zodResolver(treatmentPlanSchema),
-        defaultValues: {
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
+    
+    React.useEffect(() => {
+        const defaultValues = {
             id: initialData?.id || 'new',
             treatmentId: initialData?.treatmentId || '',
             name: initialData?.name || '',
@@ -1674,23 +1680,21 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
             multiplyCost: initialData?.multiplyCost || false,
             discountType: initialData?.discountType || 'Amount',
             discountValue: initialData?.discountValue,
-        }
-    });
+        };
 
-    const { control, handleSubmit, setValue, watch, formState: { errors } } = methods;
-    
-    React.useEffect(() => {
         if (prefillData) {
             const selected = allTreatments.find(t => t.id === prefillData.treatmentId);
-            methods.reset({
-                ...methods.getValues(),
+            reset({
+                ...defaultValues,
                 treatmentId: prefillData.treatmentId || '',
                 name: prefillData.name || '',
                 tooth: prefillData.tooth || '',
                 cost: selected?.cost
             });
+        } else if (initialData) {
+            reset(defaultValues)
         }
-    }, [prefillData, methods, allTreatments]);
+    }, [initialData, prefillData, reset, allTreatments]);
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
     const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(',').filter(Boolean) || prefillData?.tooth?.split(',').filter(Boolean) || []);
@@ -2100,3 +2104,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
     
 
 
+
+
+    
