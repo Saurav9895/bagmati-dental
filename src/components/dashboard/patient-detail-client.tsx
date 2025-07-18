@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -36,7 +36,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, listAll, getMetadata, deleteObject } from 'firebase/storage';
 
 
 const patientSchema = z.object({
@@ -154,7 +154,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const [prefillTreatment, setPrefillTreatment] = React.useState<Partial<AssignedTreatment> | null>(null);
 
     const [isPatientFormOpen, setIsPatientFormOpen] = React.useState(false);
-
+    
+    const [patientFiles, setPatientFiles] = React.useState<PatientFile[]>([]);
+    const [isFetchingFiles, setIsFetchingFiles] = React.useState(true);
     const [isUploading, setIsUploading] = React.useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -184,6 +186,39 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
             address: patient.address,
         });
     }, [patient, patientForm]);
+    
+    const fetchPatientFiles = React.useCallback(async () => {
+        setIsFetchingFiles(true);
+        try {
+            const filesRef = ref(storage, `patient_files/${patient.id}`);
+            const result = await listAll(filesRef);
+            const filesPromises = result.items.map(async (fileRef) => {
+                const url = await getDownloadURL(fileRef);
+                const metadata = await getMetadata(fileRef);
+                return {
+                    id: fileRef.name,
+                    name: fileRef.name,
+                    url,
+                    type: metadata.contentType || '',
+                    size: metadata.size,
+                    uploadedAt: metadata.timeCreated,
+                };
+            });
+            const files = await Promise.all(filesPromises);
+            setPatientFiles(files.sort((a,b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()));
+        } catch (error) {
+            console.error("Failed to fetch files:", error);
+            toast({ variant: 'destructive', title: 'Failed to fetch files', description: (error as Error).message });
+        } finally {
+            setIsFetchingFiles(false);
+        }
+    }, [patient.id, toast]);
+
+    React.useEffect(() => {
+        if (activeTab === 'files') {
+            fetchPatientFiles();
+        }
+    }, [activeTab, fetchPatientFiles]);
 
     const appointmentForm = useForm<AppointmentFormValues>({
         resolver: zodResolver(appointmentSchema),
@@ -635,25 +670,9 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         setIsUploading(true);
         try {
             const storageRef = ref(storage, `patient_files/${patient.id}/${file.name}`);
-            const uploadResult = await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(uploadResult.ref);
-
-            const fileData: Omit<PatientFile, 'id'> = {
-                name: file.name,
-                url: downloadURL,
-                type: file.type,
-                size: file.size,
-                uploadedAt: new Date().toISOString(),
-            };
-
-            const result = await addFileToPatient(patient.id, fileData);
-
-            if (result.success && result.data) {
-                setPatient(result.data as Patient);
-                toast({ title: 'File uploaded successfully!' });
-            } else {
-                toast({ variant: 'destructive', title: 'Failed to save file metadata', description: result.error });
-            }
+            await uploadBytes(storageRef, file);
+            toast({ title: 'File uploaded successfully!' });
+            fetchPatientFiles(); // Refresh file list
         } catch (error) {
             toast({ variant: 'destructive', title: 'File upload failed', description: (error as Error).message });
         } finally {
@@ -667,24 +686,18 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const handleConfirmDeleteFile = async () => {
         if (!fileToDelete) return;
         setIsDeleting(true);
-        const result = await removeFileFromPatient(patient.id, fileToDelete);
-        if (result.success && result.data) {
-            setPatient(result.data as Patient);
+        try {
+            const fileRef = ref(storage, `patient_files/${patient.id}/${fileToDelete.name}`);
+            await deleteObject(fileRef);
             toast({ title: "File deleted." });
-        } else {
-            toast({ variant: 'destructive', title: 'Failed to delete file', description: result.error });
+            fetchPatientFiles(); // Refresh file list
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Failed to delete file', description: (error as Error).message });
+        } finally {
+            setIsDeleting(false);
+            setFileToDelete(null);
         }
-        setIsDeleting(false);
-        setFileToDelete(null);
     };
-
-    const formatFileSize = (bytes: number): string => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
 
     return (
         <>
@@ -1388,32 +1401,26 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                     />
                                 </CardHeader>
                                 <CardContent>
-                                    {patient.files && patient.files.length > 0 ? (
-                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                            {patient.files.map((file) => (
-                                                <Card key={file.id} className="flex flex-col">
-                                                    <CardHeader className="flex-row items-start gap-4 space-y-0 p-4">
-                                                        <div className="flex-shrink-0">
-                                                            <FileIcon className="h-8 w-8 text-muted-foreground" />
-                                                        </div>
-                                                        <div className="flex-grow">
-                                                            <p className="font-semibold text-sm break-all">{file.name}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {formatFileSize(file.size)} &bull; {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}
-                                                            </p>
-                                                        </div>
-                                                    </CardHeader>
-                                                    <CardContent className="flex justify-end gap-2 p-4 pt-0 mt-auto">
-                                                        <Button asChild variant="outline" size="sm">
+                                    {isFetchingFiles ? (
+                                        <div className="flex items-center justify-center h-24">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        </div>
+                                    ) : patientFiles.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {patientFiles.map((file) => (
+                                                <div key={file.id} className="flex items-center justify-between rounded-md border p-2 pl-4">
+                                                    <span className="text-sm font-medium truncate pr-4">{file.name}</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button asChild variant="ghost" size="icon">
                                                             <a href={file.url} target="_blank" rel="noopener noreferrer">
-                                                                <Eye className="mr-2 h-4 w-4" /> View
+                                                                <Eye className="h-4 w-4" />
                                                             </a>
                                                         </Button>
-                                                        <Button variant="destructive" size="sm" onClick={() => setFileToDelete(file)}>
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                        <Button variant="ghost" size="icon" onClick={() => setFileToDelete(file)}>
+                                                            <Trash2 className="h-4 w-4 text-destructive" />
                                                         </Button>
-                                                    </CardContent>
-                                                </Card>
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     ) : (
@@ -1736,7 +1743,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             />
                         )}
                         {assignedTreatments.map((treatment) => {
-                            const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
+                             const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
                             let totalCost = baseCost;
                             if (treatment.multiplyCost && treatment.tooth) {
                                 const toothCount = treatment.tooth.split(',').filter(Boolean).length;
@@ -1796,7 +1803,9 @@ interface TreatmentFormRowProps {
 }
 
 function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onSave, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm({
+        resolver: zodResolver(treatmentPlanSchema),
+    });
     
     React.useEffect(() => {
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
@@ -1887,6 +1896,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
         
         onSave({
             ...data,
+            id: initialData?.id || 'new',
             dateAdded: initialData?.dateAdded || new Date().toISOString(),
             cost: data.cost ?? 0,
             discountAmount: totalDiscount
@@ -2237,6 +2247,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 

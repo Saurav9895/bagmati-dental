@@ -1,12 +1,15 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow read, write, and delete access to patient files for any authenticated user.
-    // This allows clinic staff to manage all patient-related documents.
-    match /patient_files/{patientId}/{allPaths=**} {
-      allow read, write: if request.auth != null;
+    // Allow public read access to the logo
+    match /logo.png {
+      allow read;
+    }
+
+    // Secure patient files
+    match /patient_files/{patientId}/{fileName} {
+      allow read, write, delete: if request.auth != null;
     }
   }
 }
