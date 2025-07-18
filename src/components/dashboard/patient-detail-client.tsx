@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -628,10 +626,19 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const handleDiscountSubmit = async (data: DiscountFormValues) => {
         setIsSubmittingDiscount(true);
         
+        let amount = 0;
+        if(data.type === 'Amount') {
+            amount = data.value;
+        } else {
+            const totalTreatmentsCost = (patient.assignedTreatments || []).reduce((acc, t) => acc + t.cost, 0);
+            amount = (totalTreatmentsCost * data.value) / 100;
+        }
+
         const result = await addDiscountToPatient(patient.id, {
             reason: data.reason,
             type: data.type,
             value: data.value,
+            amount,
         });
 
         if (result.success && result.data) {
@@ -1720,14 +1727,40 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
         resolver: zodResolver(treatmentPlanSchema),
     });
 
+    const handleSave = (data: TreatmentPlanFormValues) => {
+        let totalCost = data.cost || 0;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').filter(Boolean).length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                totalDiscount = data.discountValue;
+            } else {
+                totalDiscount = (totalCost * data.discountValue) / 100;
+            }
+        }
+        
+        onSave({
+            ...data,
+            id: data.id,
+            dateAdded: (assignedTreatments.find(t => t.id === data.id)?.dateAdded) || new Date().toISOString(),
+            cost: data.cost ?? 0,
+            discountAmount: totalDiscount
+        });
+    }
+
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit((data) => onSave(data as AssignedTreatment))}>
+            <form onSubmit={methods.handleSubmit(handleSave)}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead className='min-w-[200px]'>Treatment</TableHead>
+                                <TableHead>Date Added</TableHead>
                                 <TableHead>Tooth</TableHead>
                                 <TableHead>Cost</TableHead>
                                 <TableHead>Discount</TableHead>
@@ -1742,7 +1775,6 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
-                                    onSave={onSave}
                                 />
                             )}
                             {assignedTreatments.map((treatment) => {
@@ -1761,11 +1793,11 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         allTreatments={allTreatments}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
-                                        onSave={onSave}
                                     />
                                 ) : (
                                     <TableRow key={treatment.id}>
                                         <TableCell className="font-medium">{treatment.name}</TableCell>
+                                        <TableCell>{format(new Date(treatment.dateAdded), 'PP')}</TableCell>
                                         <TableCell>{treatment.tooth || 'N/A'}</TableCell>
                                         <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
                                         <TableCell>
@@ -1786,7 +1818,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             })}
                             {assignedTreatments.length === 0 && editingId !== 'new' && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                                    <TableCell colSpan={7} className="h-24 text-center">No treatments assigned yet.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -1802,12 +1834,11 @@ interface TreatmentFormRowProps {
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
     onCancel: () => void;
-    onSave: (data: AssignedTreatment) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onSave, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
+function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
+    const { control, handleSubmit, setValue, watch, formState: { errors } } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
@@ -1837,31 +1868,6 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
     
     const { cost, discountType, discountValue, multiplyCost, tooth } = watch();
-
-    const handleFormSubmit = (data: TreatmentPlanFormValues) => {
-        let totalCost = data.cost || 0;
-        if (data.multiplyCost && data.tooth) {
-            const toothCount = data.tooth.split(',').filter(Boolean).length;
-            totalCost *= toothCount;
-        }
-
-        let totalDiscount = 0;
-        if (data.discountType && data.discountValue) {
-            if (data.discountType === 'Amount') {
-                totalDiscount = data.discountValue;
-            } else {
-                totalDiscount = (totalCost * data.discountValue) / 100;
-            }
-        }
-        
-        onSave({
-            ...data,
-            id: data.id,
-            dateAdded: initialData?.dateAdded || new Date().toISOString(),
-            cost: data.cost ?? 0,
-            discountAmount: totalDiscount
-        });
-    }
 
     const calculateTotal = () => {
         let totalCost = cost || 0;
@@ -1934,6 +1940,9 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
                         </FormItem>
                     )}
                 />
+            </TableCell>
+            <TableCell className="pt-4 align-middle">
+                {initialData?.dateAdded ? format(new Date(initialData.dateAdded), 'PP') : 'Now'}
             </TableCell>
             <TableCell className="pt-4">
                 <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
@@ -2026,7 +2035,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
                 Rs. {calculateTotal().toFixed(2)}
             </TableCell>
             <TableCell className="text-right pt-4">
-                <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(handleFormSubmit)}><Save className="h-4 w-4" /></Button>
+                <Button type="submit" variant="ghost" size="icon"><Save className="h-4 w-4" /></Button>
                 <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
             </TableCell>
         </TableRow>
@@ -2249,6 +2258,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
