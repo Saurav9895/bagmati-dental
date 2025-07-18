@@ -1560,77 +1560,104 @@ interface TreatmentPlanTableProps {
 
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const assignedTreatments = patient.assignedTreatments || [];
+    const formMethods = useForm();
+
+    const handleSave = async (data: TreatmentPlanFormValues) => {
+        let totalCost = data.cost || 0;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').filter(Boolean).length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                totalDiscount = data.discountValue;
+            } else {
+                totalDiscount = (totalCost * data.discountValue) / 100;
+            }
+        }
+        
+        onSave({
+            ...data,
+            dateAdded: new Date().toISOString(),
+            cost: data.cost ?? 0,
+            discountAmount: totalDiscount
+        });
+    }
 
     return (
-        <div className="border rounded-md">
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead className='min-w-[200px]'>Treatment</TableHead>
-                        <TableHead>Tooth</TableHead>
-                        <TableHead>Cost</TableHead>
-                        <TableHead>Discount</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead className="w-[100px] text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {editingId === "new" && (
-                        <TreatmentFormRow
-                            onSave={onSave}
-                            allTreatments={allTreatments}
-                            onCancel={() => setEditingId(null)}
-                            onCreateNewTreatment={onCreateNewTreatment}
-                            prefillData={prefillData}
-                        />
-                    )}
-                    {assignedTreatments.map((treatment) => {
-                        const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
-                        let totalCost = baseCost;
-                        if (treatment.multiplyCost && treatment.tooth) {
-                            const toothCount = treatment.tooth.split(',').filter(Boolean).length;
-                            totalCost *= toothCount;
-                        }
-                        const finalCost = totalCost - (treatment.discountAmount || 0);
-
-                        return editingId === treatment.id ? (
-                            <TreatmentFormRow
-                                key={treatment.id}
-                                initialData={treatment}
-                                onSave={onSave}
-                                allTreatments={allTreatments}
-                                onCancel={() => setEditingId(null)}
-                                onCreateNewTreatment={onCreateNewTreatment}
-                            />
-                        ) : (
-                            <TableRow key={treatment.id}>
-                                <TableCell className="font-medium">{treatment.name}</TableCell>
-                                <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
-                                <TableCell>
-                                    {treatment.discountValue ? (
-                                        <span>
-                                            {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
-                                            <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
-                                        </span>
-                                    ) : ('N/A')}
-                                </TableCell>
-                                <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                </TableCell>
+        <FormProvider {...formMethods}>
+            <form onSubmit={formMethods.handleSubmit(handleSave as any)}>
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className='min-w-[200px]'>Treatment</TableHead>
+                                <TableHead>Tooth</TableHead>
+                                <TableHead>Cost</TableHead>
+                                <TableHead>Discount</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead className="w-[100px] text-right">Actions</TableHead>
                             </TableRow>
-                        )
-                    })}
-                    {assignedTreatments.length === 0 && editingId !== 'new' && (
-                        <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-        </div>
+                        </TableHeader>
+                        <TableBody>
+                            {editingId === "new" && (
+                                <TreatmentFormRow
+                                    allTreatments={allTreatments}
+                                    onCancel={() => setEditingId(null)}
+                                    onCreateNewTreatment={onCreateNewTreatment}
+                                    prefillData={prefillData}
+                                />
+                            )}
+                            {assignedTreatments.map((treatment) => {
+                                const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
+                                let totalCost = baseCost;
+                                if (treatment.multiplyCost && treatment.tooth) {
+                                    const toothCount = treatment.tooth.split(',').filter(Boolean).length;
+                                    totalCost *= toothCount;
+                                }
+                                const finalCost = totalCost - (treatment.discountAmount || 0);
+
+                                return editingId === treatment.id ? (
+                                    <TreatmentFormRow
+                                        key={treatment.id}
+                                        initialData={treatment}
+                                        allTreatments={allTreatments}
+                                        onCancel={() => setEditingId(null)}
+                                        onCreateNewTreatment={onCreateNewTreatment}
+                                    />
+                                ) : (
+                                    <TableRow key={treatment.id}>
+                                        <TableCell className="font-medium">{treatment.name}</TableCell>
+                                        <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                        <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
+                                        <TableCell>
+                                            {treatment.discountValue ? (
+                                                <span>
+                                                    {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
+                                                    <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
+                                                </span>
+                                            ) : ('N/A')}
+                                        </TableCell>
+                                        <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                            {assignedTreatments.length === 0 && editingId !== 'new' && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </form>
+        </FormProvider>
     );
 }
 
@@ -1638,33 +1665,35 @@ interface TreatmentFormRowProps {
     initialData?: AssignedTreatment;
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
-    onSave: (data: AssignedTreatment) => void;
     onCancel: () => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const formMethods = useForm<TreatmentPlanFormValues>({
-        resolver: zodResolver(treatmentPlanSchema),
-    });
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = formMethods;
+function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset, formState } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
+        const isNew = !initialData;
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
 
-        const defaultValues: TreatmentPlanFormValues = {
+        const defaultValues: Partial<TreatmentPlanFormValues> = {
             id: initialData?.id || 'new',
-            treatmentId: initialData?.treatmentId || prefillData?.treatmentId || '',
-            name: initialData?.name || prefillData?.name || '',
-            tooth: initialData?.tooth || prefillData?.tooth || '',
-            cost: initialData?.cost ?? prefillData?.cost ?? selectedTreatment?.cost ?? undefined,
-            multiplyCost: initialData?.multiplyCost ?? prefillData?.multiplyCost ?? false,
-            discountType: initialData?.discountType || prefillData?.discountType || 'Amount',
+            treatmentId: initialData?.treatmentId || prefillData?.treatmentId,
+            name: initialData?.name || prefillData?.name,
+            tooth: initialData?.tooth || prefillData?.tooth,
+            cost: initialData?.cost ?? prefillData?.cost ?? selectedTreatment?.cost,
+            multiplyCost: initialData?.multiplyCost ?? prefillData?.multiplyCost,
+            discountType: initialData?.discountType || prefillData?.discountType,
             discountValue: initialData?.discountValue || prefillData?.discountValue,
         };
         
-        reset(defaultValues);
-    }, [initialData, prefillData, reset, allTreatments]);
+        Object.entries(defaultValues).forEach(([key, value]) => {
+            if (value !== undefined) {
+                setValue(key as keyof TreatmentPlanFormValues, value);
+            }
+        });
+
+    }, [initialData, prefillData, allTreatments, setValue, reset]);
 
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
@@ -1715,156 +1744,130 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
         setIsToothChartOpen(false);
     }
 
-    const handleFormSubmit = (data: TreatmentPlanFormValues) => {
-        let totalCost = data.cost || 0;
-        if (data.multiplyCost && data.tooth) {
-            const toothCount = data.tooth.split(',').filter(Boolean).length;
-            totalCost *= toothCount;
-        }
-
-        let totalDiscount = 0;
-        if (data.discountType && data.discountValue) {
-            if (data.discountType === 'Amount') {
-                totalDiscount = data.discountValue;
-            } else {
-                totalDiscount = (totalCost * data.discountValue) / 100;
-            }
-        }
-        
-        onSave({
-            ...data,
-            dateAdded: new Date().toISOString(),
-            cost: data.cost ?? 0,
-            discountAmount: totalDiscount
-        });
-    }
-
     return (
         <TableRow className="bg-muted/50 align-top">
-            <FormProvider {...formMethods}>
-                <TableCell className='min-w-[200px] pt-4'>
+            <TableCell className='min-w-[200px] pt-4'>
+                <FormField
+                    name="treatmentId"
+                    control={control}
+                    render={({ field }) => (
+                        <FormItem>
+                            <SingleSelectDropdown
+                                options={allTreatments}
+                                selected={field.value}
+                                onChange={(id) => {
+                                    handleTreatmentChange(id);
+                                    field.onChange(id);
+                                }}
+                                onCreate={async (name) => {
+                                    const newTreatment = await onCreateNewTreatment(name);
+                                    if (newTreatment) {
+                                        handleTreatmentChange(newTreatment.id);
+                                        field.onChange(newTreatment.id);
+                                    }
+                                    return newTreatment;
+                                }}
+                                placeholder="Select treatment"
+                            />
+                            {errors.treatmentId && <FormMessage>{errors.treatmentId.message}</FormMessage>}
+                        </FormItem>
+                    )}
+                />
+            </TableCell>
+            <TableCell className="pt-4">
+                <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
+                    <DialogTrigger asChild>
+                        <Button type="button" variant="outline" className="w-[120px] justify-start text-left font-normal truncate">
+                        {toothValue || 'Add Tooth'}
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl">
+                        <DialogHeader>
+                            <div className='flex justify-between items-center'>
+                                <DialogTitle>Select Teeth</DialogTitle>
+                                <FormField
+                                    name="multiplyCost"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <FormItem className="flex items-center gap-2 space-y-0">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            <FormLabel className="font-normal">Multiply cost by # of teeth</FormLabel>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="flex items-center space-x-2 pt-2">
+                                <Checkbox 
+                                    id="form-primary-teeth" 
+                                    checked={showPrimaryTeeth}
+                                    onCheckedChange={(checked) => setShowPrimaryTeeth(Boolean(checked))}
+                                />
+                                <Label htmlFor="form-primary-teeth" className="font-medium">Show Primary Teeth</Label>
+                            </div>
+                        </DialogHeader>
+                        {showPrimaryTeeth ? (
+                            <PrimaryToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
+                        ) : (
+                            <ToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
+                        )}
+                        <DialogFooter>
+                            <Button onClick={handleSaveTeeth}>Save Selection</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </TableCell>
+            <TableCell className="pt-2">
+                <FormField name="cost" control={control} render={({ field }) => (
+                    <FormItem>
+                        <FormControl>
+                            <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />
+                        </FormControl>
+                         {errors.cost && <FormMessage>{errors.cost.message}</FormMessage>}
+                    </FormItem>
+                )} />
+            </TableCell>
+            <TableCell className="pt-2">
+                <div className='flex gap-1'>
                     <FormField
-                        name="treatmentId"
+                        name="discountType"
                         control={control}
                         render={({ field }) => (
                             <FormItem>
-                                <SingleSelectDropdown
-                                    options={allTreatments}
-                                    selected={field.value}
-                                    onChange={(id) => {
-                                        handleTreatmentChange(id);
-                                        field.onChange(id);
-                                    }}
-                                    onCreate={async (name) => {
-                                        const newTreatment = await onCreateNewTreatment(name);
-                                        if (newTreatment) {
-                                            handleTreatmentChange(newTreatment.id);
-                                            field.onChange(newTreatment.id);
-                                        }
-                                        return newTreatment;
-                                    }}
-                                    placeholder="Select treatment"
-                                />
-                                {errors.treatmentId && <FormMessage>{errors.treatmentId.message}</FormMessage>}
+                                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className='w-[120px]'>
+                                            <SelectValue placeholder="Type" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Amount">Amount (Rs)</SelectItem>
+                                        <SelectItem value="Percentage">Percentage (%)</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </FormItem>
                         )}
                     />
-                </TableCell>
-                <TableCell className="pt-4">
-                    <Dialog open={isToothChartOpen} onOpenChange={setIsToothChartOpen}>
-                        <DialogTrigger asChild>
-                            <Button type="button" variant="outline" className="w-[120px] justify-start text-left font-normal truncate">
-                            {toothValue || 'Add Tooth'}
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl">
-                            <DialogHeader>
-                                <div className='flex justify-between items-center'>
-                                    <DialogTitle>Select Teeth</DialogTitle>
-                                    <FormField
-                                        name="multiplyCost"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <FormItem className="flex items-center gap-2 space-y-0">
-                                                <FormControl>
-                                                    <Checkbox
-                                                        checked={field.value}
-                                                        onCheckedChange={field.onChange}
-                                                    />
-                                                </FormControl>
-                                                <FormLabel className="font-normal">Multiply cost by # of teeth</FormLabel>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-                                <div className="flex items-center space-x-2 pt-2">
-                                    <Checkbox 
-                                        id="form-primary-teeth" 
-                                        checked={showPrimaryTeeth}
-                                        onCheckedChange={(checked) => setShowPrimaryTeeth(Boolean(checked))}
-                                    />
-                                    <Label htmlFor="form-primary-teeth" className="font-medium">Show Primary Teeth</Label>
-                                </div>
-                            </DialogHeader>
-                            {showPrimaryTeeth ? (
-                                <PrimaryToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
-                            ) : (
-                                <ToothChart onToothClick={handleToothSelection} selectedTeeth={selectedTeeth} />
-                            )}
-                            <DialogFooter>
-                                <Button onClick={handleSaveTeeth}>Save Selection</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </TableCell>
-                <TableCell className="pt-2">
-                    <FormField name="cost" control={control} render={({ field }) => (
+                     <FormField name="discountValue" control={control} render={({ field }) => (
                         <FormItem>
                             <FormControl>
-                                <Input {...field} type="number" placeholder='Cost' className="w-28" value={field.value ?? ''} />
+                                <Input {...field} type="number" placeholder='Value' className="w-24" value={field.value ?? ''} />
                             </FormControl>
-                             {errors.cost && <FormMessage>{errors.cost.message}</FormMessage>}
                         </FormItem>
-                    )} />
-                </TableCell>
-                <TableCell className="pt-2">
-                    <div className='flex gap-1'>
-                        <FormField
-                            name="discountType"
-                            control={control}
-                            render={({ field }) => (
-                                <FormItem>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger className='w-[120px]'>
-                                                <SelectValue placeholder="Type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="Amount">Amount (Rs)</SelectItem>
-                                            <SelectItem value="Percentage">Percentage (%)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </FormItem>
-                            )}
-                        />
-                         <FormField name="discountValue" control={control} render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Input {...field} type="number" placeholder='Value' className="w-24" value={field.value ?? ''} />
-                                </FormControl>
-                            </FormItem>
-                         )} />
-                    </div>
-                </TableCell>
-                <TableCell className="font-medium pt-4">
-                    Rs. {calculateTotal().toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right pt-4">
-                    <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(handleFormSubmit)}><Save className="h-4 w-4" /></Button>
-                    <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
-                </TableCell>
-            </FormProvider>
+                     )} />
+                </div>
+            </TableCell>
+            <TableCell className="font-medium pt-4">
+                Rs. {calculateTotal().toFixed(2)}
+            </TableCell>
+            <TableCell className="text-right pt-4">
+                <Button type="submit" variant="ghost" size="icon"><Save className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+            </TableCell>
         </TableRow>
     );
 }
@@ -2085,4 +2088,5 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
