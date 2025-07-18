@@ -1392,8 +1392,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>File Name</TableHead>
-                                                <TableHead>Size</TableHead>
-                                                <TableHead>Date Uploaded</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -1402,23 +1400,18 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                                 patient.files.map((file) => (
                                                     <TableRow key={file.id}>
                                                         <TableCell className="font-medium">{file.name}</TableCell>
-                                                        <TableCell>{formatFileSize(file.size)}</TableCell>
-                                                        <TableCell>{formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}</TableCell>
-                                                        <TableCell className="text-right space-x-2">
+                                                        <TableCell className="text-right">
                                                             <Button asChild variant="outline" size="sm">
                                                                 <a href={file.url} target="_blank" rel="noopener noreferrer">
                                                                     <Download className="mr-2 h-4 w-4" /> View
                                                                 </a>
-                                                            </Button>
-                                                            <Button variant="destructive" size="sm" onClick={() => setFileToDelete(file)}>
-                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                             </Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))
                                             ) : (
                                                 <TableRow>
-                                                    <TableCell colSpan={4} className="h-24 text-center">
+                                                    <TableCell colSpan={2} className="h-24 text-center">
                                                         No files uploaded for this patient yet.
                                                     </TableCell>
                                                 </TableRow>
@@ -1710,10 +1703,13 @@ interface TreatmentPlanTableProps {
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const assignedTreatments = patient.assignedTreatments || [];
     const methods = useForm();
+    const handleFormSubmit = (data: AssignedTreatment) => {
+        onSave(data);
+    };
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSave as any)}>
+            <form onSubmit={methods.handleSubmit(handleFormSubmit)}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1737,7 +1733,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                 />
                             )}
                             {assignedTreatments.map((treatment) => {
-                                const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
+                                const baseCost = treatment.cost || 0;
                                 let totalCost = baseCost;
                                 if (treatment.multiplyCost && treatment.tooth) {
                                     const toothCount = treatment.tooth.split(',').filter(Boolean).length;
@@ -1798,7 +1794,7 @@ interface TreatmentFormRowProps {
 }
 
 function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onSave, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm<TreatmentPlanFormValues>();
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
         const isNew = !initialData;
@@ -1890,7 +1886,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
         
         onSave({
             ...data,
-            dateAdded: new Date().toISOString(),
+            dateAdded: initialData?.dateAdded || new Date().toISOString(),
             cost: data.cost ?? 0,
             discountAmount: totalDiscount
         });
@@ -2240,6 +2236,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
