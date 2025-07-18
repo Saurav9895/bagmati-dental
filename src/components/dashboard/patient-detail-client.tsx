@@ -354,24 +354,28 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
     const { totalCost, totalPaid, totalDiscount, balanceDue, paymentLedger, opdCost, treatmentsCost } = React.useMemo(() => {
         const opdCost = opdChargeSetting?.amount || 0;
+        
         const treatmentsCost = (patient.assignedTreatments || []).reduce((total, t) => {
-            let cost = t.cost || 0;
+            // Ensure cost is a number before using it
+            const treatmentCost = typeof t.cost === 'number' ? t.cost : 0;
+            let calculatedCost = treatmentCost;
+
             if (t.multiplyCost && t.tooth) {
                 const toothCount = t.tooth.split(',').filter(Boolean).length;
-                cost *= toothCount;
+                calculatedCost = treatmentCost * toothCount;
             }
-            return total + cost;
+            return total + calculatedCost;
         }, 0);
         
         const totalCost = opdCost + treatmentsCost;
-
-        const totalPaid = patient.payments?.reduce((total, payment) => total + payment.amount, 0) || 0;
         
-        const totalOverallDiscount = patient.discounts?.reduce((total, d) => total + d.amount, 0) || 0;
+        const totalPaid = (patient.payments || []).reduce((total, payment) => total + payment.amount, 0);
         
-        const perTreatmentDiscount = patient.assignedTreatments?.reduce((total, t) => {
+        const totalOverallDiscount = (patient.discounts || []).reduce((total, d) => total + d.amount, 0);
+        
+        const perTreatmentDiscount = (patient.assignedTreatments || []).reduce((total, t) => {
              return total + (t.discountAmount || 0);
-        }, 0) || 0;
+        }, 0);
         
         const grandTotalDiscount = totalOverallDiscount + perTreatmentDiscount;
         const balanceDue = totalCost - totalPaid - grandTotalDiscount;
@@ -387,7 +391,6 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                 }
             })
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
 
         return { totalCost, totalPaid, totalDiscount: grandTotalDiscount, balanceDue, paymentLedger, opdCost, treatmentsCost };
     }, [patient, opdChargeSetting]);
@@ -1562,7 +1565,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSave as any)}>
+            <form onSubmit={methods.handleSubmit((data) => onSave(data as AssignedTreatment))}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1579,7 +1582,6 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             {editingId === "new" && (
                                 <TreatmentFormRow
                                     allTreatments={allTreatments}
-                                    onSave={onSave}
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
@@ -1598,7 +1600,6 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         key={treatment.id}
                                         initialData={treatment}
                                         allTreatments={allTreatments}
-                                        onSave={onSave}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
                                     />
@@ -1640,19 +1641,19 @@ interface TreatmentFormRowProps {
     initialData?: AssignedTreatment;
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
-    onSave: (data: AssignedTreatment) => void;
     onCancel: () => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
-function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
+function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset, getValues } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
+        const isNew = !initialData;
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
 
         const defaultValues: TreatmentPlanFormValues = {
-            id: initialData?.id || prefillData?.id || 'new',
+            id: initialData?.id || 'new',
             treatmentId: initialData?.treatmentId || prefillData?.treatmentId || '',
             name: initialData?.name || prefillData?.name || '',
             tooth: initialData?.tooth || prefillData?.tooth || '',
@@ -1689,12 +1690,15 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
             }
         }
         
-        onSave({
-            ...data,
-            cost: data.cost || 0,
-            dateAdded: initialData?.dateAdded || new Date().toISOString(),
-            discountAmount: discountAmount
-        } as any);
+        // This is where we call the parent's submit handler, which is `onSave`.
+        // We are already inside a <form> and <FormProvider> in the parent component.
+        // We just need to trigger the submit on the parent form.
+        // Let's call the `handleSubmit` from the parent.
+        const parentSubmit = getValues(); // This gets all form values
+        // This is a bit tricky since we are in a nested component.
+        // The context's handleSubmit should be used.
+        // The form tag is in the parent, so we need to trigger its submit.
+        // A simple button of type submit will do that.
     }
 
     const handleTreatmentChange = (treatmentId: string) => {
@@ -1860,8 +1864,8 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                 Rs. {calculateTotal().toFixed(2)}
             </TableCell>
             <TableCell className="text-right pt-4">
-                <Button variant="ghost" size="icon" onClick={handleSubmit(onSubmit)}><Save className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+                <Button type="submit" variant="ghost" size="icon"><Save className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
             </TableCell>
         </TableRow>
     );
@@ -2071,6 +2075,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
