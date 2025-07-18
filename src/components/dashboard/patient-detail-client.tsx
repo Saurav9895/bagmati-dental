@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -1772,7 +1772,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     }
 
     return (
-        <Form {...methods}>
+        
             <TableRow className="bg-muted/50 align-top">
                 <TableCell className='min-w-[200px] pt-4'>
                     <FormField
@@ -1897,7 +1897,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
                     <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
                 </TableCell>
             </TableRow>
-        </Form>
+        
     );
 }
 
@@ -2100,3 +2100,4 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
     
 
     
+
