@@ -714,7 +714,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 <DialogHeader>
                                     <DialogTitle>Edit Patient Details</DialogTitle>
                                 </DialogHeader>
-                                <Form {...patientForm}>
+                                <FormProvider {...patientForm}>
                                     <form onSubmit={patientForm.handleSubmit(handlePatientFormSubmit)} className="space-y-6 py-4">
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <FormField control={patientForm.control} name="name" render={({ field }) => (
@@ -785,7 +785,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             </Button>
                                         </DialogFooter>
                                     </form>
-                                </Form>
+                                </FormProvider>
                             </DialogContent>
                         </Dialog>
                     </CardHeader>
@@ -1388,36 +1388,41 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                     />
                                 </CardHeader>
                                 <CardContent>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>File Name</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {patient.files && patient.files.length > 0 ? (
-                                                patient.files.map((file) => (
-                                                    <TableRow key={file.id}>
-                                                        <TableCell className="font-medium">{file.name}</TableCell>
-                                                        <TableCell className="text-right">
-                                                            <Button asChild variant="outline" size="sm">
-                                                                <a href={file.url} target="_blank" rel="noopener noreferrer">
-                                                                    <Download className="mr-2 h-4 w-4" /> View
-                                                                </a>
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
-                                            ) : (
-                                                <TableRow>
-                                                    <TableCell colSpan={2} className="h-24 text-center">
-                                                        No files uploaded for this patient yet.
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </TableBody>
-                                    </Table>
+                                    {patient.files && patient.files.length > 0 ? (
+                                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                            {patient.files.map((file) => (
+                                                <Card key={file.id} className="flex flex-col">
+                                                    <CardHeader className="flex-row items-start gap-4 space-y-0 p-4">
+                                                        <div className="flex-shrink-0">
+                                                            <FileIcon className="h-8 w-8 text-muted-foreground" />
+                                                        </div>
+                                                        <div className="flex-grow">
+                                                            <p className="font-semibold text-sm break-all">{file.name}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {formatFileSize(file.size)} &bull; {formatDistanceToNow(new Date(file.uploadedAt), { addSuffix: true })}
+                                                            </p>
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardContent className="flex justify-end gap-2 p-4 pt-0 mt-auto">
+                                                        <Button asChild variant="outline" size="sm">
+                                                            <a href={file.url} target="_blank" rel="noopener noreferrer">
+                                                                <Eye className="mr-2 h-4 w-4" /> View
+                                                            </a>
+                                                        </Button>
+                                                        <Button variant="destructive" size="sm" onClick={() => setFileToDelete(file)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                        </Button>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-center h-48 rounded-lg border-2 border-dashed bg-muted/50">
+                                            <FileIcon className="h-10 w-10 text-muted-foreground" />
+                                            <p className="mt-2 text-sm font-medium text-muted-foreground">No files uploaded yet.</p>
+                                            <p className="text-xs text-muted-foreground">Click "Upload File" to add documents.</p>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -1702,84 +1707,81 @@ interface TreatmentPlanTableProps {
 
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const assignedTreatments = patient.assignedTreatments || [];
-    const methods = useForm();
-    const handleFormSubmit = (data: AssignedTreatment) => {
-        onSave(data);
-    };
+    const methods = useForm<TreatmentPlanFormValues>({
+        resolver: zodResolver(treatmentPlanSchema),
+    });
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(handleFormSubmit)}>
-                <div className="border rounded-md">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className='min-w-[200px]'>Treatment</TableHead>
-                                <TableHead>Tooth</TableHead>
-                                <TableHead>Cost</TableHead>
-                                <TableHead>Discount</TableHead>
-                                <TableHead>Total</TableHead>
-                                <TableHead className="w-[100px] text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {editingId === "new" && (
+            <div className="border rounded-md">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className='min-w-[200px]'>Treatment</TableHead>
+                            <TableHead>Tooth</TableHead>
+                            <TableHead>Cost</TableHead>
+                            <TableHead>Discount</TableHead>
+                            <TableHead>Total</TableHead>
+                            <TableHead className="w-[100px] text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {editingId === "new" && (
+                            <TreatmentFormRow
+                                allTreatments={allTreatments}
+                                onCancel={() => setEditingId(null)}
+                                onCreateNewTreatment={onCreateNewTreatment}
+                                prefillData={prefillData}
+                                onSave={onSave}
+                            />
+                        )}
+                        {assignedTreatments.map((treatment) => {
+                            const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
+                            let totalCost = baseCost;
+                            if (treatment.multiplyCost && treatment.tooth) {
+                                const toothCount = treatment.tooth.split(',').filter(Boolean).length;
+                                totalCost *= toothCount;
+                            }
+                            const finalCost = totalCost - (treatment.discountAmount || 0);
+
+                            return editingId === treatment.id ? (
                                 <TreatmentFormRow
+                                    key={treatment.id}
+                                    initialData={treatment}
                                     allTreatments={allTreatments}
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
-                                    prefillData={prefillData}
                                     onSave={onSave}
                                 />
-                            )}
-                            {assignedTreatments.map((treatment) => {
-                                const baseCost = treatment.cost || 0;
-                                let totalCost = baseCost;
-                                if (treatment.multiplyCost && treatment.tooth) {
-                                    const toothCount = treatment.tooth.split(',').filter(Boolean).length;
-                                    totalCost *= toothCount;
-                                }
-                                const finalCost = totalCost - (treatment.discountAmount || 0);
-
-                                return editingId === treatment.id ? (
-                                    <TreatmentFormRow
-                                        key={treatment.id}
-                                        initialData={treatment}
-                                        allTreatments={allTreatments}
-                                        onCancel={() => setEditingId(null)}
-                                        onCreateNewTreatment={onCreateNewTreatment}
-                                        onSave={onSave}
-                                    />
-                                ) : (
-                                    <TableRow key={treatment.id}>
-                                        <TableCell className="font-medium">{treatment.name}</TableCell>
-                                        <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                        <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
-                                        <TableCell>
-                                            {treatment.discountValue ? (
-                                                <span>
-                                                    {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
-                                                    <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
-                                                </span>
-                                            ) : ('N/A')}
-                                        </TableCell>
-                                        <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                            {assignedTreatments.length === 0 && editingId !== 'new' && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                            ) : (
+                                <TableRow key={treatment.id}>
+                                    <TableCell className="font-medium">{treatment.name}</TableCell>
+                                    <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                    <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
+                                    <TableCell>
+                                        {treatment.discountValue ? (
+                                            <span>
+                                                {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
+                                                <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
+                                            </span>
+                                        ) : ('N/A')}
+                                    </TableCell>
+                                    <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    </TableCell>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </form>
+                            )
+                        })}
+                        {assignedTreatments.length === 0 && editingId !== 'new' && (
+                            <TableRow>
+                                <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
         </FormProvider>
     );
 }
@@ -1797,7 +1799,6 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
     const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
-        const isNew = !initialData;
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
 
         const defaultValues: Partial<TreatmentPlanFormValues> = {
@@ -1806,9 +1807,9 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
             name: initialData?.name || prefillData?.name,
             tooth: initialData?.tooth || prefillData?.tooth,
             cost: initialData?.cost ?? prefillData?.cost ?? selectedTreatment?.cost,
-            multiplyCost: initialData?.multiplyCost ?? prefillData?.multiplyCost,
-            discountType: initialData?.discountType || prefillData?.discountType,
-            discountValue: initialData?.discountValue || prefillData?.discountValue,
+            multiplyCost: initialData?.multiplyCost ?? prefillData?.multiplyCost ?? false,
+            discountType: initialData?.discountType,
+            discountValue: initialData?.discountValue,
         };
         
         Object.entries(defaultValues).forEach(([key, value]) => {
@@ -2236,6 +2237,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
