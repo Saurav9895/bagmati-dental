@@ -64,8 +64,8 @@ export async function addTreatmentToPatient(patientId: string, treatmentData: Om
         assignedTreatments: updatedTreatments
       });
       
+      // Return the updated data so the client can refresh its state
       const { createdAt, ...serializablePatientData } = patientData;
-
       return {
           id: patientId,
           ...serializablePatientData,
@@ -182,7 +182,7 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
     }
 }
 
-export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'amount'>) {
+export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'amount' | 'dateAdded'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {
