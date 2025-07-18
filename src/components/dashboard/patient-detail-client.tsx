@@ -15,10 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useForm, FormProvider, useFormContext } from 'react-hook-form';
+import { Form, FormProvider, useFormContext, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -969,13 +966,13 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         setEditingId={setEditingTreatmentId}
                                         prefillData={prefillTreatment}
                                         onSave={async (data) => {
+                                            const isNew = !data.id || data.id === 'new';
                                             let result;
-                                            const isNew = data.id === 'new';
                                             if (isNew) {
                                                 const { id, ...newTreatmentData } = data;
                                                 result = await addTreatmentToPatient(patient.id, newTreatmentData);
                                             } else {
-                                                 result = await updateTreatmentInPatientPlan(patient.id, data);
+                                                result = await updateTreatmentInPatientPlan(patient.id, data);
                                             }
 
                                             if (result.success && result.data) {
@@ -1587,8 +1584,8 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                 />
                             )}
                             {assignedTreatments.map((treatment) => {
-                                const cost = typeof treatment.cost === 'number' ? treatment.cost : 0;
-                                let totalCost = cost;
+                                const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
+                                let totalCost = baseCost;
                                 if (treatment.multiplyCost && treatment.tooth) {
                                     const toothCount = treatment.tooth.split(',').filter(Boolean).length;
                                     totalCost *= toothCount;
@@ -1607,7 +1604,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                     <TableRow key={treatment.id}>
                                         <TableCell className="font-medium">{treatment.name}</TableCell>
                                         <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                        <TableCell>Rs. {typeof treatment.cost === 'number' ? treatment.cost.toFixed(2) : 'N/A'}</TableCell>
+                                        <TableCell>Rs. {typeof baseCost === 'number' ? baseCost.toFixed(2) : 'N/A'}</TableCell>
                                         <TableCell>
                                             {treatment.discountValue ? (
                                                 <span>
@@ -2047,6 +2044,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
