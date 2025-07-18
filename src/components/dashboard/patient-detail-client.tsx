@@ -15,10 +15,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormProvider, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFormContext, FormProvider } from 'react-hook-form';
+import { useForm, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -354,14 +354,14 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
     const { totalCost, totalPaid, totalDiscount, balanceDue, paymentLedger, opdCost, treatmentsCost } = React.useMemo(() => {
         const opdCost = opdChargeSetting?.amount || 0;
-        const treatmentsCost = patient.assignedTreatments?.reduce((total, t) => {
+        const treatmentsCost = (patient.assignedTreatments || []).reduce((total, t) => {
             let cost = t.cost || 0;
             if (t.multiplyCost && t.tooth) {
                 const toothCount = t.tooth.split(',').filter(Boolean).length;
                 cost *= toothCount;
             }
             return total + cost;
-        }, 0) || 0;
+        }, 0);
         
         const totalCost = opdCost + treatmentsCost;
 
@@ -1562,7 +1562,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={(e) => { e.preventDefault(); }}>
+            <form onSubmit={methods.handleSubmit(onSave as any)}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1579,7 +1579,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             {editingId === "new" && (
                                 <TreatmentFormRow
                                     allTreatments={allTreatments}
-                                    onSave={methods.handleSubmit(onSave as any)}
+                                    onSave={onSave}
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
@@ -1598,7 +1598,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         key={treatment.id}
                                         initialData={treatment}
                                         allTreatments={allTreatments}
-                                        onSave={methods.handleSubmit(onSave as any)}
+                                        onSave={onSave}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
                                     />
@@ -1640,7 +1640,7 @@ interface TreatmentFormRowProps {
     initialData?: AssignedTreatment;
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
-    onSave: () => void;
+    onSave: (data: AssignedTreatment) => void;
     onCancel: () => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
@@ -2071,6 +2071,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
