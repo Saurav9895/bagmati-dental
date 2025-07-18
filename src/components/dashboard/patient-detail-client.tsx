@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FormProvider, useForm } from 'react-hook-form';
+import { useForm, FormProvider, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -32,7 +32,7 @@ import { addChiefComplaint, updateChiefComplaint, deleteChiefComplaint, addDenta
 import { addTreatment, updateTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, useFormContext } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { storage } from '@/lib/firebase';
@@ -1051,23 +1051,21 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         editingId={editingTreatmentId}
                                         setEditingId={setEditingTreatmentId}
                                         prefillData={prefillTreatment}
-                                        onSave={async (data) => {
+                                        onSave={(data) => {
                                             const isNew = !data.id || data.id === 'new';
-                                            let result;
-                                            if (isNew) {
-                                                const { id, ...newTreatmentData } = data;
-                                                result = await addTreatmentToPatient(patient.id, newTreatmentData);
-                                            } else {
-                                                result = await updateTreatmentInPatientPlan(patient.id, data);
-                                            }
+                                            const promise = isNew
+                                                ? addTreatmentToPatient(patient.id, { ...data, id: '' })
+                                                : updateTreatmentInPatientPlan(patient.id, data);
 
-                                            if (result.success && result.data) {
-                                                setPatient(p => ({...p, ...result.data}));
-                                                toast({ title: `Treatment ${isNew ? 'added' : 'updated'}` });
-                                                setEditingTreatmentId(null);
-                                            } else {
-                                                toast({ variant: 'destructive', title: 'Failed to save', description: result.error });
-                                            }
+                                            promise.then(result => {
+                                                if (result.success && result.data) {
+                                                    setPatient(p => ({...p, ...result.data}));
+                                                    toast({ title: `Treatment ${isNew ? 'added' : 'updated'}` });
+                                                    setEditingTreatmentId(null);
+                                                } else {
+                                                    toast({ variant: 'destructive', title: 'Failed to save', description: result.error });
+                                                }
+                                            });
                                         }}
                                         onDelete={(id) => {
                                             const treatment = patient.assignedTreatments?.find(t => t.id === id);
@@ -1722,34 +1720,9 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
         resolver: zodResolver(treatmentPlanSchema),
     });
 
-    const handleSaveRow = async (data: TreatmentPlanFormValues) => {
-        let totalCost = data.cost || 0;
-        if (data.multiplyCost && data.tooth) {
-            const toothCount = data.tooth.split(',').filter(Boolean).length;
-            totalCost *= toothCount;
-        }
-
-        let totalDiscount = 0;
-        if (data.discountType && data.discountValue) {
-            if (data.discountType === 'Amount') {
-                totalDiscount = data.discountValue;
-            } else {
-                totalDiscount = (totalCost * data.discountValue) / 100;
-            }
-        }
-        
-        onSave({
-            ...data,
-            id: data.id,
-            dateAdded: assignedTreatments.find(t => t.id === data.id)?.dateAdded || new Date().toISOString(),
-            cost: data.cost ?? 0,
-            discountAmount: totalDiscount
-        });
-    }
-
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(handleSaveRow)}>
+            <form onSubmit={methods.handleSubmit((data) => onSave(data as AssignedTreatment))}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1769,7 +1742,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
-                                    onSave={handleSaveRow}
+                                    onSave={onSave}
                                 />
                             )}
                             {assignedTreatments.map((treatment) => {
@@ -1788,7 +1761,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         allTreatments={allTreatments}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
-                                        onSave={handleSaveRow}
+                                        onSave={onSave}
                                     />
                                 ) : (
                                     <TableRow key={treatment.id}>
@@ -1829,7 +1802,7 @@ interface TreatmentFormRowProps {
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
     onCancel: () => void;
-    onSave: (data: TreatmentPlanFormValues) => void;
+    onSave: (data: AssignedTreatment) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
@@ -1864,6 +1837,31 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
     const [showPrimaryTeeth, setShowPrimaryTeeth] = React.useState(false);
     
     const { cost, discountType, discountValue, multiplyCost, tooth } = watch();
+
+    const handleFormSubmit = (data: TreatmentPlanFormValues) => {
+        let totalCost = data.cost || 0;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').filter(Boolean).length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                totalDiscount = data.discountValue;
+            } else {
+                totalDiscount = (totalCost * data.discountValue) / 100;
+            }
+        }
+        
+        onSave({
+            ...data,
+            id: data.id,
+            dateAdded: initialData?.dateAdded || new Date().toISOString(),
+            cost: data.cost ?? 0,
+            discountAmount: totalDiscount
+        });
+    }
 
     const calculateTotal = () => {
         let totalCost = cost || 0;
@@ -2028,7 +2026,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
                 Rs. {calculateTotal().toFixed(2)}
             </TableCell>
             <TableCell className="text-right pt-4">
-                <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(onSave)}><Save className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(handleFormSubmit)}><Save className="h-4 w-4" /></Button>
                 <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
             </TableCell>
         </TableRow>
@@ -2251,6 +2249,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
