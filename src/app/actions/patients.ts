@@ -1,11 +1,10 @@
 
 
-
 'use server';
 
 import { db } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
-import { doc, runTransaction, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, runTransaction, updateDoc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export async function updatePatientDetails(patientId: string, patientData: Partial<Omit<Patient, 'id'>>) {
     const patientRef = doc(db, 'patients', patientId);
@@ -182,7 +181,7 @@ export async function addPaymentToPatient(patientId: string, payment: Omit<Payme
     }
 }
 
-export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'amount' | 'dateAdded'>) {
+export async function addDiscountToPatient(patientId: string, discount: Omit<Discount, 'id' | 'dateAdded'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const updatedPatientData = await runTransaction(db, async (transaction) => {
@@ -192,19 +191,10 @@ export async function addDiscountToPatient(patientId: string, discount: Omit<Dis
             }
 
             const patientData = patientDoc.data() as Patient;
-            
-            const totalCost = patientData.assignedTreatments?.reduce((sum, t) => sum + t.cost, 0) || 0;
-            let discountAmount = 0;
-            if (discount.type === 'Percentage') {
-                discountAmount = (totalCost * discount.value) / 100;
-            } else {
-                discountAmount = discount.value;
-            }
 
             const newDiscount: Discount = {
                 id: crypto.randomUUID(),
                 ...discount,
-                amount: discountAmount,
                 dateAdded: new Date().toISOString(),
             };
 
