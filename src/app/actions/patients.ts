@@ -28,6 +28,11 @@ export async function updatePatientDetails(patientId: string, patientData: Parti
 export async function addTreatmentToPatient(patientId: string, treatmentData: Omit<AssignedTreatment, 'dateAdded'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
+        const newAssignedTreatment: AssignedTreatment = {
+            ...treatmentData,
+            dateAdded: new Date().toISOString(),
+        };
+
         const updatedPatientData = await runTransaction(db, async (transaction) => {
             const patientDoc = await transaction.get(patientRef);
             if (!patientDoc.exists()) {
@@ -35,12 +40,6 @@ export async function addTreatmentToPatient(patientId: string, treatmentData: Om
             }
 
             const patientData = patientDoc.data() as Patient;
-            
-            const newAssignedTreatment: AssignedTreatment = {
-                ...treatmentData,
-                dateAdded: new Date().toISOString(),
-            };
-
             const currentTreatments = patientData.assignedTreatments || [];
             const updatedTreatments = [...currentTreatments, newAssignedTreatment];
 
@@ -56,6 +55,7 @@ export async function addTreatmentToPatient(patientId: string, treatmentData: Om
                 assignedTreatments: updatedTreatments
             };
         });
+        
         return { success: true, data: updatedPatientData };
     } catch (e) {
         console.error("Transaction failed: ", e);
