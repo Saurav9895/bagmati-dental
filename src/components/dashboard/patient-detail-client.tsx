@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -1565,18 +1566,9 @@ interface TreatmentPlanTableProps {
 }
 
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
-    const { toast } = useToast();
     const methods = useForm<TreatmentPlanFormValues>();
 
     const handleSave = (formData: AssignedTreatment) => {
-        if (!formData.treatmentId) {
-            toast({ variant: 'destructive', title: 'Please select a treatment type.' });
-            return;
-        }
-        if (formData.cost === undefined || formData.cost === null) {
-            toast({ variant: 'destructive', title: 'Cost is required.'});
-            return;
-        }
         onSave(formData);
     }
     
