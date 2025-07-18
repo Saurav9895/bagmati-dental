@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
+import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -1562,9 +1562,33 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
     const methods = useForm<TreatmentPlanFormValues>();
     const assignedTreatments = patient.assignedTreatments || [];
 
+    const handleFormSubmit = (data: TreatmentPlanFormValues) => {
+        let totalCost = data.cost || 0;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').filter(Boolean).length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                totalDiscount = data.discountValue;
+            } else {
+                totalDiscount = (totalCost * data.discountValue) / 100;
+            }
+        }
+        
+        onSave({
+            ...data,
+            dateAdded: new Date().toISOString(),
+            cost: data.cost ?? 0,
+            discountAmount: totalDiscount
+        });
+    }
+
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSave as any)}>
+            <form onSubmit={methods.handleSubmit(handleFormSubmit)}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1607,12 +1631,12 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                     <TableRow key={treatment.id}>
                                         <TableCell className="font-medium">{treatment.name}</TableCell>
                                         <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                        <TableCell>Rs. {typeof treatment.cost === 'number' ? treatment.cost.toFixed(2) : 'N/A'}</TableCell>
+                                        <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
                                         <TableCell>
                                             {treatment.discountValue ? (
                                                 <span>
                                                     {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
-                                                    <span className='text-muted-foreground'> (-Rs. {treatment.discountAmount?.toFixed(2)})</span>
+                                                    <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
                                                 </span>
                                             ) : ('N/A')}
                                         </TableCell>
@@ -1646,10 +1670,9 @@ interface TreatmentFormRowProps {
 }
 
 function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
+    const { control, setValue, watch, formState: { errors }, reset } = useForm<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
-        const isNew = !initialData;
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
 
         const defaultValues: TreatmentPlanFormValues = {
