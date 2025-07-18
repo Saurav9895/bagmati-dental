@@ -15,10 +15,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormProvider } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm, useFormContext } from 'react-hook-form';
+import { useForm, useFormContext, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -968,7 +968,8 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                         prefillData={prefillTreatment}
                                         onSave={async (data) => {
                                             let result;
-                                            if (data.id === 'new') {
+                                            const isNew = data.id === 'new';
+                                            if (isNew) {
                                                 const newTreatmentData: Omit<AssignedTreatment, 'dateAdded'> = {
                                                     id: crypto.randomUUID(),
                                                     treatmentId: data.treatmentId,
@@ -987,7 +988,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
 
                                             if (result.success && result.data) {
                                                 setPatient(p => ({...p, ...result.data}));
-                                                toast({ title: `Treatment ${data.id === 'new' ? 'added' : 'updated'}` });
+                                                toast({ title: `Treatment ${isNew ? 'added' : 'updated'}` });
                                                 setEditingTreatmentId(null);
                                             } else {
                                                 toast({ variant: 'destructive', title: 'Failed to save', description: result.error });
@@ -2099,3 +2100,4 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
