@@ -1,6 +1,7 @@
 
 
-'use client';
+
+'use server';
 
 import { db } from '@/lib/firebase';
 import type { Patient, Treatment, Payment, Discount, AssignedTreatment, Prescription, ToothExamination } from '@/lib/types';
@@ -64,7 +65,6 @@ export async function addTreatmentToPatient(patientId: string, treatmentData: Om
         assignedTreatments: updatedTreatments
       });
       
-      // Return the updated data so the client can refresh its state
       const { createdAt, ...serializablePatientData } = patientData;
       return {
           id: patientId,
