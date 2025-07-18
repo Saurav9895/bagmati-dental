@@ -15,10 +15,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormProvider, FormControl, FormField, FormItem, FormLabel, FormMessage, useFormContext } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, useFormContext } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addAppointment, updateAppointment } from '@/app/actions/appointments';
@@ -356,12 +356,12 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
         const opdCost = opdChargeSetting?.amount || 0;
         
         const treatmentsCost = (patient.assignedTreatments || []).reduce((total, t) => {
-            const treatmentCost = typeof t.cost === 'number' ? t.cost : 0;
-            let calculatedCost = treatmentCost;
-
+            const cost = typeof t.cost === 'number' ? t.cost : 0;
+            let calculatedCost = cost;
+    
             if (t.multiplyCost && t.tooth) {
                 const toothCount = t.tooth.split(',').filter(Boolean).length;
-                calculatedCost = treatmentCost * toothCount;
+                calculatedCost = cost * toothCount;
             }
             return total + calculatedCost;
         }, 0);
@@ -2047,6 +2047,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
