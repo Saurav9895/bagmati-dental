@@ -25,22 +25,20 @@ export async function updatePatientDetails(patientId: string, patientData: Parti
     }
 }
 
-export async function addTreatmentToPatient(patientId: string, treatmentData: Omit<AssignedTreatment, 'id' | 'dateAdded'>) {
+export async function addTreatmentToPatient(patientId: string, treatmentData: Omit<AssignedTreatment, 'id'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
-        const newAssignedTreatment: AssignedTreatment = {
-            id: crypto.randomUUID(),
-            ...treatmentData,
-            dateAdded: new Date().toISOString(),
-        };
-
-        // The transaction will only perform the read and write operations.
-        // It should not return any data.
         await runTransaction(db, async (transaction) => {
             const patientDoc = await transaction.get(patientRef);
             if (!patientDoc.exists()) {
                 throw new Error("Patient document does not exist!");
             }
+
+            const newAssignedTreatment: AssignedTreatment = {
+                id: crypto.randomUUID(),
+                ...treatmentData,
+                dateAdded: new Date().toISOString(),
+            };
 
             const patientData = patientDoc.data() as Patient;
             const currentTreatments = patientData.assignedTreatments || [];
@@ -51,14 +49,12 @@ export async function addTreatmentToPatient(patientId: string, treatmentData: Om
             });
         });
         
-        // After the transaction is successful, fetch the updated document.
         const updatedDocSnap = await getDoc(patientRef);
         if (!updatedDocSnap.exists()) {
              throw new Error("Failed to retrieve updated patient data after transaction.");
         }
 
         const updatedPatient = { id: updatedDocSnap.id, ...updatedDocSnap.data() } as Patient;
-        // Omit non-serializable fields before returning to client.
         const { createdAt, ...serializableData } = updatedPatient;
 
         return { success: true, data: serializableData };

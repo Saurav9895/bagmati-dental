@@ -970,16 +970,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             let result;
                                             const isNew = data.id === 'new';
                                             if (isNew) {
-                                                const newTreatmentData: Omit<AssignedTreatment, 'id' | 'dateAdded'> = {
-                                                    treatmentId: data.treatmentId,
-                                                    name: data.name,
-                                                    tooth: data.tooth,
-                                                    cost: data.cost,
-                                                    multiplyCost: data.multiplyCost,
-                                                    discountType: data.discountType,
-                                                    discountValue: data.discountValue,
-                                                    discountAmount: data.discountAmount,
-                                                };
+                                                const { id, ...newTreatmentData } = data;
                                                 result = await addTreatmentToPatient(patient.id, newTreatmentData);
                                             } else {
                                                  result = await updateTreatmentInPatientPlan(patient.id, data);
@@ -1571,7 +1562,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
 
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSave as any)}>
+            <form onSubmit={(e) => { e.preventDefault(); }}>
                 <div className="border rounded-md">
                     <Table>
                         <TableHeader>
@@ -1588,7 +1579,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             {editingId === "new" && (
                                 <TreatmentFormRow
                                     allTreatments={allTreatments}
-                                    onSave={onSave}
+                                    onSave={methods.handleSubmit(onSave as any)}
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
@@ -1607,7 +1598,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         key={treatment.id}
                                         initialData={treatment}
                                         allTreatments={allTreatments}
-                                        onSave={onSave}
+                                        onSave={methods.handleSubmit(onSave as any)}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
                                     />
@@ -1649,7 +1640,7 @@ interface TreatmentFormRowProps {
     initialData?: AssignedTreatment;
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
-    onSave: (data: AssignedTreatment) => void;
+    onSave: () => void;
     onCancel: () => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
@@ -1658,30 +1649,22 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
     const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
-        const defaultValues = {
-            id: initialData?.id || 'new',
-            treatmentId: initialData?.treatmentId || '',
-            name: initialData?.name || '',
-            tooth: initialData?.tooth || '',
-            cost: initialData?.cost,
-            multiplyCost: initialData?.multiplyCost || false,
-            discountType: initialData?.discountType || 'Amount',
-            discountValue: initialData?.discountValue,
-        };
+        const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
 
-        if (prefillData) {
-            const selected = allTreatments.find(t => t.id === prefillData.treatmentId);
-            reset({
-                ...defaultValues,
-                treatmentId: prefillData.treatmentId || '',
-                name: prefillData.name || '',
-                tooth: prefillData.tooth || '',
-                cost: selected?.cost
-            });
-        } else if (initialData) {
-            reset(defaultValues)
-        }
+        const defaultValues: TreatmentPlanFormValues = {
+            id: initialData?.id || prefillData?.id || 'new',
+            treatmentId: initialData?.treatmentId || prefillData?.treatmentId || '',
+            name: initialData?.name || prefillData?.name || '',
+            tooth: initialData?.tooth || prefillData?.tooth || '',
+            cost: initialData?.cost ?? prefillData?.cost ?? selectedTreatment?.cost ?? 0,
+            multiplyCost: initialData?.multiplyCost ?? prefillData?.multiplyCost ?? false,
+            discountType: initialData?.discountType || prefillData?.discountType || 'Amount',
+            discountValue: initialData?.discountValue || prefillData?.discountValue,
+        };
+        
+        reset(defaultValues);
     }, [initialData, prefillData, reset, allTreatments]);
+
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
     const [selectedTeeth, setSelectedTeeth] = React.useState<string[]>(initialData?.tooth?.split(',').filter(Boolean) || prefillData?.tooth?.split(',').filter(Boolean) || []);
@@ -1707,17 +1690,11 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onSave, onC
         }
         
         onSave({
-            id: data.id,
-            treatmentId: data.treatmentId,
-            name: data.name,
-            tooth: data.tooth,
+            ...data,
             cost: data.cost || 0,
-            multiplyCost: data.multiplyCost,
             dateAdded: initialData?.dateAdded || new Date().toISOString(),
-            discountType: data.discountType,
-            discountValue: data.discountValue,
             discountAmount: discountAmount
-        });
+        } as any);
     }
 
     const handleTreatmentChange = (treatmentId: string) => {
@@ -2094,5 +2071,6 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
