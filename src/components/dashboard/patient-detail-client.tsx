@@ -970,8 +970,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             let result;
                                             const isNew = data.id === 'new';
                                             if (isNew) {
-                                                const newTreatmentData: Omit<AssignedTreatment, 'dateAdded'> = {
-                                                    id: crypto.randomUUID(),
+                                                const newTreatmentData: Omit<AssignedTreatment, 'id' | 'dateAdded'> = {
                                                     treatmentId: data.treatmentId,
                                                     name: data.name,
                                                     tooth: data.tooth,
@@ -1568,11 +1567,6 @@ interface TreatmentPlanTableProps {
 
 function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, prefillData, onSave, onDelete, onCreateNewTreatment }: TreatmentPlanTableProps) {
     const methods = useForm<TreatmentPlanFormValues>();
-
-    const handleSave = (formData: AssignedTreatment) => {
-        onSave(formData);
-    }
-    
     const assignedTreatments = patient.assignedTreatments || [];
 
     return (
@@ -1594,7 +1588,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                             {editingId === "new" && (
                                 <TreatmentFormRow
                                     allTreatments={allTreatments}
-                                    onSave={handleSave}
+                                    onSave={onSave}
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
                                     prefillData={prefillData}
@@ -1613,7 +1607,7 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
                                         key={treatment.id}
                                         initialData={treatment}
                                         allTreatments={allTreatments}
-                                        onSave={handleSave}
+                                        onSave={onSave}
                                         onCancel={() => setEditingId(null)}
                                         onCreateNewTreatment={onCreateNewTreatment}
                                     />
@@ -2100,4 +2094,5 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 

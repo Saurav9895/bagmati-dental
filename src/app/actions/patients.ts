@@ -25,10 +25,11 @@ export async function updatePatientDetails(patientId: string, patientData: Parti
     }
 }
 
-export async function addTreatmentToPatient(patientId: string, treatmentData: Omit<AssignedTreatment, 'dateAdded'>) {
+export async function addTreatmentToPatient(patientId: string, treatmentData: Omit<AssignedTreatment, 'id' | 'dateAdded'>) {
     const patientRef = doc(db, 'patients', patientId);
     try {
         const newAssignedTreatment: AssignedTreatment = {
+            id: crypto.randomUUID(),
             ...treatmentData,
             dateAdded: new Date().toISOString(),
         };
