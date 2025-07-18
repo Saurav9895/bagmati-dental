@@ -32,7 +32,7 @@ import { addChiefComplaint, updateChiefComplaint, deleteChiefComplaint, addDenta
 import { addTreatment, updateTreatment } from '@/app/actions/treatments';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, useFormContext } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { storage } from '@/lib/firebase';
@@ -628,7 +628,11 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
     const handleDiscountSubmit = async (data: DiscountFormValues) => {
         setIsSubmittingDiscount(true);
         
-        const result = await addDiscountToPatient(patient.id, data);
+        const result = await addDiscountToPatient(patient.id, {
+            reason: data.reason,
+            type: data.type,
+            value: data.value,
+        });
 
         if (result.success && result.data) {
             setPatient(prev => ({...prev, ...(result.data as Partial<Patient>)}));
@@ -727,7 +731,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                 <DialogHeader>
                                     <DialogTitle>Edit Patient Details</DialogTitle>
                                 </DialogHeader>
-                                <FormProvider {...patientForm}>
+                                <Form {...patientForm}>
                                     <form onSubmit={patientForm.handleSubmit(handlePatientFormSubmit)} className="space-y-6 py-4">
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <FormField control={patientForm.control} name="name" render={({ field }) => (
@@ -798,7 +802,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             </Button>
                                         </DialogFooter>
                                     </form>
-                                </FormProvider>
+                                </Form>
                             </DialogContent>
                         </Dialog>
                     </CardHeader>
@@ -1406,7 +1410,7 @@ export function PatientDetailClient({ initialPatient, treatments: initialTreatme
                                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                         </div>
                                     ) : patientFiles.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                             {patientFiles.map((file) => (
                                                 <div key={file.id} className="flex items-center justify-between rounded-md border p-2 pl-4">
                                                     <span className="text-sm font-medium truncate pr-4">{file.name}</span>
@@ -1718,77 +1722,104 @@ function TreatmentPlanTable({ patient, allTreatments, editingId, setEditingId, p
         resolver: zodResolver(treatmentPlanSchema),
     });
 
+    const handleSaveRow = async (data: TreatmentPlanFormValues) => {
+        let totalCost = data.cost || 0;
+        if (data.multiplyCost && data.tooth) {
+            const toothCount = data.tooth.split(',').filter(Boolean).length;
+            totalCost *= toothCount;
+        }
+
+        let totalDiscount = 0;
+        if (data.discountType && data.discountValue) {
+            if (data.discountType === 'Amount') {
+                totalDiscount = data.discountValue;
+            } else {
+                totalDiscount = (totalCost * data.discountValue) / 100;
+            }
+        }
+        
+        onSave({
+            ...data,
+            id: data.id,
+            dateAdded: assignedTreatments.find(t => t.id === data.id)?.dateAdded || new Date().toISOString(),
+            cost: data.cost ?? 0,
+            discountAmount: totalDiscount
+        });
+    }
+
     return (
         <FormProvider {...methods}>
-            <div className="border rounded-md">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className='min-w-[200px]'>Treatment</TableHead>
-                            <TableHead>Tooth</TableHead>
-                            <TableHead>Cost</TableHead>
-                            <TableHead>Discount</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead className="w-[100px] text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {editingId === "new" && (
-                            <TreatmentFormRow
-                                allTreatments={allTreatments}
-                                onCancel={() => setEditingId(null)}
-                                onCreateNewTreatment={onCreateNewTreatment}
-                                prefillData={prefillData}
-                                onSave={onSave}
-                            />
-                        )}
-                        {assignedTreatments.map((treatment) => {
-                             const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
-                            let totalCost = baseCost;
-                            if (treatment.multiplyCost && treatment.tooth) {
-                                const toothCount = treatment.tooth.split(',').filter(Boolean).length;
-                                totalCost *= toothCount;
-                            }
-                            const finalCost = totalCost - (treatment.discountAmount || 0);
-
-                            return editingId === treatment.id ? (
+            <form onSubmit={methods.handleSubmit(handleSaveRow)}>
+                <div className="border rounded-md">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className='min-w-[200px]'>Treatment</TableHead>
+                                <TableHead>Tooth</TableHead>
+                                <TableHead>Cost</TableHead>
+                                <TableHead>Discount</TableHead>
+                                <TableHead>Total</TableHead>
+                                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {editingId === "new" && (
                                 <TreatmentFormRow
-                                    key={treatment.id}
-                                    initialData={treatment}
                                     allTreatments={allTreatments}
                                     onCancel={() => setEditingId(null)}
                                     onCreateNewTreatment={onCreateNewTreatment}
-                                    onSave={onSave}
+                                    prefillData={prefillData}
+                                    onSave={handleSaveRow}
                                 />
-                            ) : (
-                                <TableRow key={treatment.id}>
-                                    <TableCell className="font-medium">{treatment.name}</TableCell>
-                                    <TableCell>{treatment.tooth || 'N/A'}</TableCell>
-                                    <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
-                                    <TableCell>
-                                        {treatment.discountValue ? (
-                                            <span>
-                                                {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
-                                                <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
-                                            </span>
-                                        ) : ('N/A')}
-                                    </TableCell>
-                                    <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                    </TableCell>
+                            )}
+                            {assignedTreatments.map((treatment) => {
+                                const baseCost = typeof treatment.cost === 'number' ? treatment.cost : 0;
+                                let totalCost = baseCost;
+                                if (treatment.multiplyCost && treatment.tooth) {
+                                    const toothCount = treatment.tooth.split(',').filter(Boolean).length;
+                                    totalCost *= toothCount;
+                                }
+                                const finalCost = totalCost - (treatment.discountAmount || 0);
+
+                                return editingId === treatment.id ? (
+                                    <TreatmentFormRow
+                                        key={treatment.id}
+                                        initialData={treatment}
+                                        allTreatments={allTreatments}
+                                        onCancel={() => setEditingId(null)}
+                                        onCreateNewTreatment={onCreateNewTreatment}
+                                        onSave={handleSaveRow}
+                                    />
+                                ) : (
+                                    <TableRow key={treatment.id}>
+                                        <TableCell className="font-medium">{treatment.name}</TableCell>
+                                        <TableCell>{treatment.tooth || 'N/A'}</TableCell>
+                                        <TableCell>{typeof treatment.cost === 'number' ? `Rs. ${treatment.cost.toFixed(2)}` : 'N/A'}</TableCell>
+                                        <TableCell>
+                                            {treatment.discountValue ? (
+                                                <span>
+                                                    {treatment.discountType === 'Percentage' ? `${treatment.discountValue}%` : `Rs. ${treatment.discountValue}`}
+                                                    <span className='text-muted-foreground'> (-Rs. {(treatment.discountAmount || 0).toFixed(2)})</span>
+                                                </span>
+                                            ) : ('N/A')}
+                                        </TableCell>
+                                        <TableCell className='font-medium'>Rs. {finalCost.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => setEditingId(treatment.id)}><Edit className="h-4 w-4" /></Button>
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => onDelete(treatment.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                            {assignedTreatments.length === 0 && editingId !== 'new' && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
                                 </TableRow>
-                            )
-                        })}
-                        {assignedTreatments.length === 0 && editingId !== 'new' && (
-                            <TableRow>
-                                <TableCell colSpan={6} className="h-24 text-center">No treatments assigned yet.</TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </form>
         </FormProvider>
     );
 }
@@ -1798,14 +1829,12 @@ interface TreatmentFormRowProps {
     prefillData?: Partial<AssignedTreatment> | null;
     allTreatments: Treatment[];
     onCancel: () => void;
-    onSave: (data: AssignedTreatment) => void;
+    onSave: (data: TreatmentPlanFormValues) => void;
     onCreateNewTreatment: (name: string) => Promise<{id: string, name: string} | null>;
 }
 
 function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, onSave, onCreateNewTreatment }: TreatmentFormRowProps) {
-    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useForm({
-        resolver: zodResolver(treatmentPlanSchema),
-    });
+    const { control, handleSubmit, setValue, watch, formState: { errors }, reset } = useFormContext<TreatmentPlanFormValues>();
     
     React.useEffect(() => {
         const selectedTreatment = allTreatments.find(t => t.id === (prefillData?.treatmentId || initialData?.treatmentId));
@@ -1827,7 +1856,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
             }
         });
 
-    }, [initialData, prefillData, allTreatments, setValue, reset]);
+    }, [initialData, prefillData, allTreatments, setValue]);
 
 
     const [isToothChartOpen, setIsToothChartOpen] = React.useState(false);
@@ -1878,31 +1907,6 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
         setIsToothChartOpen(false);
     }
     
-    const handleFormSubmit = (data: TreatmentPlanFormValues) => {
-        let totalCost = data.cost || 0;
-        if (data.multiplyCost && data.tooth) {
-            const toothCount = data.tooth.split(',').filter(Boolean).length;
-            totalCost *= toothCount;
-        }
-
-        let totalDiscount = 0;
-        if (data.discountType && data.discountValue) {
-            if (data.discountType === 'Amount') {
-                totalDiscount = data.discountValue;
-            } else {
-                totalDiscount = (totalCost * data.discountValue) / 100;
-            }
-        }
-        
-        onSave({
-            ...data,
-            id: initialData?.id || 'new',
-            dateAdded: initialData?.dateAdded || new Date().toISOString(),
-            cost: data.cost ?? 0,
-            discountAmount: totalDiscount
-        });
-    }
-
     return (
         <TableRow className="bg-muted/50 align-top">
             <TableCell className='min-w-[200px] pt-4'>
@@ -2024,7 +2028,7 @@ function TreatmentFormRow({ initialData, prefillData, allTreatments, onCancel, o
                 Rs. {calculateTotal().toFixed(2)}
             </TableCell>
             <TableCell className="text-right pt-4">
-                <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(handleFormSubmit)}><Save className="h-4 w-4" /></Button>
+                <Button type="button" variant="ghost" size="icon" onClick={handleSubmit(onSave)}><Save className="h-4 w-4" /></Button>
                 <Button type="button" variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
             </TableCell>
         </TableRow>
@@ -2247,6 +2251,7 @@ function SingleSelectDropdown({ options, selected, onChange, onCreate, placehold
 
 
     
+
 
 
 
